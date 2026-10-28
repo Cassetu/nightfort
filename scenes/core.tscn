@@ -23,3 +23,10 @@ mesh = SubResource("PrismMesh_5634n")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 shape = SubResource("BoxShape3D_hlf4f")
+
+[node name="OmniLight3D" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+light_color = Color(0.4, 1, 1, 1)
+light_energy = 2.5
+shadow_enabled = true
+omni_range = 14.0

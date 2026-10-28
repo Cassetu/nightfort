@@ -1,6 +1,14 @@
 extends StaticBody3D
 signal harvested(resource_type: String, amount: int)
 
+const LEAF_COLORS := [
+	Color(0.13, 0.36, 0.17),
+	Color(0.17, 0.42, 0.20),
+	Color(0.11, 0.30, 0.16),
+	Color(0.22, 0.42, 0.14),
+	Color(0.10, 0.33, 0.24),
+]
+
 @export var max_health: int = 5
 @export var resource_type: String = "wood"
 @export var resource_amount: int = 4
@@ -11,7 +19,7 @@ var variant: int = 0
 var current_health: int
 
 static var _trunk_mat: StandardMaterial3D
-static var _leaf_mats: Array[StandardMaterial3D] = []
+static var _leaf_mats: Array = []
 
 
 func _ready() -> void:
@@ -26,10 +34,11 @@ func _ready() -> void:
 
 	_add_mesh(_make_cylinder(trunk_r * 0.75, trunk_r, trunk_h), _trunk_mat, trunk_h * 0.5)
 
-	var leaf := _leaf_mats[variant % _leaf_mats.size()]
-	var low_base := trunk_h * 0.7
-	_add_mesh(_make_cylinder(0.0, 1.5 * s, 2.6 * s), leaf, low_base + 1.3 * s)
-	_add_mesh(_make_cylinder(0.0, 1.05 * s, 2.2 * s), leaf, low_base + 1.5 * s + 1.1 * s)
+	var tiers: Array = _leaf_mats[variant % _leaf_mats.size()]
+	var base := trunk_h * 0.6
+	_add_mesh(_make_cylinder(0.0, 1.7 * s, 2.4 * s), tiers[0], base + 1.2 * s)
+	_add_mesh(_make_cylinder(0.0, 1.3 * s, 2.2 * s), tiers[1], base + 1.2 * s + 1.1 * s)
+	_add_mesh(_make_cylinder(0.0, 0.9 * s, 2.0 * s), tiers[2], base + 2.4 * s + 1.0 * s)
 
 	var shape := CylinderShape3D.new()
 	shape.radius = trunk_r * 1.1
@@ -68,9 +77,12 @@ func _make_cylinder(top_radius: float, bottom_radius: float, height: float) -> C
 static func _ensure_materials() -> void:
 	if _trunk_mat != null:
 		return
-	_trunk_mat = _make_mat(Color(0.35, 0.23, 0.13))
-	for c in [Color(0.13, 0.36, 0.17), Color(0.17, 0.42, 0.20), Color(0.11, 0.30, 0.16)]:
-		_leaf_mats.append(_make_mat(c))
+	_trunk_mat = _make_mat(Color(0.30, 0.20, 0.12))
+	for c in LEAF_COLORS:
+		var tiers := []
+		for t in 3:
+			tiers.append(_make_mat(c.lightened(0.07 * t)))
+		_leaf_mats.append(tiers)
 
 
 static func _make_mat(c: Color) -> StandardMaterial3D:

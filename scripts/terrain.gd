@@ -1,5 +1,6 @@
 extends Node3D
 const TreeScript = preload("res://scripts/tree.gd")
+const AO_LEVELS := [0.55, 0.7, 0.85, 1.0]
 
 @export_group("World")
 @export var world_seed: int = 1337
@@ -79,26 +80,31 @@ func _build_terrain() -> void:
 			var z1 := z0 + 1.0
 			var shade := 0.9 + 0.2 * _hash(x, z)
 
-			_quad(Vector3(x0, h, z0), Vector3(x1, h, z0), Vector3(x1, h, z1), Vector3(x0, h, z1),
-					Vector3.UP, _shaded(_top_color(h), shade))
+			var top := _shaded(_top_color(h), shade)
+			_quad(
+				[Vector3(x0, h, z0), Vector3(x1, h, z0), Vector3(x1, h, z1), Vector3(x0, h, z1)],
+				[
+					_shaded(top, _ao(x, z, h, -1, -1)),
+					_shaded(top, _ao(x, z, h, 1, -1)),
+					_shaded(top, _ao(x, z, h, 1, 1)),
+					_shaded(top, _ao(x, z, h, -1, 1)),
+				],
+				Vector3.UP)
 
-			var side := _shaded(_side_color(h), shade)
+			var wall_top := _shaded(_side_color(h), shade)
+			var wall_bottom := _shaded(wall_top, 0.6)
 			var nh := _h(x + 1, z)
 			if nh < h:
-				_quad(Vector3(x1, h, z0), Vector3(x1, h, z1), Vector3(x1, nh, z1), Vector3(x1, nh, z0),
-						Vector3.RIGHT, side)
+				_wall(x1, z0, x1, z1, h, nh, Vector3.RIGHT, wall_top, wall_bottom)
 			nh = _h(x - 1, z)
 			if nh < h:
-				_quad(Vector3(x0, h, z1), Vector3(x0, h, z0), Vector3(x0, nh, z0), Vector3(x0, nh, z1),
-						Vector3.LEFT, side)
+				_wall(x0, z1, x0, z0, h, nh, Vector3.LEFT, wall_top, wall_bottom)
 			nh = _h(x, z + 1)
 			if nh < h:
-				_quad(Vector3(x1, h, z1), Vector3(x0, h, z1), Vector3(x0, nh, z1), Vector3(x1, nh, z1),
-						Vector3.BACK, side)
+				_wall(x1, z1, x0, z1, h, nh, Vector3.BACK, wall_top, wall_bottom)
 			nh = _h(x, z - 1)
 			if nh < h:
-				_quad(Vector3(x0, h, z0), Vector3(x1, h, z0), Vector3(x1, nh, z0), Vector3(x0, nh, z0),
-						Vector3.FORWARD, side)
+				_wall(x0, z0, x1, z0, h, nh, Vector3.FORWARD, wall_top, wall_bottom)
 
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
@@ -133,15 +139,29 @@ func _build_terrain() -> void:
 	_norms = PackedVector3Array()
 	_cols = PackedColorArray()
 
-func _quad(a: Vector3, b: Vector3, c: Vector3, d: Vector3, n: Vector3, col: Color) -> void:
-	if (b - a).cross(c - a).dot(n) > 0.0:
-		var t := b
-		b = d
-		d = t
-	for v in [a, b, c, a, c, d]:
-		_verts.append(v)
+func _ao(x: int, z: int, h: int, cx: int, cz: int) -> float:
+	var s1 := 1 if _h(x + cx, z) > h else 0
+	var s2 := 1 if _h(x, z + cz) > h else 0
+	var c := 1 if _h(x + cx, z + cz) > h else 0
+	var level := 0 if (s1 == 1 and s2 == 1) else 3 - (s1 + s2 + c)
+	return AO_LEVELS[level]
+
+
+func _wall(ax: float, az: float, bx: float, bz: float, h: int, nh: int, n: Vector3, top_col: Color, bottom_col: Color) -> void:
+	_quad(
+		[Vector3(ax, h, az), Vector3(bx, h, bz), Vector3(bx, nh, bz), Vector3(ax, nh, az)],
+		[top_col, top_col, bottom_col, bottom_col],
+		n)
+
+
+func _quad(p: Array, c: Array, n: Vector3) -> void:
+	var order := [0, 1, 2, 0, 2, 3]
+	if (p[1] - p[0]).cross(p[2] - p[0]).dot(n) > 0.0:
+		order = [0, 3, 2, 0, 2, 1]
+	for i in order:
+		_verts.append(p[i])
 		_norms.append(n)
-		_cols.append(col)
+		_cols.append(c[i])
 
 
 func _top_color(h: int) -> Color:
@@ -204,7 +224,7 @@ func _spawn_trees() -> void:
 
 		var tree = TreeScript.new()
 		tree.size_factor = rng.randf_range(0.8, 1.4)
-		tree.variant = rng.randi_range(0, 2)
+		tree.variant = rng.randi_range(0, 4)
 		tree.position = Vector3(pos.x, h, pos.y)
 		tree.rotation.y = rng.randf() * TAU
 		holder.add_child(tree)

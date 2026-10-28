@@ -4,6 +4,8 @@
 [ext_resource type="PackedScene" uid="uid://bflgykjdtufop" path="res://scenes/block.tscn" id="2_g2els"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_fj7yv"]
+radius = 0.4
+height = 1.7
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_3vyb7"]
 transparency = 1
@@ -20,7 +22,7 @@ block_scene = ExtResource("2_g2els")
 shape = SubResource("CapsuleShape3D_fj7yv")
 
 [node name="Head" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
 
 [node name="Camera3D" type="Camera3D" parent="Head"]
 

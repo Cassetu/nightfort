@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="Nightfort"
-run/main_scene="uid://bt58y462ssbi8"
+run/main_scene="uid://c66ndex75uxn4"
 config/features=PackedStringArray("4.5", "Forward Plus")
 config/icon="res://icon.svg"
 

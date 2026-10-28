@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3 uid="uid://bt58y462ssbi8"]
+[gd_scene load_steps=9 format=3 uid="uid://c66ndex75uxn4"]
 
 [ext_resource type="PackedScene" uid="uid://dudcni17usbht" path="res://scenes/player.tscn" id="1_nnsk1"]
 [ext_resource type="Script" uid="uid://utfurhj371lw" path="res://scripts/sun.gd" id="1_rwgxs"]
@@ -7,8 +7,9 @@
 [ext_resource type="Script" uid="uid://cn5nycw85jsym" path="res://scripts/terrain.gd" id="5_terra"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_4wyf3"]
-sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
-ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+sky_top_color = Color(0.22, 0.45, 0.85, 1)
+sky_horizon_color = Color(0.62, 0.76, 0.92, 1)
+ground_horizon_color = Color(0.62, 0.76, 0.92, 1)
 
 [sub_resource type="Sky" id="Sky_k0juu"]
 sky_material = SubResource("ProceduralSkyMaterial_4wyf3")
@@ -17,7 +18,20 @@ sky_material = SubResource("ProceduralSkyMaterial_4wyf3")
 background_mode = 2
 sky = SubResource("Sky_k0juu")
 tonemap_mode = 2
+ssao_enabled = true
+ssao_radius = 1.5
+ssao_light_affect = 0.2
 glow_enabled = true
+glow_intensity = 0.6
+glow_bloom = 0.05
+fog_enabled = true
+fog_light_color = Color(0.62, 0.76, 0.92, 1)
+fog_sun_scatter = 0.15
+fog_density = 0.006
+fog_sky_affect = 0.6
+adjustment_enabled = true
+adjustment_contrast = 1.08
+adjustment_saturation = 1.15
 
 [node name="World" type="Node3D"]
 
@@ -27,13 +41,14 @@ environment = SubResource("Environment_71j4m")
 [node name="Sun" type="DirectionalLight3D" parent="."]
 transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
 shadow_enabled = true
+shadow_blur = 1.5
 script = ExtResource("1_rwgxs")
 
 [node name="Terrain" type="Node3D" parent="."]
 script = ExtResource("5_terra")
 
 [node name="Player" parent="." instance=ExtResource("1_nnsk1")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.1473355, 6)
 
 [node name="HUD" parent="." instance=ExtResource("3_4wyf3")]
 
