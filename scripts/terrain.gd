@@ -1,0 +1,222 @@
+extends Node3D
+const TreeScript = preload("res://scripts/tree.gd")
+
+@export_group("World")
+@export var world_seed: int = 1337
+@export var size: int = 128
+@export var base_height: int = 1
+
+@export_group("Hills")
+@export var hill_amplitude: float = 9.0
+@export var hill_frequency: float = 0.018
+@export var plateau_radius: float = 12.0
+@export var plateau_blend: float = 18.0
+@export var edge_wall_width: float = 12.0
+@export var edge_wall_height: float = 16.0
+
+@export_group("Trees")
+@export var tree_count: int = 350
+@export var tree_spacing: float = 3.0
+@export var tree_clear_radius: float = 14.0
+@export var tree_edge_margin: int = 14
+@export var tree_line_height: int = 8
+@export var forest_threshold: float = -0.15
+
+var heights := PackedInt32Array()
+var half: float
+
+var _verts := PackedVector3Array()
+var _norms := PackedVector3Array()
+var _cols := PackedColorArray()
+
+
+func _ready() -> void:
+	half = size / 2.0
+	_generate_heights()
+	_build_terrain()
+	_spawn_trees()
+
+
+func height_at(world_x: float, world_z: float) -> float:
+	return float(_h(floori(world_x + half), floori(world_z + half)))
+
+
+
+func _generate_heights() -> void:
+	var noise := FastNoiseLite.new()
+	noise.seed = world_seed
+	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	noise.fractal_type = FastNoiseLite.FRACTAL_FBM
+	noise.fractal_octaves = 3
+	noise.frequency = hill_frequency
+
+	heights.resize(size * size)
+	for z in size:
+		for x in size:
+			var wx := x - half + 0.5
+			var wz := z - half + 0.5
+			var dist := Vector2(wx, wz).length()
+			var blend := smoothstep(plateau_radius, plateau_radius + plateau_blend, dist)
+			var edge := mini(mini(x, size - 1 - x), mini(z, size - 1 - z))
+			var wall := pow(clampf((edge_wall_width - edge) / edge_wall_width, 0.0, 1.0), 2.0) * edge_wall_height
+			var h := base_height + roundi(noise.get_noise_2d(wx, wz) * hill_amplitude * blend + wall)
+			heights[z * size + x] = maxi(h, 0)
+
+
+func _h(x: int, z: int) -> int:
+	if x < 0 or z < 0 or x >= size or z >= size:
+		return -1
+	return heights[z * size + x]
+
+
+func _build_terrain() -> void:
+	for z in size:
+		for x in size:
+			var h := _h(x, z)
+			var x0 := x - half
+			var z0 := z - half
+			var x1 := x0 + 1.0
+			var z1 := z0 + 1.0
+			var shade := 0.9 + 0.2 * _hash(x, z)
+
+			_quad(Vector3(x0, h, z0), Vector3(x1, h, z0), Vector3(x1, h, z1), Vector3(x0, h, z1),
+					Vector3.UP, _shaded(_top_color(h), shade))
+
+			var side := _shaded(_side_color(h), shade)
+			var nh := _h(x + 1, z)
+			if nh < h:
+				_quad(Vector3(x1, h, z0), Vector3(x1, h, z1), Vector3(x1, nh, z1), Vector3(x1, nh, z0),
+						Vector3.RIGHT, side)
+			nh = _h(x - 1, z)
+			if nh < h:
+				_quad(Vector3(x0, h, z1), Vector3(x0, h, z0), Vector3(x0, nh, z0), Vector3(x0, nh, z1),
+						Vector3.LEFT, side)
+			nh = _h(x, z + 1)
+			if nh < h:
+				_quad(Vector3(x1, h, z1), Vector3(x0, h, z1), Vector3(x0, nh, z1), Vector3(x1, nh, z1),
+						Vector3.BACK, side)
+			nh = _h(x, z - 1)
+			if nh < h:
+				_quad(Vector3(x0, h, z0), Vector3(x1, h, z0), Vector3(x1, nh, z0), Vector3(x0, nh, z0),
+						Vector3.FORWARD, side)
+
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = _verts
+	arrays[Mesh.ARRAY_NORMAL] = _norms
+	arrays[Mesh.ARRAY_COLOR] = _cols
+
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.vertex_color_is_srgb = true
+	mat.roughness = 1.0
+
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	mesh.surface_set_material(0, mat)
+
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = "TerrainMesh"
+	mesh_instance.mesh = mesh
+	add_child(mesh_instance)
+
+	var shape := mesh.create_trimesh_shape()
+	shape.backface_collision = true
+	var collider := CollisionShape3D.new()
+	collider.shape = shape
+	var body := StaticBody3D.new()
+	body.name = "TerrainBody"
+	body.add_child(collider)
+	add_child(body)
+
+	_verts = PackedVector3Array()
+	_norms = PackedVector3Array()
+	_cols = PackedColorArray()
+
+func _quad(a: Vector3, b: Vector3, c: Vector3, d: Vector3, n: Vector3, col: Color) -> void:
+	if (b - a).cross(c - a).dot(n) > 0.0:
+		var t := b
+		b = d
+		d = t
+	for v in [a, b, c, a, c, d]:
+		_verts.append(v)
+		_norms.append(n)
+		_cols.append(col)
+
+
+func _top_color(h: int) -> Color:
+	var grass := Color(0.27, 0.52, 0.20).lerp(Color(0.40, 0.58, 0.24), clampf(h / 7.0, 0.0, 1.0))
+	return grass.lerp(Color(0.52, 0.52, 0.55), clampf((h - 7.0) / 3.0, 0.0, 1.0))
+
+
+func _side_color(h: int) -> Color:
+	return Color(0.42, 0.29, 0.18).lerp(Color(0.36, 0.36, 0.39), clampf((h - 7.0) / 3.0, 0.0, 1.0))
+
+
+func _shaded(c: Color, k: float) -> Color:
+	return Color(c.r * k, c.g * k, c.b * k)
+
+func _hash(x: int, z: int) -> float:
+	var n := (x * 73856093) ^ (z * 19349663) ^ (world_seed * 83492791)
+	n = (n ^ (n >> 13)) * 1274126177
+	return float((n >> 8) & 0xFFFF) / 65535.0
+
+func _spawn_trees() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = world_seed
+
+	var forest := FastNoiseLite.new()
+	forest.seed = world_seed + 1
+	forest.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	forest.frequency = 0.035
+
+	var holder := Node3D.new()
+	holder.name = "Trees"
+	add_child(holder)
+
+	var grid := {}
+	var placed := 0
+	var attempts := 0
+	var max_attempts := tree_count * 40
+
+	while placed < tree_count and attempts < max_attempts:
+		attempts += 1
+		var x := rng.randi_range(0, size - 1)
+		var z := rng.randi_range(0, size - 1)
+		if mini(mini(x, size - 1 - x), mini(z, size - 1 - z)) < tree_edge_margin:
+			continue
+		var h := _h(x, z)
+		if h > tree_line_height:
+			continue
+		var pos := Vector2(x - half + 0.5, z - half + 0.5)
+		if pos.length() < tree_clear_radius:
+			continue
+		if forest.get_noise_2d(pos.x, pos.y) < forest_threshold:
+			continue
+
+		pos += Vector2(rng.randf_range(-0.15, 0.15), rng.randf_range(-0.15, 0.15))
+		var key := Vector2i(floori(pos.x / tree_spacing), floori(pos.y / tree_spacing))
+		if _too_close(grid, key, pos):
+			continue
+		if not grid.has(key):
+			grid[key] = []
+		grid[key].append(pos)
+
+		var tree = TreeScript.new()
+		tree.size_factor = rng.randf_range(0.8, 1.4)
+		tree.variant = rng.randi_range(0, 2)
+		tree.position = Vector3(pos.x, h, pos.y)
+		tree.rotation.y = rng.randf() * TAU
+		holder.add_child(tree)
+		placed += 1
+
+
+func _too_close(grid: Dictionary, key: Vector2i, pos: Vector2) -> bool:
+	var min_sq := tree_spacing * tree_spacing
+	for dz in range(-1, 2):
+		for dx in range(-1, 2):
+			var cell: Array = grid.get(key + Vector2i(dx, dz), [])
+			for other: Vector2 in cell:
+				if other.distance_squared_to(pos) < min_sq:
+					return true
+	return false
