@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://csh145pgg67el"]
+[gd_scene load_steps=7 format=3 uid="uid://cx7k8iaq34851"]
 
 [ext_resource type="Script" uid="uid://dlwgxk55oa7fo" path="res://scripts/hud.gd" id="1_oo0fn"]
 [ext_resource type="Theme" uid="uid://gr2kk87lccmd" path="res://resources/main-theme.tres" id="2_5ysmq"]
@@ -11,12 +11,12 @@ colors = PackedColorArray(1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0.9882353, 1, 1, 1, 1, 0
 gradient = SubResource("Gradient_oo0fn")
 
 [sub_resource type="Gradient" id="Gradient_5ysmq"]
-offsets = PackedFloat32Array(0, 0.50666666, 1)
-colors = PackedColorArray(1, 0.675, 0.25, 1, 0, 0, 0, 1, 1, 0.6666667, 0, 1)
+offsets = PackedFloat32Array(0, 0.04167, 0.08333, 0.125, 0.16667, 0.20833, 0.25, 0.29167, 0.33333, 0.375, 0.41667, 0.45833, 0.5, 0.54167, 0.58333, 0.625, 0.66667, 0.70833, 0.75, 0.79167, 0.83333, 0.875, 0.91667, 0.95833, 1)
+colors = PackedColorArray(0.5332, 0.7268, 0.9702, 1, 0.5157, 0.7027, 0.9391, 1, 0.4644, 0.6321, 0.8482, 1, 0.3829, 0.5198, 0.7036, 1, 0.2766, 0.3734, 0.5151, 1, 0.1528, 0.2029, 0.2956, 1, 0.0306, 0.0346, 0.0788, 1, 0.0306, 0.0346, 0.0788, 1, 0.0306, 0.0346, 0.0788, 1, 0.0306, 0.0346, 0.0788, 1, 0.0306, 0.0346, 0.0788, 1, 0.0306, 0.0346, 0.0788, 1, 0.0306, 0.0346, 0.0788, 1, 0.0306, 0.0346, 0.0788, 1, 0.0306, 0.0346, 0.0788, 1, 0.0306, 0.0346, 0.0788, 1, 0.0306, 0.0346, 0.0788, 1, 0.0306, 0.0346, 0.0788, 1, 0.0306, 0.0346, 0.0788, 1, 0.1528, 0.2029, 0.2956, 1, 0.2766, 0.3734, 0.5151, 1, 0.3829, 0.5198, 0.7036, 1, 0.4644, 0.6321, 0.8482, 1, 0.5157, 0.7027, 0.9391, 1, 0.5332, 0.7268, 0.9702, 1)
 
 [sub_resource type="GradientTexture1D" id="GradientTexture1D_6fi6k"]
 gradient = SubResource("Gradient_5ysmq")
-width = 257
+width = 600
 
 [node name="HUD" type="CanvasLayer"]
 script = ExtResource("1_oo0fn")
@@ -34,46 +34,57 @@ grow_horizontal = 2
 texture = SubResource("GradientTexture1D_5ysmq")
 
 [node name="Timeline" type="TextureRect" parent="TimeBar"]
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -300.0
-offset_top = -20.0
-offset_right = 300.0
-offset_bottom = 20.0
-grow_horizontal = 2
-grow_vertical = 2
+layout_mode = 0
+offset_right = 600.0
+offset_bottom = 40.0
 texture = SubResource("GradientTexture1D_6fi6k")
 
 [node name="SunIcon" type="Label" parent="TimeBar/Timeline"]
 layout_mode = 0
-offset_left = 163.0
-offset_right = 203.0
+offset_left = -20.0
+offset_right = 20.0
 offset_bottom = 39.0
 theme = ExtResource("2_5ysmq")
 theme_override_font_sizes/font_size = 28
 text = "☀️"
-
-[node name="SunIcon2" type="Label" parent="TimeBar/Timeline"]
-layout_mode = 0
-offset_left = 395.0
-offset_right = 435.0
-offset_bottom = 39.0
-theme = ExtResource("2_5ysmq")
-theme_override_font_sizes/font_size = 28
-text = "☀️"
+horizontal_alignment = 1
 
 [node name="MoonIcon" type="Label" parent="TimeBar/Timeline"]
 layout_mode = 0
-offset_left = 279.0
-offset_right = 319.0
+offset_left = 280.0
+offset_right = 320.0
 offset_bottom = 39.0
 theme = ExtResource("2_5ysmq")
 theme_override_font_sizes/font_size = 28
 text = "🌙"
+horizontal_alignment = 1
+
+[node name="Timeline2" type="TextureRect" parent="TimeBar"]
+layout_mode = 0
+offset_left = 600.0
+offset_right = 1200.0
+offset_bottom = 40.0
+texture = SubResource("GradientTexture1D_6fi6k")
+
+[node name="SunIcon" type="Label" parent="TimeBar/Timeline2"]
+layout_mode = 0
+offset_left = -20.0
+offset_right = 20.0
+offset_bottom = 39.0
+theme = ExtResource("2_5ysmq")
+theme_override_font_sizes/font_size = 28
+text = "☀️"
+horizontal_alignment = 1
+
+[node name="MoonIcon" type="Label" parent="TimeBar/Timeline2"]
+layout_mode = 0
+offset_left = 280.0
+offset_right = 320.0
+offset_bottom = 39.0
+theme = ExtResource("2_5ysmq")
+theme_override_font_sizes/font_size = 28
+text = "🌙"
+horizontal_alignment = 1
 
 [node name="Tic" type="ColorRect" parent="TimeBar"]
 layout_mode = 1
@@ -88,3 +99,4 @@ offset_right = 1.0
 offset_bottom = 20.0
 grow_horizontal = 2
 grow_vertical = 2
+color = Color(1, 0.75, 0.1, 1)
