@@ -1,11 +1,20 @@
-[gd_scene load_steps=3 format=3 uid="uid://dudcni17usbht"]
+[gd_scene load_steps=6 format=3 uid="uid://dudcni17usbht"]
 
 [ext_resource type="Script" uid="uid://bdbbhtgu4d87m" path="res://scripts/player.gd" id="1_3vyb7"]
+[ext_resource type="PackedScene" uid="uid://bflgykjdtufop" path="res://scenes/block.tscn" id="2_g2els"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_fj7yv"]
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_3vyb7"]
+transparency = 1
+albedo_color = Color(0.43, 1, 1, 0.39215687)
+
+[sub_resource type="BoxMesh" id="BoxMesh_g2els"]
+material = SubResource("StandardMaterial3D_3vyb7")
+
 [node name="Player" type="CharacterBody3D"]
 script = ExtResource("1_3vyb7")
+block_scene = ExtResource("2_g2els")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 shape = SubResource("CapsuleShape3D_fj7yv")
@@ -14,3 +23,10 @@ shape = SubResource("CapsuleShape3D_fj7yv")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
 
 [node name="Camera3D" type="Camera3D" parent="Head"]
+
+[node name="BuildRay" type="RayCast3D" parent="Head/Camera3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.8, 0)
+target_position = Vector3(0, 0, -5)
+
+[node name="GhostBlock" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_g2els")

@@ -8,9 +8,9 @@ var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 
 @onready var head = $Head
 @onready var camera = $Head/Camera3D
-
-func _ready():
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+@onready var build_ray = $Head/Camera3D/BuildRay
+@onready var ghost_block = $GhostBlock
+@export var block_scene: PackedScene
 
 func _unhandled_input(event):
 	if event is InputEventMouseMotion:
@@ -39,3 +39,31 @@ func _physics_process(delta):
 		velocity.z = move_toward(velocity.z, 0, SPEED)
 
 	move_and_slide()
+
+func _ready():
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	ghost_block.top_level = true 
+
+func _process(delta):
+	if build_ray.is_colliding():
+		ghost_block.show()
+		
+		var point = build_ray.get_collision_point()
+		var normal = build_ray.get_collision_normal()
+		
+		var target_pos = point + (normal * 0.5)
+		
+		var snapped_pos = Vector3(
+			floor(target_pos.x) + 0.5,
+			floor(target_pos.y) + 0.5,
+			floor(target_pos.z) + 0.5
+		)
+		
+		ghost_block.global_position = snapped_pos
+		if Input.is_action_just_pressed("build"):
+			if ghost_block.global_position.distance_to(global_position) > 1.2:
+				var new_block = block_scene.instantiate()
+				get_tree().current_scene.add_child(new_block)
+				new_block.global_position = ghost_block.global_position
+	else:
+		ghost_block.hide()
