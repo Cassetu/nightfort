@@ -10,7 +10,7 @@ const DAY_LIGHT := Color(1.0, 0.96, 0.88)
 const DUSK_LIGHT := Color(1.0, 0.55, 0.30)
 const MOON_LIGHT := Color(0.6, 0.7, 1.0)
 
-@export var day_length_seconds: float = 60.0
+@export var day_length_seconds: float = 600.0
 @export_range(0.0, 1.0) var phase_offset: float = 0.0
 @export var sun_energy: float = 1.2
 @export var moon_energy: float = 0.05

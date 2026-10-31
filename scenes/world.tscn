@@ -1,10 +1,10 @@
 [gd_scene load_steps=9 format=3 uid="uid://c66ndex75uxn4"]
 
 [ext_resource type="PackedScene" uid="uid://dudcni17usbht" path="res://scenes/player.tscn" id="1_nnsk1"]
-[ext_resource type="Script" uid="uid://utfurhj371lw" path="res://scripts/sun.gd" id="1_rwgxs"]
+[ext_resource type="Script" uid="uid://bpm6x2hnclkp8" path="res://scripts/sun.gd" id="1_rwgxs"]
 [ext_resource type="PackedScene" uid="uid://cx7k8iaq34851" path="res://scenes/hud.tscn" id="3_4wyf3"]
 [ext_resource type="PackedScene" uid="uid://dub2ibctw8foy" path="res://scenes/core.tscn" id="4_k0juu"]
-[ext_resource type="Script" uid="uid://cn5nycw85jsym" path="res://scripts/terrain.gd" id="5_terra"]
+[ext_resource type="Script" uid="uid://b0yh1lflhaqv2" path="res://scripts/terrain.gd" id="5_terra"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_4wyf3"]
 sky_top_color = Color(0.22, 0.45, 0.85, 1)
@@ -46,6 +46,10 @@ script = ExtResource("1_rwgxs")
 
 [node name="Terrain" type="Node3D" parent="."]
 script = ExtResource("5_terra")
+size = 400
+edge_wall_height = 30.0
+tree_count = 620
+tree_clear_radius = 40.0
 
 [node name="Player" parent="." instance=ExtResource("1_nnsk1")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.1473355, 6)
