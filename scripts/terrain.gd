@@ -1,5 +1,6 @@
 extends Node3D
 const TreeScript = preload("res://scripts/tree.gd")
+const RockScript = preload("res://scripts/rock.gd")
 const AO_LEVELS := [0.55, 0.7, 0.85, 1.0]
 
 @export_group("World")
@@ -23,8 +24,16 @@ const AO_LEVELS := [0.55, 0.7, 0.85, 1.0]
 @export var tree_line_height: int = 8
 @export var forest_threshold: float = -0.15
 
+@export_group("Rocks")
+@export var rock_count: int = 140
+@export var rock_spacing: float = 2.2
+@export var rock_clear_radius: float = 9.0
+@export var boulder_chance: float = 0.12
+
 var heights := PackedInt32Array()
 var half: float
+var _grid := {}
+var _cell := 3.0
 
 var _verts := PackedVector3Array()
 var _norms := PackedVector3Array()
@@ -35,7 +44,9 @@ func _ready() -> void:
 	half = size / 2.0
 	_generate_heights()
 	_build_terrain()
+	_cell = maxf(tree_spacing, rock_spacing * 1.6)
 	_spawn_trees()
+	_spawn_rocks()
 
 
 func height_at(world_x: float, world_z: float) -> float:
@@ -181,6 +192,33 @@ func _hash(x: int, z: int) -> float:
 	n = (n ^ (n >> 13)) * 1274126177
 	return float((n >> 8) & 0xFFFF) / 65535.0
 
+func _edge_distance(x: int, z: int) -> int:
+	return mini(mini(x, size - 1 - x), mini(z, size - 1 - z))
+
+
+func _cell_key(pos: Vector2) -> Vector2i:
+	return Vector2i(floori(pos.x / _cell), floori(pos.y / _cell))
+
+
+func _occupy(pos: Vector2) -> void:
+	var key := _cell_key(pos)
+	if not _grid.has(key):
+		_grid[key] = []
+	_grid[key].append(pos)
+
+
+func _too_close(pos: Vector2, min_dist: float) -> bool:
+	var key := _cell_key(pos)
+	var min_sq := min_dist * min_dist
+	for dz in range(-1, 2):
+		for dx in range(-1, 2):
+			var cell: Array = _grid.get(key + Vector2i(dx, dz), [])
+			for other: Vector2 in cell:
+				if other.distance_squared_to(pos) < min_sq:
+					return true
+	return false
+
+
 func _spawn_trees() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = world_seed
@@ -194,7 +232,6 @@ func _spawn_trees() -> void:
 	holder.name = "Trees"
 	add_child(holder)
 
-	var grid := {}
 	var placed := 0
 	var attempts := 0
 	var max_attempts := tree_count * 40
@@ -203,7 +240,7 @@ func _spawn_trees() -> void:
 		attempts += 1
 		var x := rng.randi_range(0, size - 1)
 		var z := rng.randi_range(0, size - 1)
-		if mini(mini(x, size - 1 - x), mini(z, size - 1 - z)) < tree_edge_margin:
+		if _edge_distance(x, z) < tree_edge_margin:
 			continue
 		var h := _h(x, z)
 		if h > tree_line_height:
@@ -215,12 +252,9 @@ func _spawn_trees() -> void:
 			continue
 
 		pos += Vector2(rng.randf_range(-0.15, 0.15), rng.randf_range(-0.15, 0.15))
-		var key := Vector2i(floori(pos.x / tree_spacing), floori(pos.y / tree_spacing))
-		if _too_close(grid, key, pos):
+		if _too_close(pos, tree_spacing):
 			continue
-		if not grid.has(key):
-			grid[key] = []
-		grid[key].append(pos)
+		_occupy(pos)
 
 		var tree = TreeScript.new()
 		tree.size_factor = rng.randf_range(0.8, 1.4)
@@ -231,12 +265,49 @@ func _spawn_trees() -> void:
 		placed += 1
 
 
-func _too_close(grid: Dictionary, key: Vector2i, pos: Vector2) -> bool:
-	var min_sq := tree_spacing * tree_spacing
-	for dz in range(-1, 2):
-		for dx in range(-1, 2):
-			var cell: Array = grid.get(key + Vector2i(dx, dz), [])
-			for other: Vector2 in cell:
-				if other.distance_squared_to(pos) < min_sq:
-					return true
-	return false
+func _spawn_rocks() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = world_seed + 7
+
+	var holder := Node3D.new()
+	holder.name = "Rocks"
+	add_child(holder)
+
+	var placed := 0
+	var attempts := 0
+	var max_attempts := rock_count * 60
+
+	while placed < rock_count and attempts < max_attempts:
+		attempts += 1
+		var x := rng.randi_range(0, size - 1)
+		var z := rng.randi_range(0, size - 1)
+		if _edge_distance(x, z) < 6:
+			continue
+		var h := _h(x, z)
+		if rng.randf() > clampf(0.3 + h / 8.0, 0.0, 1.0):
+			continue
+		var pos := Vector2(x - half + 0.5, z - half + 0.5)
+		if pos.length() < rock_clear_radius:
+			continue
+
+		pos += Vector2(rng.randf_range(-0.25, 0.25), rng.randf_range(-0.25, 0.25))
+		var boulder := rng.randf() < boulder_chance
+		var spacing := rock_spacing
+		if boulder:
+			spacing = rock_spacing * 1.6
+		if _too_close(pos, spacing):
+			continue
+		_occupy(pos)
+
+		var base := mini(mini(h, _h(x + 1, z)), mini(mini(_h(x - 1, z), _h(x, z + 1)), _h(x, z - 1)))
+		var rock = RockScript.new()
+		rock.rock_seed = rng.randi()
+		if boulder:
+			rock.size_factor = rng.randf_range(1.5, 2.1)
+		else:
+			rock.size_factor = rng.randf_range(0.6, 1.1)
+		rock.variant = rng.randi_range(0, 2)
+		rock.position = Vector3(pos.x, base, pos.y)
+		rock.rotation.y = rng.randf() * TAU
+		holder.add_child(rock)
+		placed += 1

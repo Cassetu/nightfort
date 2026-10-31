@@ -3,6 +3,11 @@ extends CharacterBody3D
 const SPEED = 5.0
 const JUMP_VELOCITY = 4.5
 const MOUSE_SENSITIVITY = 0.002
+const HARVEST_REACH = 3.5
+const HARVEST_DAMAGE = 1
+const HARVEST_COOLDOWN = 0.35
+
+var harvest_timer = 0.0
 
 var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 
@@ -40,9 +45,37 @@ func _physics_process(delta):
 
 	move_and_slide()
 
+	harvest_timer = maxf(harvest_timer - delta, 0.0)
+	if Input.is_action_pressed("harvest") and harvest_timer <= 0.0:
+		try_harvest()
+
+func try_harvest():
+	var from = camera.global_position
+	var to = from - camera.global_transform.basis.z * HARVEST_REACH
+	var query = PhysicsRayQueryParameters3D.create(from, to)
+	query.exclude = [get_rid()]
+	var hit = get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty():
+		return
+	var target = hit.collider
+	if not target.is_in_group("resource"):
+		return
+	harvest_timer = HARVEST_COOLDOWN
+	if not target.harvested.is_connected(_on_harvested):
+		target.harvested.connect(_on_harvested)
+	target.take_damage(HARVEST_DAMAGE, hit.position)
+
+func _on_harvested(resource_type, amount):
+	Inventory.add(resource_type, amount)
+
 func _ready():
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
-	ghost_block.top_level = true 
+	ghost_block.top_level = true
+	if not InputMap.has_action("harvest"):
+		InputMap.add_action("harvest")
+		var click = InputEventMouseButton.new()
+		click.button_index = MOUSE_BUTTON_RIGHT
+		InputMap.action_add_event("harvest", click)
 
 func _process(delta):
 	if build_ray.is_colliding():

@@ -1,5 +1,4 @@
-extends StaticBody3D
-signal harvested(resource_type: String, amount: int)
+extends "res://scripts/resource_node.gd"
 
 const LEAF_COLORS := [
 	Color(0.13, 0.36, 0.17),
@@ -9,24 +8,23 @@ const LEAF_COLORS := [
 	Color(0.10, 0.33, 0.24),
 ]
 
-@export var max_health: int = 5
-@export var resource_type: String = "wood"
-@export var resource_amount: int = 4
-
 var size_factor: float = 1.0
 var variant: int = 0
-
-var current_health: int
 
 static var _trunk_mat: StandardMaterial3D
 static var _leaf_mats: Array = []
 
 
-func _ready() -> void:
-	_ensure_materials()
-	add_to_group("resource")
+func _configure() -> void:
+	resource_type = "wood"
+	chip_color = Color(0.45, 0.3, 0.16)
+	max_health = maxi(3, roundi(4.0 * size_factor))
+	resource_amount = maxi(3, roundi(3.5 * size_factor))
 	add_to_group("tree")
-	current_health = max_health
+
+
+func _build() -> void:
+	_ensure_materials()
 
 	var s := size_factor
 	var trunk_h := 2.4 * s
@@ -49,11 +47,11 @@ func _ready() -> void:
 	add_child(col)
 
 
-func take_damage(amount: int) -> void:
-	current_health -= amount
-	if current_health <= 0:
-		harvested.emit(resource_type, resource_amount)
-		queue_free()
+func _play_death() -> void:
+	var tween := create_tween()
+	tween.tween_property(visual, "rotation:x", 1.45, 0.7).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.tween_property(visual, "scale", Vector3.ZERO, 0.25)
+	tween.tween_callback(queue_free)
 
 
 func _add_mesh(mesh: PrimitiveMesh, mat: Material, y: float) -> void:
@@ -61,7 +59,7 @@ func _add_mesh(mesh: PrimitiveMesh, mat: Material, y: float) -> void:
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	mi.position.y = y
-	add_child(mi)
+	visual.add_child(mi)
 
 
 func _make_cylinder(top_radius: float, bottom_radius: float, height: float) -> CylinderMesh:
