@@ -26,7 +26,6 @@ shape = SubResource("BoxShape3D_hlf4f")
 
 [node name="OmniLight3D" type="OmniLight3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
-light_color = Color(0.4, 1, 1, 1)
-light_energy = 2.5
+light_energy = 2.0
 shadow_enabled = true
 omni_range = 14.0

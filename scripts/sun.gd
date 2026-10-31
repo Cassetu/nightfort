@@ -13,7 +13,8 @@ const MOON_LIGHT := Color(0.6, 0.7, 1.0)
 @export var day_length_seconds: float = 60.0
 @export_range(0.0, 1.0) var phase_offset: float = 0.0
 @export var sun_energy: float = 1.2
-@export var moon_energy: float = 0.35
+@export var moon_energy: float = 0.05
+@export var night_ambient_energy: float = 3.5
 
 var time_multiplier: float
 var day_phase: float = 0.0
@@ -34,7 +35,7 @@ func _ready():
 	moon.light_color = MOON_LIGHT
 	moon.light_energy = 0.0
 	moon.shadow_enabled = true
-	moon.rotation.y = PI
+	moon.rotation = Vector3(0.0, PI + deg_to_rad(25.0), 0.0)
 	add_child(moon)
 
 
@@ -54,12 +55,12 @@ func _process(delta):
 	sky_material.ground_horizon_color = horizon
 	sky_material.ground_bottom_color = top.darkened(0.5)
 	env.fog_light_color = horizon
-	env.ambient_light_energy = lerpf(2.5, 1.0, day_amt)
+	env.ambient_light_energy = lerpf(night_ambient_energy, 1.0, day_amt)
 
 	light_color = DUSK_LIGHT.lerp(DAY_LIGHT, day_amt)
 	light_energy = sun_energy * smoothstep(0.0, 0.2, e)
-	visible = light_energy > 0.01
+	shadow_enabled = light_energy > 0.01
 
-	var moon_amt = smoothstep(0.0, 0.25, -e)
+	var moon_amt = smoothstep(-0.05, 0.15, -e)
 	moon.light_energy = moon_energy * moon_amt
-	moon.visible = moon_amt > 0.01
+	moon.shadow_enabled = moon_amt > 0.05
