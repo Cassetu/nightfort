@@ -9,13 +9,14 @@ const BLOCK_COST := 1
 const BLOCK_TYPES := {
 	"wood": {"name": "Wood Block", "resource": "wood", "health": 3, "color": Color(0.58, 0.40, 0.22)},
 	"stone": {"name": "Stone Block", "resource": "stone", "health": 6, "color": Color(0.62, 0.62, 0.65)},
+	"dirt": {"name": "Dirt Block", "resource": "dirt", "health": 2, "color": Color(0.42, 0.29, 0.18)},
 }
 
 var items: Dictionary = {}
 var hotbar: Array = [
 	{"kind": "block", "type": "wood"},
 	{"kind": "block", "type": "stone"},
-	{},
+	{"kind": "block", "type": "dirt"},
 	{},
 	{},
 	{},

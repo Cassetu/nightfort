@@ -25,4 +25,9 @@ func _on_inventory_changed(_item, _count):
 
 
 func _refresh_counts():
-	counts.text = "Wood: %d\nStone: %d" % [Inventory.get_count("wood"), Inventory.get_count("stone")]
+	var lines = ["Wood: %d" % Inventory.get_count("wood"), "Stone: %d" % Inventory.get_count("stone")]
+	for item in ["dirt", "sand", "snow", "coal", "iron"]:
+		var have = Inventory.get_count(item)
+		if have > 0:
+			lines.append("%s: %d" % [item.capitalize(), have])
+	counts.text = "\n".join(lines)

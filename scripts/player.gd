@@ -140,6 +140,9 @@ func try_mine(hit):
 	if hit.is_empty():
 		return
 	var target = hit.collider
+	if target.is_in_group("terrain_body"):
+		mine_terrain(hit)
+		return
 	if not target.is_in_group("resource"):
 		return
 	if hit.position.distance_to(camera.global_position) > MINE_REACH:
@@ -148,6 +151,19 @@ func try_mine(hit):
 	if not target.harvested.is_connected(_on_harvested):
 		target.harvested.connect(_on_harvested)
 	target.take_damage(MINE_DAMAGE, hit.position)
+
+
+func mine_terrain(hit):
+	if hit.position.distance_to(camera.global_position) > MINE_REACH:
+		return
+	var terrain = get_tree().get_first_node_in_group("terrain")
+	if terrain == null:
+		return
+	mine_timer = MINE_COOLDOWN
+	var cell = terrain.cell_from_hit(hit.position, hit.normal)
+	var result = terrain.hit_block(cell, MINE_DAMAGE)
+	if result["state"] == "broken":
+		Inventory.add(result["item"], result["amount"])
 
 
 func try_place(hit):
