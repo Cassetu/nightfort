@@ -46,10 +46,6 @@ script = ExtResource("1_rwgxs")
 
 [node name="Terrain" type="Node3D" parent="."]
 script = ExtResource("5_terra")
-size = 400
-edge_wall_height = 30.0
-tree_count = 620
-tree_clear_radius = 40.0
 
 [node name="Player" parent="." instance=ExtResource("1_nnsk1")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.1473355, 6)

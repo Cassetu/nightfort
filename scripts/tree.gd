@@ -8,11 +8,15 @@ const LEAF_COLORS := [
 	Color(0.10, 0.33, 0.24),
 ]
 
+const TRUNK_COLOR := Color(0.30, 0.20, 0.12)
+const TRUNK_HEIGHT := 2.4
+const TRUNK_RADIUS := 0.28
+
 var size_factor: float = 1.0
 var variant: int = 0
 
-static var _trunk_mat: StandardMaterial3D
-static var _leaf_mats: Array = []
+static var _meshes: Array = []
+static var _material: StandardMaterial3D
 
 
 func _configure() -> void:
@@ -24,26 +28,19 @@ func _configure() -> void:
 
 
 func _build() -> void:
-	_ensure_materials()
+	_ensure_meshes()
 
-	var s := size_factor
-	var trunk_h := 2.4 * s
-	var trunk_r := 0.28 * s
-
-	_add_mesh(_make_cylinder(trunk_r * 0.75, trunk_r, trunk_h), _trunk_mat, trunk_h * 0.5)
-
-	var tiers: Array = _leaf_mats[variant % _leaf_mats.size()]
-	var base := trunk_h * 0.6
-	_add_mesh(_make_cylinder(0.0, 1.7 * s, 2.4 * s), tiers[0], base + 1.2 * s)
-	_add_mesh(_make_cylinder(0.0, 1.3 * s, 2.2 * s), tiers[1], base + 1.2 * s + 1.1 * s)
-	_add_mesh(_make_cylinder(0.0, 0.9 * s, 2.0 * s), tiers[2], base + 2.4 * s + 1.0 * s)
+	var mi := MeshInstance3D.new()
+	mi.mesh = _meshes[variant % _meshes.size()]
+	mi.scale = Vector3.ONE * size_factor
+	visual.add_child(mi)
 
 	var shape := CylinderShape3D.new()
-	shape.radius = trunk_r * 1.1
-	shape.height = trunk_h
+	shape.radius = TRUNK_RADIUS * size_factor * 1.1
+	shape.height = TRUNK_HEIGHT * size_factor
 	var col := CollisionShape3D.new()
 	col.shape = shape
-	col.position.y = trunk_h * 0.5
+	col.position.y = TRUNK_HEIGHT * size_factor * 0.5
 	add_child(col)
 
 
@@ -54,37 +51,63 @@ func _play_death() -> void:
 	tween.tween_callback(queue_free)
 
 
-func _add_mesh(mesh: PrimitiveMesh, mat: Material, y: float) -> void:
-	mesh.material = mat
-	var mi := MeshInstance3D.new()
-	mi.mesh = mesh
-	mi.position.y = y
-	visual.add_child(mi)
-
-
-func _make_cylinder(top_radius: float, bottom_radius: float, height: float) -> CylinderMesh:
-	var c := CylinderMesh.new()
-	c.top_radius = top_radius
-	c.bottom_radius = bottom_radius
-	c.height = height
-	c.radial_segments = 8
-	c.rings = 1
-	return c
-
-
-static func _ensure_materials() -> void:
-	if _trunk_mat != null:
+static func _ensure_meshes() -> void:
+	if not _meshes.is_empty():
 		return
-	_trunk_mat = _make_mat(Color(0.30, 0.20, 0.12))
-	for c in LEAF_COLORS:
-		var tiers := []
-		for t in 3:
-			tiers.append(_make_mat(c.lightened(0.07 * t)))
-		_leaf_mats.append(tiers)
+
+	_material = StandardMaterial3D.new()
+	_material.vertex_color_use_as_albedo = true
+	_material.vertex_color_is_srgb = true
+	_material.roughness = 1.0
+
+	for leaf: Color in LEAF_COLORS:
+		_meshes.append(_make_mesh(leaf))
 
 
-static func _make_mat(c: Color) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_color = c
-	m.roughness = 1.0
-	return m
+static func _make_mesh(leaf: Color) -> ArrayMesh:
+	var verts := PackedVector3Array()
+	var norms := PackedVector3Array()
+	var cols := PackedColorArray()
+	var indices := PackedInt32Array()
+
+	var base := TRUNK_HEIGHT * 0.6
+	_append_part(verts, norms, cols, indices, TRUNK_RADIUS * 0.75, TRUNK_RADIUS, TRUNK_HEIGHT, TRUNK_HEIGHT * 0.5, TRUNK_COLOR)
+	_append_part(verts, norms, cols, indices, 0.0, 1.7, 2.4, base + 1.2, leaf)
+	_append_part(verts, norms, cols, indices, 0.0, 1.3, 2.2, base + 2.3, leaf.lightened(0.07))
+	_append_part(verts, norms, cols, indices, 0.0, 0.9, 2.0, base + 3.4, leaf.lightened(0.14))
+
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = norms
+	arrays[Mesh.ARRAY_COLOR] = cols
+	arrays[Mesh.ARRAY_INDEX] = indices
+
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	mesh.surface_set_material(0, _material)
+	return mesh
+
+
+static func _append_part(verts: PackedVector3Array, norms: PackedVector3Array, cols: PackedColorArray, indices: PackedInt32Array, top_radius: float, bottom_radius: float, height: float, center_y: float, color: Color) -> void:
+	var cylinder := CylinderMesh.new()
+	cylinder.top_radius = top_radius
+	cylinder.bottom_radius = bottom_radius
+	cylinder.height = height
+	cylinder.radial_segments = 8
+	cylinder.rings = 1
+	cylinder.cap_top = false
+	cylinder.cap_bottom = false
+
+	var arrays := cylinder.get_mesh_arrays()
+	var part_verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var part_norms: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var part_indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+
+	var offset := verts.size()
+	for i in part_verts.size():
+		verts.append(part_verts[i] + Vector3(0.0, center_y, 0.0))
+		norms.append(part_norms[i])
+		cols.append(color)
+	for index in part_indices:
+		indices.append(offset + index)
