@@ -1,0 +1,23 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/slot_row.gd" id="1_row"]
+
+[node name="SlotRow" type="HBoxContainer"]
+theme_override_constants/separation = 10
+script = ExtResource("1_row")
+
+[node name="Info" type="Label" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_type_variation = &"BodyLabel"
+
+[node name="Action" type="Button" parent="."]
+custom_minimum_size = Vector2(110, 46)
+layout_mode = 2
+text = "Load"
+
+[node name="Delete" type="Button" parent="."]
+custom_minimum_size = Vector2(110, 46)
+layout_mode = 2
+text = "Delete"

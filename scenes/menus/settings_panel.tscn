@@ -1,0 +1,70 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/settings_panel.gd" id="1_panel"]
+[ext_resource type="PackedScene" path="res://scenes/menus/slider_row.tscn" id="2_row"]
+
+[node name="SettingsPanel" type="PanelContainer"]
+custom_minimum_size = Vector2(560, 0)
+script = ExtResource("1_panel")
+
+[node name="Box" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Title" type="Label" parent="Box"]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+text = "Settings"
+horizontal_alignment = 1
+
+[node name="Rows" type="VBoxContainer" parent="Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="MasterVolume" parent="Box/Rows" instance=ExtResource("2_row")]
+layout_mode = 2
+title = "Master volume"
+key = "master_volume"
+min_value = 0.0
+max_value = 1.0
+step = 0.05
+format = 0
+
+[node name="MouseSensitivity" parent="Box/Rows" instance=ExtResource("2_row")]
+layout_mode = 2
+title = "Mouse sensitivity"
+key = "mouse_sensitivity"
+min_value = 0.0005
+max_value = 0.006
+step = 0.0005
+format = 1
+
+[node name="FieldOfView" parent="Box/Rows" instance=ExtResource("2_row")]
+layout_mode = 2
+title = "Field of view"
+key = "fov"
+min_value = 60.0
+max_value = 110.0
+step = 1.0
+format = 2
+
+[node name="ViewDistance" parent="Box/Rows" instance=ExtResource("2_row")]
+layout_mode = 2
+title = "View distance"
+key = "view_distance"
+min_value = 4.0
+max_value = 10.0
+step = 1.0
+format = 3
+
+[node name="Fullscreen" type="CheckBox" parent="Box"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Fullscreen"
+
+[node name="Back" type="Button" parent="Box"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(300, 46)
+layout_mode = 2
+text = "Back"

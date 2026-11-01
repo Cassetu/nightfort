@@ -1,18 +1,32 @@
 extends CharacterBody3D
 
+signal health_changed(current, maximum)
+signal damaged(amount)
+signal died
+
 const SPEED = 5.0
 const JUMP_VELOCITY = 4.5
-const MOUSE_SENSITIVITY = 0.002
 const MINE_REACH = 3.5
 const PLACE_REACH = 5.0
 const MINE_DAMAGE = 1
 const MINE_COOLDOWN = 0.35
+const FALL_SAFE_SPEED = 13.0
+const FALL_DAMAGE = 5.0
+const REGEN_DELAY = 6.0
+const REGEN_RATE = 3.0
+
+@export var max_health: int = 100
 
 var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 var mine_timer = 0.0
 var ghost_valid_mat
 var ghost_blocked_mat
 var probe_query
+var health: float = 100.0
+var dead: bool = false
+var since_damage: float = 0.0
+var was_on_floor: bool = true
+var shown_health: int = 100
 
 @onready var head = $Head
 @onready var camera = $Head/Camera3D
@@ -35,6 +49,15 @@ func _ready():
 	add_mouse_action("mine", MOUSE_BUTTON_LEFT)
 	add_mouse_action("place", MOUSE_BUTTON_RIGHT)
 
+	health = max_health
+	shown_health = max_health
+	Game.settings_changed.connect(_apply_settings)
+	_apply_settings()
+
+
+func _apply_settings():
+	camera.fov = Game.settings["fov"]
+
 
 func add_mouse_action(action, button):
 	if InputMap.has_action(action):
@@ -54,13 +77,17 @@ func make_ghost_material(color):
 
 
 func _unhandled_input(event):
+	if dead:
+		return
+
 	if event is InputEventMouseButton and event.pressed and Input.get_mouse_mode() != Input.MOUSE_MODE_CAPTURED:
 		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 		return
 
 	if event is InputEventMouseMotion and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
-		rotate_y(-event.relative.x * MOUSE_SENSITIVITY)
-		head.rotate_x(-event.relative.y * MOUSE_SENSITIVITY)
+		var sensitivity = Game.settings["mouse_sensitivity"]
+		rotate_y(-event.relative.x * sensitivity)
+		head.rotate_x(-event.relative.y * sensitivity)
 		head.rotation.x = clamp(head.rotation.x, deg_to_rad(-89), deg_to_rad(89))
 
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -68,13 +95,16 @@ func _unhandled_input(event):
 		if slot >= 0 and slot < Inventory.SLOT_COUNT:
 			Inventory.select_slot(slot)
 
-	if event.is_action_pressed("ui_cancel"):
-		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-
 
 func _physics_process(delta):
 	if not is_on_floor():
 		velocity.y -= gravity * delta
+
+	if dead:
+		velocity.x = 0.0
+		velocity.z = 0.0
+		move_and_slide()
+		return
 
 	if Input.is_action_just_pressed("ui_accept") and is_on_floor():
 		velocity.y = JUMP_VELOCITY
@@ -89,7 +119,16 @@ func _physics_process(delta):
 		velocity.x = move_toward(velocity.x, 0, SPEED)
 		velocity.z = move_toward(velocity.z, 0, SPEED)
 
+	var impact = velocity.y
 	move_and_slide()
+	if is_on_floor() and not was_on_floor and impact < -FALL_SAFE_SPEED:
+		take_damage(roundi((-impact - FALL_SAFE_SPEED) * FALL_DAMAGE))
+	was_on_floor = is_on_floor()
+
+	since_damage += delta
+	if health < max_health and since_damage > REGEN_DELAY:
+		health = minf(health + REGEN_RATE * delta, float(max_health))
+		_emit_health()
 
 	mine_timer = maxf(mine_timer - delta, 0.0)
 	var hit = look_hit()
@@ -99,6 +138,68 @@ func _physics_process(delta):
 		try_mine(hit)
 	if Input.is_action_just_pressed("place"):
 		try_place(hit)
+
+
+func take_damage(amount, _hit_position = Vector3.INF):
+	if dead or amount <= 0:
+		return
+	health = maxf(health - amount, 0.0)
+	since_damage = 0.0
+	damaged.emit(amount)
+	_emit_health(true)
+	if health <= 0.0:
+		_die()
+
+
+func heal(amount):
+	if dead:
+		return
+	health = minf(health + amount, float(max_health))
+	_emit_health()
+
+
+func _emit_health(force = false):
+	var value = ceili(health)
+	if force or value != shown_health:
+		shown_health = value
+		health_changed.emit(value, max_health)
+
+
+func _die():
+	dead = true
+	ghost_block.hide()
+	died.emit()
+
+
+func respawn(pos):
+	global_position = pos
+	velocity = Vector3.ZERO
+	health = max_health
+	dead = false
+	since_damage = 0.0
+	was_on_floor = false
+	_emit_health(true)
+
+
+func export_state():
+	return {
+		"pos": [global_position.x, global_position.y, global_position.z],
+		"yaw": rotation.y,
+		"pitch": head.rotation.x,
+		"health": health,
+	}
+
+
+func import_state(d):
+	var p = d["pos"]
+	global_position = Vector3(p[0], p[1], p[2])
+	rotation.y = float(d["yaw"])
+	head.rotation.x = float(d["pitch"])
+	health = clampf(float(d["health"]), 1.0, float(max_health))
+	velocity = Vector3.ZERO
+	was_on_floor = false
+	since_damage = 0.0
+	_emit_health(true)
 
 
 func look_hit():

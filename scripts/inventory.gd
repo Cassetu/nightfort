@@ -24,6 +24,26 @@ var hotbar: Array = [
 var selected: int = 0
 
 
+func reset() -> void:
+	items = {}
+	selected = 0
+
+
+func export_state() -> Dictionary:
+	return {"items": items, "selected": selected}
+
+
+func import_state(d: Dictionary) -> void:
+	items = {}
+	var saved: Dictionary = d.get("items", {})
+	for key in saved:
+		items[key] = int(saved[key])
+	selected = clampi(int(d.get("selected", 0)), 0, SLOT_COUNT - 1)
+	for key in items:
+		changed.emit(key, items[key])
+	selection_changed.emit(selected)
+
+
 func add(item: String, amount: int) -> void:
 	items[item] = get_count(item) + amount
 	changed.emit(item, items[item])

@@ -1,0 +1,277 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/game_ui.gd" id="1_ui"]
+[ext_resource type="Theme" uid="uid://gr2kk87lccmd" path="res://resources/main-theme.tres" id="2_theme"]
+[ext_resource type="PackedScene" path="res://scenes/menus/settings_panel.tscn" id="3_settings"]
+[ext_resource type="PackedScene" path="res://scenes/menus/slots_panel.tscn" id="4_slots"]
+
+[sub_resource type="Gradient" id="Gradient_vignette"]
+offsets = PackedFloat32Array(0.55, 1)
+colors = PackedColorArray(0.8, 0, 0, 0, 0.8, 0, 0, 0.9)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_vignette"]
+gradient = SubResource("Gradient_vignette")
+width = 256
+height = 256
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
+
+[node name="GameUI" type="CanvasLayer"]
+process_mode = 3
+layer = 10
+script = ExtResource("1_ui")
+
+[node name="UI" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme = ExtResource("2_theme")
+
+[node name="Vignette" type="TextureRect" parent="UI"]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = SubResource("GradientTexture2D_vignette")
+expand_mode = 1
+
+[node name="PlayerBar" type="ProgressBar" parent="UI"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = -50.0
+offset_right = 300.0
+offset_bottom = -20.0
+grow_vertical = 0
+mouse_filter = 2
+theme_type_variation = &"HealthBar"
+value = 100.0
+show_percentage = false
+
+[node name="Label" type="Label" parent="UI/PlayerBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_type_variation = &"BarLabel"
+text = "HP  100 / 100"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="CoreBar" type="ProgressBar" parent="UI"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -170.0
+offset_top = 48.0
+offset_right = 170.0
+offset_bottom = 72.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_type_variation = &"CoreBar"
+value = 100.0
+show_percentage = false
+
+[node name="Label" type="Label" parent="UI/CoreBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_type_variation = &"BarLabel"
+text = "CORE  100 / 100"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="DeathOverlay" type="ColorRect" parent="UI"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.1, 0, 0, 0.55)
+
+[node name="Box" type="VBoxContainer" parent="UI/DeathOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+alignment = 1
+
+[node name="Title" type="Label" parent="UI/DeathOverlay/Box"]
+layout_mode = 2
+theme_type_variation = &"DeathTitle"
+text = "YOU DIED"
+horizontal_alignment = 1
+
+[node name="DeathLabel" type="Label" parent="UI/DeathOverlay/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BodyLabel"
+theme_override_font_sizes/font_size = 26
+horizontal_alignment = 1
+
+[node name="PauseOverlay" type="ColorRect" parent="UI"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0.03, 0.72)
+
+[node name="Center" type="CenterContainer" parent="UI/PauseOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PauseMain" type="VBoxContainer" parent="UI/PauseOverlay/Center"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="UI/PauseOverlay/Center/PauseMain"]
+layout_mode = 2
+theme_type_variation = &"OverlayTitle"
+text = "PAUSED"
+horizontal_alignment = 1
+
+[node name="SeedLabel" type="Label" parent="UI/PauseOverlay/Center/PauseMain"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"DimLabel"
+horizontal_alignment = 1
+
+[node name="Resume" type="Button" parent="UI/PauseOverlay/Center/PauseMain"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(300, 46)
+layout_mode = 2
+text = "Resume"
+
+[node name="SaveGame" type="Button" parent="UI/PauseOverlay/Center/PauseMain"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(300, 46)
+layout_mode = 2
+text = "Save Game"
+
+[node name="PauseLoad" type="Button" parent="UI/PauseOverlay/Center/PauseMain"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(300, 46)
+layout_mode = 2
+text = "Load Game"
+
+[node name="PauseSettings" type="Button" parent="UI/PauseOverlay/Center/PauseMain"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(300, 46)
+layout_mode = 2
+text = "Settings"
+
+[node name="PauseMenu" type="Button" parent="UI/PauseOverlay/Center/PauseMain"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(300, 46)
+layout_mode = 2
+text = "Main Menu"
+
+[node name="PauseQuit" type="Button" parent="UI/PauseOverlay/Center/PauseMain"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(300, 46)
+layout_mode = 2
+text = "Quit to Desktop"
+
+[node name="PauseSettingsPanel" parent="UI/PauseOverlay/Center" instance=ExtResource("3_settings")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="PauseSlotsPanel" parent="UI/PauseOverlay/Center" instance=ExtResource("4_slots")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="OverOverlay" type="ColorRect" parent="UI"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.12, 0, 0.02, 0.82)
+
+[node name="Center" type="CenterContainer" parent="UI/OverOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="OverMain" type="VBoxContainer" parent="UI/OverOverlay/Center"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Title" type="Label" parent="UI/OverOverlay/Center/OverMain"]
+layout_mode = 2
+theme_type_variation = &"GameOverTitle"
+text = "THE CORE HAS FALLEN"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="UI/OverOverlay/Center/OverMain"]
+layout_mode = 2
+theme_type_variation = &"DimLabel"
+theme_override_font_sizes/font_size = 24
+text = "The night kept its promise."
+horizontal_alignment = 1
+
+[node name="OverLoad" type="Button" parent="UI/OverOverlay/Center/OverMain"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(300, 46)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "Load Game"
+
+[node name="OverMenu" type="Button" parent="UI/OverOverlay/Center/OverMain"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(300, 46)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "Main Menu"
+
+[node name="OverSlotsPanel" parent="UI/OverOverlay/Center" instance=ExtResource("4_slots")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2

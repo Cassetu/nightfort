@@ -1,0 +1,49 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/slots_panel.gd" id="1_panel"]
+[ext_resource type="PackedScene" path="res://scenes/menus/slot_row.tscn" id="2_row"]
+
+[node name="SlotsPanel" type="PanelContainer"]
+custom_minimum_size = Vector2(760, 0)
+script = ExtResource("1_panel")
+
+[node name="Box" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Title" type="Label" parent="Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+text = "Load Game"
+horizontal_alignment = 1
+
+[node name="Rows" type="VBoxContainer" parent="Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Slot1" parent="Box/Rows" instance=ExtResource("2_row")]
+layout_mode = 2
+slot = 0
+
+[node name="Slot2" parent="Box/Rows" instance=ExtResource("2_row")]
+layout_mode = 2
+slot = 1
+
+[node name="Slot3" parent="Box/Rows" instance=ExtResource("2_row")]
+layout_mode = 2
+slot = 2
+
+[node name="Status" type="Label" parent="Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"AccentLabel"
+horizontal_alignment = 1
+
+[node name="Back" type="Button" parent="Box"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(300, 46)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "Back"

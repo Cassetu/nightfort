@@ -150,18 +150,63 @@ var crack_time: int = 0
 func _ready() -> void:
 	add_to_group("terrain")
 	player = get_node_or_null("../Player")
+
+	var spawn := Vector3.ZERO
+	view_distance = int(Game.settings["view_distance"])
+	if Game.has_session:
+		world_seed = Game.world_seed
+		_import_state(Game.pending.get("terrain", {}))
+		var saved: Dictionary = Game.pending.get("player", {})
+		if saved.has("pos"):
+			spawn = Vector3(saved["pos"][0], saved["pos"][1], saved["pos"][2])
+	Game.settings_changed.connect(_on_settings_changed)
+
 	_setup_noise()
 	_setup_material()
 	_setup_fog()
 	_build_ao_tables()
 	_setup_crack()
 
+	var center := _chunk_of(spawn)
 	for dz in range(-1, 2):
 		for dx in range(-1, 2):
-			var coord := Vector2i(dx, dz)
-			var chunk := _finalize(coord, _build(coord, {}, true))
+			var coord := center + Vector2i(dx, dz)
+			var chunk := _finalize(coord, _build(coord, _edit_snapshot(coord), true))
 			_add_collision(chunk)
 			_add_objects(chunk)
+
+
+func export_state() -> Dictionary:
+	var edits: Array = []
+	for cc in edit_chunks:
+		var d: Dictionary = edit_chunks[cc]
+		for key: Vector3i in d:
+			edits.append([key.x, key.y, key.z, d[key]])
+	var gone: Array = []
+	for key: Vector3i in depleted:
+		gone.append([key.x, key.y, key.z])
+	return {"edits": edits, "depleted": gone}
+
+
+func _import_state(d: Dictionary) -> void:
+	for e in d.get("edits", []):
+		var cell := Vector3i(int(e[0]), int(e[1]), int(e[2]))
+		var cc := _chunk_key(cell.x, cell.z)
+		if not edit_chunks.has(cc):
+			edit_chunks[cc] = {}
+		var edits: Dictionary = edit_chunks[cc]
+		edits[cell] = int(e[3])
+	for g in d.get("depleted", []):
+		depleted[Vector3i(int(g[0]), int(g[1]), int(g[2]))] = true
+
+
+func _on_settings_changed() -> void:
+	var vd := int(Game.settings["view_distance"])
+	if vd == view_distance:
+		return
+	view_distance = vd
+	_setup_fog()
+	last_center = Vector2i(2147483647, 0)
 
 
 func _exit_tree() -> void:

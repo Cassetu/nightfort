@@ -1,0 +1,54 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/new_game_panel.gd" id="1_panel"]
+
+[node name="NewGamePanel" type="PanelContainer"]
+custom_minimum_size = Vector2(520, 0)
+script = ExtResource("1_panel")
+
+[node name="Box" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Title" type="Label" parent="Box"]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+text = "New Game"
+horizontal_alignment = 1
+
+[node name="SeedLabel" type="Label" parent="Box"]
+layout_mode = 2
+theme_type_variation = &"BodyLabel"
+text = "World seed"
+
+[node name="Seed" type="LineEdit" parent="Box"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+placeholder_text = "Leave blank for a random seed"
+max_length = 24
+
+[node name="SeedHint" type="Label" parent="Box"]
+custom_minimum_size = Vector2(460, 0)
+layout_mode = 2
+theme_type_variation = &"DimLabel"
+text = "Numbers are used as they are. Any other text is turned into a seed."
+autowrap_mode = 3
+
+[node name="Options" type="VBoxContainer" parent="Box"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Start" type="Button" parent="Box"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(300, 46)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "Start"
+
+[node name="Back" type="Button" parent="Box"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(300, 46)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "Back"
