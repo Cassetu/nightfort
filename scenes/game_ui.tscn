@@ -1,6 +1,6 @@
-[gd_scene format=3]
+[gd_scene load_steps=7 format=3 uid="uid://0mlbtch40n6o"]
 
-[ext_resource type="Script" path="res://scripts/game_ui.gd" id="1_ui"]
+[ext_resource type="Script" uid="uid://cjxda3ekq3abf" path="res://scripts/game_ui.gd" id="1_ui"]
 [ext_resource type="Theme" uid="uid://gr2kk87lccmd" path="res://resources/main-theme.tres" id="2_theme"]
 [ext_resource type="PackedScene" path="res://scenes/menus/settings_panel.tscn" id="3_settings"]
 [ext_resource type="PackedScene" path="res://scenes/menus/slots_panel.tscn" id="4_slots"]
@@ -45,6 +45,20 @@ mouse_filter = 2
 texture = SubResource("GradientTexture2D_vignette")
 expand_mode = 1
 
+[node name="WaveLabel" type="Label" parent="UI"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -250.0
+offset_top = 75.0
+offset_right = 250.0
+offset_bottom = 105.0
+grow_horizontal = 2
+theme_type_variation = &"AccentLabel"
+horizontal_alignment = 1
+
 [node name="PlayerBar" type="ProgressBar" parent="UI"]
 unique_name_in_owner = true
 layout_mode = 1
@@ -68,7 +82,6 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 2
 theme_type_variation = &"BarLabel"
 text = "HP  100 / 100"
 horizontal_alignment = 1
@@ -97,7 +110,6 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 2
 theme_type_variation = &"BarLabel"
 text = "CORE  100 / 100"
 horizontal_alignment = 1

@@ -91,10 +91,24 @@ func _refresh() -> void:
 			count.text = ""
 			if is_selected:
 				title.text = ""
+		elif data.get("kind", "") == "weapon":
+			var winfo: Dictionary = Inventory.WEAPONS[data["type"]]
+			icon.visible = true
+			icon.size = Vector2(8.0, 38.0)
+			icon.position = Vector2(28.0, 13.0)
+			icon.pivot_offset = icon.size * 0.5
+			icon.rotation = 0.785
+			icon.color = winfo["color"]
+			count.text = ""
+			if is_selected:
+				title.text = winfo["name"]
 		else:
 			var info: Dictionary = Inventory.BLOCK_TYPES[data["type"]]
 			var have: int = Inventory.get_count(info["resource"])
 			icon.visible = true
+			icon.size = Vector2(28.0, 28.0)
+			icon.position = Vector2(18.0, 18.0)
+			icon.rotation = 0.0
 			icon.color = info["color"]
 			count.text = str(have)
 			if have >= Inventory.BLOCK_COST:

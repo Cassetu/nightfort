@@ -7,9 +7,16 @@ const BLOCK_SCENE_PATH := "res://scenes/block.tscn"
 @onready var player = $Player
 @onready var core = $Core
 @onready var ui = $GameUI
+@onready var flow = $FlowField
+@onready var spawner = $WaveSpawner
+@onready var enemies = $Enemies
 
 
 func _ready() -> void:
+	terrain.pin(core.global_position, 4)
+	flow.setup(terrain, core)
+	spawner.setup(terrain, flow, core, player, sun, enemies)
+	spawner.status_changed.connect(ui.on_wave_status)
 	ui.setup(player, core, self)
 	player.died.connect(ui.on_player_died)
 	core.destroyed.connect(ui.on_core_destroyed)
@@ -50,6 +57,7 @@ func collect_state() -> Dictionary:
 		"inventory": Inventory.export_state(),
 		"terrain": terrain.export_state(),
 		"blocks": blocks,
+		"waves": spawner.export_state(),
 	}
 
 
@@ -68,6 +76,7 @@ func apply_state(d: Dictionary) -> void:
 		core.set_health(int(c["hp"]))
 
 	Inventory.import_state(d.get("inventory", {}))
+	spawner.import_state(d.get("waves", {}))
 
 	var scene: PackedScene = load(BLOCK_SCENE_PATH)
 	for b in d.get("blocks", []):

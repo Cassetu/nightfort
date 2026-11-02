@@ -19,6 +19,7 @@ const REGEN_RATE = 3.0
 
 var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 var mine_timer = 0.0
+var attack_timer = 0.0
 var ghost_valid_mat
 var ghost_blocked_mat
 var probe_query
@@ -31,6 +32,7 @@ var shown_health: int = 100
 @onready var head = $Head
 @onready var camera = $Head/Camera3D
 @onready var ghost_block = $GhostBlock
+@onready var sword_holder = $Head/Camera3D/SwordHolder
 @export var block_scene: PackedScene
 
 
@@ -131,8 +133,15 @@ func _physics_process(delta):
 		_emit_health()
 
 	mine_timer = maxf(mine_timer - delta, 0.0)
+	attack_timer = maxf(attack_timer - delta, 0.0)
 	var hit = look_hit()
 	update_ghost(hit)
+	sword_holder.visible = not Inventory.held_weapon().is_empty()
+
+	if Input.is_action_pressed("mine") and attack_timer <= 0.0:
+		var weapon: Dictionary = Inventory.held_weapon()
+		if not weapon.is_empty():
+			swing(weapon)
 
 	if Input.is_action_pressed("mine") and mine_timer <= 0.0:
 		try_mine(hit)
@@ -265,6 +274,30 @@ func mine_terrain(hit):
 	var result = terrain.hit_block(cell, MINE_DAMAGE)
 	if result["state"] == "broken":
 		Inventory.add(result["item"], result["amount"])
+
+
+func swing(weapon):
+	attack_timer = weapon["cooldown"]
+
+	var holder_tween = create_tween()
+	sword_holder.rotation = Vector3(0.0, 0.0, 0.0)
+	holder_tween.tween_property(sword_holder, "rotation", Vector3(-1.2, 0.0, -0.5), 0.09)
+	holder_tween.tween_property(sword_holder, "rotation", Vector3.ZERO, 0.22).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+	var shape = SphereShape3D.new()
+	shape.radius = 1.1
+	var query = PhysicsShapeQueryParameters3D.new()
+	query.shape = shape
+	query.collision_mask = 2
+	query.transform = Transform3D(Basis.IDENTITY, camera.global_position - camera.global_transform.basis.z * weapon["reach"] * 0.6)
+	var found = get_world_3d().direct_space_state.intersect_shape(query, 8)
+	var struck = {}
+	for entry in found:
+		var target = entry["collider"]
+		if struck.has(target) or not target.is_in_group("enemy"):
+			continue
+		struck[target] = true
+		target.take_damage(weapon["damage"], global_position)
 
 
 func try_place(hit):

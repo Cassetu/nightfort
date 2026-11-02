@@ -3,6 +3,8 @@ extends Node3D
 const TreeScript = preload("res://scripts/tree.gd")
 const RockScript = preload("res://scripts/rock.gd")
 
+signal block_broken(cell: Vector3i)
+
 const CHUNK := 16
 const PAD := CHUNK + 2
 const LAYER := PAD * PAD
@@ -137,6 +139,9 @@ var wants: Array = []
 var want_index: int = 0
 var mutex := Mutex.new()
 var last_center := Vector2i(2147483647, 0)
+var pin_active: bool = false
+var pin_chunk := Vector2i.ZERO
+var pin_radius2: int = 0
 var levels_dirty: bool = true
 var face_ao: Array = []
 
@@ -219,6 +224,39 @@ func height_at(world_x: float, world_z: float) -> float:
 	return float(_height(floori(world_x), floori(world_z)))
 
 
+func column_height(x: int, z: int) -> int:
+	return _height(x, z)
+
+
+func surface_y(x: int, z: int) -> int:
+	var h := _height(x, z)
+	if not edit_chunks.has(_chunk_key(x, z)):
+		return h
+	for iy in range(h + 4, Y_MIN - 1, -1):
+		if block_at(x, iy, z) != B_AIR:
+			return iy + 1
+	return Y_MIN
+
+
+func pin(world_pos: Vector3, chunk_radius: int) -> void:
+	pin_active = true
+	pin_chunk = _chunk_of(world_pos)
+	pin_radius2 = chunk_radius * chunk_radius
+	last_center = Vector2i(2147483647, 0)
+
+
+func _pinned(coord: Vector2i) -> bool:
+	return pin_active and _dist2(coord, pin_chunk) <= pin_radius2
+
+
+func collision_ready(world_pos: Vector3) -> bool:
+	var coord := _chunk_of(world_pos)
+	if not chunks.has(coord):
+		return false
+	var chunk: Chunk = chunks[coord]
+	return chunk.body != null
+
+
 func block_at(x: int, iy: int, z: int) -> int:
 	var key := Vector3i(x, iy, z)
 	var cc := _chunk_key(x, z)
@@ -258,6 +296,7 @@ func hit_block(cell: Vector3i, damage: float) -> Dictionary:
 		_clear_crack()
 		_set_edit(cell, B_AIR)
 		_release_support(cell)
+		block_broken.emit(cell)
 		return {"state": "broken", "item": DROP_ITEM[id], "amount": DROP_AMOUNT[id]}
 
 	_show_crack(cell, crack_progress / hardness)
@@ -561,11 +600,12 @@ func _refresh(center: Vector2i) -> void:
 	for coord: Vector2i in chunks.keys():
 		var chunk: Chunk = chunks[coord]
 		var d := _dist2(coord, center)
-		if d > unload2:
+		var pinned := _pinned(coord)
+		if d > unload2 and not pinned:
 			chunk.root.queue_free()
 			chunks.erase(coord)
 			continue
-		if chunk.body != null and d > drop_collision2:
+		if chunk.body != null and d > drop_collision2 and not pinned:
 			chunk.body.queue_free()
 			chunk.body = null
 		if chunk.objects != null and d > drop_objects2:
@@ -584,6 +624,17 @@ func _refresh(center: Vector2i) -> void:
 			if not _in_world(coord) or chunks.has(coord) or requested.has(coord):
 				continue
 			wants.append([d2, coord])
+	if pin_active:
+		var pr := int(ceil(sqrt(float(pin_radius2))))
+		for dz in range(-pr, pr + 1):
+			for dx in range(-pr, pr + 1):
+				var coord := pin_chunk + Vector2i(dx, dz)
+				if not _pinned(coord) or not _in_world(coord) or chunks.has(coord) or requested.has(coord):
+					continue
+				var d2 := _dist2(coord, center)
+				if d2 <= r2:
+					continue
+				wants.append([d2, coord])
 	wants.sort_custom(func(a, b): return a[0] < b[0])
 	levels_dirty = true
 
@@ -648,7 +699,7 @@ func _consume(center: Vector2i) -> bool:
 	requested.erase(best)
 	if chunks.has(best):
 		_apply_remesh(chunks[best], data)
-	elif not data["remesh"] and best_d <= (view_distance + 1) * (view_distance + 1):
+	elif not data["remesh"] and (best_d <= (view_distance + 1) * (view_distance + 1) or _pinned(best)):
 		_finalize(best, data)
 		levels_dirty = true
 	return true
@@ -665,7 +716,7 @@ func _upgrade_one(center: Vector2i) -> bool:
 		var d := _dist2(chunk.coord, center)
 		if d >= best_d:
 			continue
-		var need_collision := chunk.body == null and d <= c2
+		var need_collision := chunk.body == null and (d <= c2 or _pinned(chunk.coord))
 		var need_objects := chunk.objects == null and d <= o2
 		if need_collision or need_objects:
 			best = chunk

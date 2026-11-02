@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://c66ndex75uxn4"]
+[gd_scene load_steps=14 format=3 uid="uid://c66ndex75uxn4"]
 
 [ext_resource type="PackedScene" uid="uid://dudcni17usbht" path="res://scenes/player.tscn" id="1_nnsk1"]
 [ext_resource type="Script" uid="uid://bpm6x2hnclkp8" path="res://scripts/sun.gd" id="1_rwgxs"]
@@ -7,6 +7,9 @@
 [ext_resource type="Script" uid="uid://b0yh1lflhaqv2" path="res://scripts/terrain.gd" id="5_terra"]
 [ext_resource type="Script" path="res://scripts/world.gd" id="6_world"]
 [ext_resource type="PackedScene" path="res://scenes/game_ui.tscn" id="7_ui"]
+[ext_resource type="Script" path="res://scripts/flow_field.gd" id="8_flow"]
+[ext_resource type="Script" path="res://scripts/wave_spawner.gd" id="9_waves"]
+[ext_resource type="PackedScene" path="res://scenes/gloom.tscn" id="10_gloom"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_4wyf3"]
 sky_top_color = Color(0.22, 0.45, 0.85, 1)
@@ -57,5 +60,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.1473355, 6)
 
 [node name="Core" parent="." instance=ExtResource("4_k0juu")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+
+[node name="FlowField" type="Node" parent="."]
+script = ExtResource("8_flow")
+
+[node name="Enemies" type="Node3D" parent="."]
+
+[node name="WaveSpawner" type="Node" parent="."]
+script = ExtResource("9_waves")
+enemy_scene = ExtResource("10_gloom")
 
 [node name="GameUI" parent="." instance=ExtResource("7_ui")]

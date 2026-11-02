@@ -19,6 +19,7 @@ const MOON_LIGHT := Color(0.6, 0.7, 1.0)
 var time_multiplier: float
 var day_phase: float = 0.0
 var moon: DirectionalLight3D
+var elevation: float = 1.0
 
 @onready var env = $"../WorldEnvironment".environment
 @onready var sky_material = env.sky.sky_material
@@ -44,6 +45,7 @@ func _process(delta):
 	day_phase = wrapf(day_phase + delta / day_length_seconds, 0.0, 1.0)
 
 	var e = global_transform.basis.z.y
+	elevation = e
 	var night_amt = 1.0 - smoothstep(-0.2, 0.05, e)
 	var day_amt = smoothstep(0.05, 0.5, e)
 	var dusk_amt = 1.0 - night_amt - day_amt

@@ -5,6 +5,7 @@ const DEATH_DELAY := 3.0
 @onready var vignette = %Vignette
 @onready var player_bar = %PlayerBar
 @onready var player_label = $UI/PlayerBar/Label
+@onready var wave_label = %WaveLabel
 @onready var core_bar = %CoreBar
 @onready var core_label = $UI/CoreBar/Label
 @onready var death_overlay = %DeathOverlay
@@ -85,6 +86,10 @@ func _on_core_health(current, maximum) -> void:
 	core_bar.max_value = maximum
 	core_bar.value = current
 	core_label.text = "CORE  %d / %d" % [current, maximum]
+
+
+func on_wave_status(text: String) -> void:
+	wave_label.text = text
 
 
 func on_player_died() -> void:

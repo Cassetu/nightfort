@@ -12,13 +12,17 @@ const BLOCK_TYPES := {
 	"dirt": {"name": "Dirt Block", "resource": "dirt", "health": 2, "color": Color(0.42, 0.29, 0.18)},
 }
 
+const WEAPONS := {
+	"sword": {"name": "Sword", "damage": 3, "cooldown": 0.45, "reach": 2.6, "color": Color(0.78, 0.84, 0.92)},
+}
+
 var items: Dictionary = {}
 var hotbar: Array = [
+	{"kind": "weapon", "type": "sword"},
+	{},
 	{"kind": "block", "type": "wood"},
 	{"kind": "block", "type": "stone"},
 	{"kind": "block", "type": "dirt"},
-	{},
-	{},
 	{},
 ]
 var selected: int = 0
@@ -70,6 +74,13 @@ func select_slot(index: int) -> void:
 
 func get_selected() -> Dictionary:
 	return hotbar[selected]
+
+
+func held_weapon() -> Dictionary:
+	var slot: Dictionary = hotbar[selected]
+	if slot.get("kind", "") == "weapon":
+		return WEAPONS[slot["type"]]
+	return {}
 
 
 func held_block_type() -> String:
