@@ -1,4 +1,4 @@
-[gd_scene load_steps=5 format=3 uid="uid://dub2ibctw8foy"]
+[gd_scene load_steps=14 format=3 uid="uid://dub2ibctw8foy"]
 
 [ext_resource type="Script" uid="uid://qvqooruqfm8u" path="res://scripts/core.gd" id="1_5634n"]
 
@@ -8,24 +8,110 @@ emission_enabled = true
 emission = Color(0.41568628, 1, 1, 1)
 emission_energy_multiplier = 2.0
 
-[sub_resource type="PrismMesh" id="PrismMesh_5634n"]
+[sub_resource type="SphereMesh" id="SphereMesh_core"]
 material = SubResource("StandardMaterial3D_lvavo")
-size = Vector3(2, 2, 2)
+radius = 0.95
+height = 1.9
+radial_segments = 32
+rings = 16
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_hlf4f"]
-size = Vector3(2, 2, 2)
+[sub_resource type="SphereShape3D" id="SphereShape3D_core"]
+radius = 0.95
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_glow"]
+transparency = 1
+shading_mode = 0
+no_depth_test = true
+albedo_color = Color(0.4, 1, 1, 0)
+
+[sub_resource type="SphereMesh" id="SphereMesh_glow"]
+material = SubResource("StandardMaterial3D_glow")
+radius = 0.95
+height = 1.9
+radial_segments = 32
+rings = 16
+
+[sub_resource type="Gradient" id="Gradient_soft"]
+offsets = PackedFloat32Array(0, 1)
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_soft"]
+gradient = SubResource("Gradient_soft")
+width = 64
+height = 64
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_mist"]
+transparency = 1
+blend_mode = 1
+shading_mode = 0
+vertex_color_use_as_albedo = true
+albedo_color = Color(0.45, 1, 1, 1)
+albedo_texture = SubResource("GradientTexture2D_soft")
+billboard_mode = 3
+billboard_keep_scale = true
+particles_anim_h_frames = 1
+particles_anim_v_frames = 1
+particles_anim_loop = false
+
+[sub_resource type="QuadMesh" id="QuadMesh_mist"]
+material = SubResource("StandardMaterial3D_mist")
+size = Vector2(1.4, 1.4)
+
+[sub_resource type="Gradient" id="Gradient_mist"]
+offsets = PackedFloat32Array(0, 0.3, 1)
+colors = PackedColorArray(1, 1, 1, 0, 1, 1, 1, 0.3, 1, 1, 1, 0)
 
 [node name="Core" type="StaticBody3D"]
 script = ExtResource("1_5634n")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-mesh = SubResource("PrismMesh_5634n")
+mesh = SubResource("SphereMesh_core")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-shape = SubResource("BoxShape3D_hlf4f")
+shape = SubResource("SphereShape3D_core")
 
 [node name="OmniLight3D" type="OmniLight3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
 light_energy = 2.0
 shadow_enabled = true
 omni_range = 14.0
+
+[node name="Mist" type="CPUParticles3D" parent="."]
+amount = 36
+lifetime = 3.5
+preprocess = 3.5
+mesh = SubResource("QuadMesh_mist")
+emission_shape = 1
+emission_sphere_radius = 1.05
+direction = Vector3(0, 1, 0)
+spread = 180.0
+gravity = Vector3(0, 0.25, 0)
+initial_velocity_min = 0.05
+initial_velocity_max = 0.3
+scale_amount_min = 0.8
+scale_amount_max = 1.8
+color_ramp = SubResource("Gradient_mist")
+
+[node name="Glow" type="MeshInstance3D" parent="."]
+transform = Transform3D(1.08, 0, 0, 0, 1.08, 0, 0, 0, 1.08, 0, 0, 0)
+visible = false
+cast_shadow = 0
+mesh = SubResource("SphereMesh_glow")
+
+[node name="Marker" type="Node3D" parent="."]
+top_level = true
+visible = false
+
+[node name="Label" type="Label3D" parent="Marker"]
+pixel_size = 0.01
+billboard = 1
+no_depth_test = true
+shaded = false
+modulate = Color(0.55, 1, 1, 1)
+outline_modulate = Color(0, 0.1, 0.15, 1)
+text = "Core"
+font_size = 40
+outline_size = 14

@@ -1,0 +1,106 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/intro.gd" id="1_intro"]
+[ext_resource type="Theme" uid="uid://gr2kk87lccmd" path="res://resources/main-theme.tres" id="2_theme"]
+
+[node name="Intro" type="CanvasLayer"]
+layer = 30
+script = ExtResource("1_intro")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+
+[node name="Black" type="ColorRect" parent="Root"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 1)
+
+[node name="Center" type="CenterContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Lines" type="VBoxContainer" parent="Root/Center"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="Died" type="Label" parent="Root/Center/Lines"]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0)
+layout_mode = 2
+theme_type_variation = &"IntroDied"
+text = "I died."
+horizontal_alignment = 1
+
+[node name="Line1" type="Label" parent="Root/Center/Lines"]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0)
+layout_mode = 2
+theme_type_variation = &"IntroLine"
+text = "We perished in the gloom."
+horizontal_alignment = 1
+
+[node name="Line2" type="Label" parent="Root/Center/Lines"]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0)
+layout_mode = 2
+theme_type_variation = &"IntroLine"
+text = "I had given my goodbyes, It was time for me to leave."
+horizontal_alignment = 1
+
+[node name="Line3" type="Label" parent="Root/Center/Lines"]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0)
+layout_mode = 2
+theme_type_variation = &"IntroLine"
+text = "But then the light shown from the sky"
+horizontal_alignment = 1
+
+[node name="Line4" type="Label" parent="Root/Center/Lines"]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0)
+layout_mode = 2
+theme_type_variation = &"IntroCore"
+text = "The core appeared on the platform I laid."
+horizontal_alignment = 1
+
+[node name="Line5" type="Label" parent="Root/Center/Lines"]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0)
+layout_mode = 2
+theme_type_variation = &"IntroCore"
+text = "And it brought me back to life."
+horizontal_alignment = 1
+
+[node name="SkipHint" type="Label" parent="Root"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -260.0
+offset_top = -44.0
+offset_right = -20.0
+offset_bottom = -16.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_type_variation = &"DimLabel"
+text = "Space or Esc to skip"
+horizontal_alignment = 2

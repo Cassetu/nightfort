@@ -6,6 +6,7 @@ const DEATH_DELAY := 3.0
 @onready var player_bar = %PlayerBar
 @onready var player_label = $UI/PlayerBar/Label
 @onready var wave_label = %WaveLabel
+@onready var notice = %Notice
 @onready var core_bar = %CoreBar
 @onready var core_label = $UI/CoreBar/Label
 @onready var death_overlay = %DeathOverlay
@@ -23,6 +24,7 @@ var player
 var core
 var world
 var flash: float = 0.0
+var notice_tween: Tween
 var pulse_time: float = 0.0
 var death_left: float = 0.0
 var dead: bool = false
@@ -88,6 +90,16 @@ func _on_core_health(current, maximum) -> void:
 	core_label.text = "CORE  %d / %d" % [current, maximum]
 
 
+func show_notice(text: String) -> void:
+	notice.text = text
+	if notice_tween != null:
+		notice_tween.kill()
+	notice.modulate.a = 1.0
+	notice_tween = create_tween()
+	notice_tween.tween_interval(1.8)
+	notice_tween.tween_property(notice, "modulate:a", 0.0, 0.5)
+
+
 func on_wave_status(text: String) -> void:
 	wave_label.text = text
 
@@ -130,7 +142,7 @@ func _over_load() -> void:
 func _input(event: InputEvent) -> void:
 	if not event.is_action_pressed("ui_cancel"):
 		return
-	if dead or game_over:
+	if dead or game_over or world.intro_playing:
 		return
 	get_viewport().set_input_as_handled()
 	if not pause_overlay.visible:

@@ -5,8 +5,11 @@ signal died(enemy)
 const SPEED := 3.4
 const JUMP_VELOCITY := 6.2
 const AGGRO_RANGE := 14.0
+const ALONE_DISTANCE := 30.0
+const BLOCK_RANGE := 3.5
 const PLAYER_REACH := 1.9
-const CORE_REACH := 2.7
+const CORE_REACH := 2.6
+const FEET_OFFSET := 0.85
 const PLAYER_DAMAGE := 10
 const CORE_DAMAGE := 5
 const BLOCK_DAMAGE := 1
@@ -77,7 +80,16 @@ func _physics_process(delta: float) -> void:
 	var to_player := Vector3.ZERO
 	if is_instance_valid(player) and not player.dead:
 		to_player = player.global_position - global_position
-		chase_player = to_player.length() < AGGRO_RANGE
+		var flat_to_player := Vector3(to_player.x, 0.0, to_player.z)
+		var player_alone := false
+		if is_instance_valid(core):
+			var from_core: Vector3 = player.global_position - core.global_position
+			player_alone = Vector2(from_core.x, from_core.z).length() > ALONE_DISTANCE
+		var in_the_way := false
+		if flow != null and flat_to_player.length() < BLOCK_RANGE:
+			var path_dir: Vector3 = flow.direction_at(global_position)
+			in_the_way = flat_to_player.length() < 0.5 or flat_to_player.normalized().dot(path_dir) > 0.5
+		chase_player = in_the_way or (player_alone and to_player.length() < AGGRO_RANGE)
 
 	if chase_player:
 		var flat := Vector3(to_player.x, 0.0, to_player.z)
@@ -92,7 +104,8 @@ func _physics_process(delta: float) -> void:
 		var to_core: Vector3 = core.global_position - global_position
 		var flat_dist := Vector2(to_core.x, to_core.z).length()
 		facing = Vector3(to_core.x, 0.0, to_core.z)
-		if flat_dist > CORE_REACH or absf(to_core.y) > 3.5:
+		var level_ok: bool = core.melee_reachable(global_position.y - FEET_OFFSET)
+		if flat_dist > CORE_REACH or not level_ok:
 			desired = flow.direction_at(global_position)
 			facing = desired
 		elif attack_timer <= 0.0:

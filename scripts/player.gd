@@ -3,6 +3,7 @@ extends CharacterBody3D
 signal health_changed(current, maximum)
 signal damaged(amount)
 signal died
+signal notice(text)
 
 const SPEED = 5.0
 const JUMP_VELOCITY = 4.5
@@ -20,6 +21,7 @@ const REGEN_RATE = 3.0
 var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 var mine_timer = 0.0
 var attack_timer = 0.0
+var frozen = false
 var ghost_valid_mat
 var ghost_blocked_mat
 var probe_query
@@ -79,7 +81,7 @@ func make_ghost_material(color):
 
 
 func _unhandled_input(event):
-	if dead:
+	if dead or frozen:
 		return
 
 	if event is InputEventMouseButton and event.pressed and Input.get_mouse_mode() != Input.MOUSE_MODE_CAPTURED:
@@ -102,7 +104,7 @@ func _physics_process(delta):
 	if not is_on_floor():
 		velocity.y -= gravity * delta
 
-	if dead:
+	if dead or frozen:
 		velocity.x = 0.0
 		velocity.z = 0.0
 		move_and_slide()
@@ -224,7 +226,14 @@ func cell_center(hit):
 	return Vector3(floor(p.x) + 0.5, floor(p.y) + 0.5, floor(p.z) + 0.5)
 
 
+func in_core_zone(cell):
+	var core = get_tree().get_first_node_in_group("Core")
+	return core != null and core.blocks_building(cell)
+
+
 func can_place(type, cell):
+	if in_core_zone(cell):
+		return false
 	var info = Inventory.BLOCK_TYPES[type]
 	if Inventory.get_count(info["resource"]) < Inventory.BLOCK_COST:
 		return false
@@ -305,6 +314,9 @@ func try_place(hit):
 	if type == "" or hit.is_empty():
 		return
 	var cell = cell_center(hit)
+	if in_core_zone(cell):
+		notice.emit("You can't build this close to the Core")
+		return
 	if not can_place(type, cell):
 		return
 	Inventory.spend(Inventory.BLOCK_TYPES[type]["resource"], Inventory.BLOCK_COST)

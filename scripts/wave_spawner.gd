@@ -5,6 +5,7 @@ signal status_changed(text: String)
 @export var enemy_scene: PackedScene
 @export var spawn_radius: float = 38.0
 @export var spawn_jitter: float = 5.0
+@export var calm_nights: int = 1
 @export var base_count: int = 4
 @export var count_growth: int = 3
 @export var max_count: int = 60
@@ -37,7 +38,10 @@ func setup(t, f, c, p, s, root: Node3D) -> void:
 
 
 func wave_size(n: int) -> int:
-	return mini(base_count + (n - 1) * count_growth, max_count)
+	var real := n - calm_nights
+	if real <= 0:
+		return 0
+	return mini(base_count + (real - 1) * count_growth, max_count)
 
 
 func export_state() -> Dictionary:
@@ -110,7 +114,9 @@ func _spawn_one() -> bool:
 
 func _update_status() -> void:
 	var text: String
-	if night_active:
+	if night_active and night <= calm_nights:
+		text = "NIGHT %d  -  Calm" % night
+	elif night_active:
 		var left: int = to_spawn + get_tree().get_nodes_in_group("enemy").size()
 		text = "NIGHT %d  -  Gloom left: %d" % [night, left]
 	else:

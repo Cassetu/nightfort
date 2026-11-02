@@ -175,7 +175,9 @@ func _build_heights() -> void:
 func _collect_extra() -> int:
 	extra.fill(0.0)
 	var sig := 17
-	for node: Node in get_tree().get_nodes_in_group("resource"):
+	var nodes: Array = get_tree().get_nodes_in_group("resource")
+	nodes.append_array(get_tree().get_nodes_in_group("torch"))
+	for node: Node in nodes:
 		if node.get("dying"):
 			continue
 		var p: Vector3 = node.global_position

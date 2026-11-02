@@ -6,6 +6,8 @@ const RockScript = preload("res://scripts/rock.gd")
 signal block_broken(cell: Vector3i)
 
 const CHUNK := 16
+const PLATFORM_MIN := -2
+const PLATFORM_MAX := 1
 const PAD := CHUNK + 2
 const LAYER := PAD * PAD
 const Y_MIN := -32
@@ -222,6 +224,10 @@ func _exit_tree() -> void:
 
 func height_at(world_x: float, world_z: float) -> float:
 	return float(_height(floori(world_x), floori(world_z)))
+
+
+func on_platform(x: int, z: int) -> bool:
+	return x >= PLATFORM_MIN and x <= PLATFORM_MAX and z >= PLATFORM_MIN and z <= PLATFORM_MAX
 
 
 func column_height(x: int, z: int) -> int:
@@ -908,6 +914,8 @@ func _gen_block(x: int, iy: int, z: int, h: int, surf: int) -> int:
 		return B_BEDROCK
 	var depth := h - 1 - iy
 	if depth == 0:
+		if on_platform(x, z):
+			return B_STONE
 		return surf
 	if caves_enabled and depth >= cave_cover and iy > Y_MIN + 1 and _is_cave(x, iy, z):
 		return B_AIR
@@ -1079,7 +1087,7 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 				var base: Color = BASE_COL[id]
 				var ct := base
 				var cs := base
-				if iy == a1:
+				if iy == a1 and not on_platform(wx, wz):
 					ct = top_col
 					if id == B_GRASS:
 						cs = base.lerp(top_col, 0.5)

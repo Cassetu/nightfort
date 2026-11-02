@@ -1,6 +1,7 @@
 extends Node3D
 
 const BLOCK_SCENE_PATH := "res://scenes/block.tscn"
+const TORCH_SCENE_PATH := "res://scenes/torch.tscn"
 
 @onready var sun = $Sun
 @onready var terrain = $Terrain
@@ -10,6 +11,9 @@ const BLOCK_SCENE_PATH := "res://scenes/block.tscn"
 @onready var flow = $FlowField
 @onready var spawner = $WaveSpawner
 @onready var enemies = $Enemies
+@onready var intro = $Intro
+
+var intro_playing: bool = false
 
 
 func _ready() -> void:
@@ -17,6 +21,8 @@ func _ready() -> void:
 	flow.setup(terrain, core)
 	spawner.setup(terrain, flow, core, player, sun, enemies)
 	spawner.status_changed.connect(ui.on_wave_status)
+	_place_torches()
+	player.notice.connect(ui.show_notice)
 	ui.setup(player, core, self)
 	player.died.connect(ui.on_player_died)
 	core.destroyed.connect(ui.on_core_destroyed)
@@ -24,7 +30,32 @@ func _ready() -> void:
 	var state := Game.take_pending()
 	if not state.is_empty():
 		apply_state(state)
+		intro.queue_free()
+	elif Game.has_session:
+		intro_playing = true
+		player.frozen = true
+		intro.finished.connect(_on_intro_finished)
+		intro.play()
+	else:
+		intro.queue_free()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+
+
+func _on_intro_finished() -> void:
+	intro_playing = false
+	player.frozen = false
+
+
+func _place_torches() -> void:
+	var scene: PackedScene = load(TORCH_SCENE_PATH)
+	var lo: int = terrain.PLATFORM_MIN
+	var hi: int = terrain.PLATFORM_MAX
+	for cx in [lo, hi]:
+		for cz in [lo, hi]:
+			var torch = scene.instantiate()
+			add_child(torch)
+			var top: int = terrain.surface_y(cx, cz)
+			torch.global_position = Vector3(cx + 0.5, top + 0.5, cz + 0.5)
 
 
 func respawn_position() -> Vector3:
