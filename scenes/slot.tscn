@@ -36,7 +36,7 @@ mouse_filter = 2
 [node name="Art" type="TextureRect" parent="."]
 unique_name_in_owner = true
 visible = false
-texture_filter = 1
+texture_filter = 2
 layout_mode = 0
 offset_left = 8.0
 offset_top = 8.0

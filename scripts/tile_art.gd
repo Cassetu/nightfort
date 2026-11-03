@@ -1,6 +1,6 @@
 extends RefCounted
 
-const TILE := 16
+const TILE := 64
 const TILE_DIR := "res://art/tiles/"
 const ITEM_DIR := "res://art/items/"
 

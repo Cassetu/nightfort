@@ -1,9 +1,9 @@
 extends DirectionalLight3D
 
-const DAY_TOP := Color(0.22, 0.45, 0.85)
-const DAY_HORIZON := Color(0.62, 0.76, 0.92)
+const DAY_TOP := Color(0.27, 0.36, 0.45)
+const DAY_HORIZON := Color(0.50, 0.56, 0.54)
 const DUSK_TOP := Color(0.20, 0.22, 0.42)
-const DUSK_HORIZON := Color(1.0, 0.52, 0.28)
+const DUSK_HORIZON := Color(0.70, 0.44, 0.30)
 const NIGHT_TOP := Color(0.015, 0.025, 0.07)
 const NIGHT_HORIZON := Color(0.05, 0.07, 0.14)
 const DAY_LIGHT := Color(1.0, 0.96, 0.88)
