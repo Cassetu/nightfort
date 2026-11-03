@@ -1,0 +1,67 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/slot_ui.gd" id="1_slot"]
+[ext_resource type="Theme" uid="uid://gr2kk87lccmd" path="res://resources/main-theme.tres" id="2_theme"]
+
+[node name="Slot" type="Panel"]
+custom_minimum_size = Vector2(64, 64)
+mouse_filter = 2
+theme = ExtResource("2_theme")
+theme_type_variation = &"SlotPanel"
+script = ExtResource("1_slot")
+
+[node name="Hint" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_type_variation = &"SlotHint"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Icon" type="ColorRect" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 18.0
+offset_top = 18.0
+offset_right = 46.0
+offset_bottom = 46.0
+mouse_filter = 2
+
+[node name="Art" type="TextureRect" parent="."]
+unique_name_in_owner = true
+visible = false
+texture_filter = 1
+layout_mode = 0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 56.0
+offset_bottom = 56.0
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Number" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 6.0
+offset_top = 2.0
+offset_right = 30.0
+offset_bottom = 24.0
+mouse_filter = 2
+theme_type_variation = &"SlotNumber"
+
+[node name="Count" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_top = 40.0
+offset_right = 58.0
+offset_bottom = 62.0
+mouse_filter = 2
+theme_type_variation = &"SlotCount"
+horizontal_alignment = 2

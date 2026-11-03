@@ -1,5 +1,7 @@
 extends "res://scripts/resource_node.gd"
 
+const TileArt = preload("res://scripts/tile_art.gd")
+
 var block_type: String = "wood"
 
 static var _materials: Dictionary = {}
@@ -28,8 +30,6 @@ func _build() -> void:
 
 static func _material_for(type: String) -> StandardMaterial3D:
 	if not _materials.has(type):
-		var m := StandardMaterial3D.new()
-		m.albedo_color = Inventory.BLOCK_TYPES[type]["color"]
-		m.roughness = 0.9
-		_materials[type] = m
+		var info: Dictionary = Inventory.BLOCK_TYPES[type]
+		_materials[type] = TileArt.block_material(info.get("tile", type), info["color"])
 	return _materials[type]

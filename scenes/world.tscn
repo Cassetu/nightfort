@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3 uid="uid://c66ndex75uxn4"]
+[gd_scene load_steps=16 format=3 uid="uid://c66ndex75uxn4"]
 
 [ext_resource type="PackedScene" uid="uid://dudcni17usbht" path="res://scenes/player.tscn" id="1_nnsk1"]
 [ext_resource type="Script" uid="uid://bpm6x2hnclkp8" path="res://scripts/sun.gd" id="1_rwgxs"]
@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://scripts/wave_spawner.gd" id="9_waves"]
 [ext_resource type="PackedScene" path="res://scenes/gloom.tscn" id="10_gloom"]
 [ext_resource type="PackedScene" path="res://scenes/intro.tscn" id="11_intro"]
+[ext_resource type="PackedScene" path="res://scenes/inventory_ui.tscn" id="12_inv"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_4wyf3"]
 sky_top_color = Color(0.22, 0.45, 0.85, 1)
@@ -72,5 +73,7 @@ script = ExtResource("9_waves")
 enemy_scene = ExtResource("10_gloom")
 
 [node name="GameUI" parent="." instance=ExtResource("7_ui")]
+
+[node name="InventoryUI" parent="." instance=ExtResource("12_inv")]
 
 [node name="Intro" parent="." instance=ExtResource("11_intro")]

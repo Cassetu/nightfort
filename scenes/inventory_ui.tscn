@@ -1,0 +1,333 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/inventory_ui.gd" id="1_inv"]
+[ext_resource type="Theme" uid="uid://gr2kk87lccmd" path="res://resources/main-theme.tres" id="2_theme"]
+[ext_resource type="PackedScene" path="res://scenes/slot.tscn" id="3_slot"]
+
+[node name="InventoryUI" type="CanvasLayer"]
+layer = 12
+script = ExtResource("1_inv")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme = ExtResource("2_theme")
+
+[node name="Dim" type="ColorRect" parent="Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.6)
+
+[node name="Center" type="CenterContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Panel" type="PanelContainer" parent="Root/Center"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Content" type="VBoxContainer" parent="Root/Center/Panel"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 14
+
+[node name="Title" type="Label" parent="Root/Center/Panel/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+text = "Inventory"
+
+[node name="Body" type="HBoxContainer" parent="Root/Center/Panel/Content"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 36
+
+[node name="Equip" type="VBoxContainer" parent="Root/Center/Panel/Content/Body"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="EquipTitle" type="Label" parent="Root/Center/Panel/Content/Body/Equip"]
+layout_mode = 2
+theme_type_variation = &"DimLabel"
+text = "Equipment"
+
+[node name="Head" parent="Root/Center/Panel/Content/Body/Equip" instance=ExtResource("3_slot")]
+layout_mode = 2
+equip = "head"
+
+[node name="Chest" parent="Root/Center/Panel/Content/Body/Equip" instance=ExtResource("3_slot")]
+layout_mode = 2
+equip = "chest"
+
+[node name="Legs" parent="Root/Center/Panel/Content/Body/Equip" instance=ExtResource("3_slot")]
+layout_mode = 2
+equip = "legs"
+
+[node name="Feet" parent="Root/Center/Panel/Content/Body/Equip" instance=ExtResource("3_slot")]
+layout_mode = 2
+equip = "feet"
+
+[node name="Bauble" parent="Root/Center/Panel/Content/Body/Equip" instance=ExtResource("3_slot")]
+layout_mode = 2
+equip = "bauble"
+
+[node name="Storage" type="VBoxContainer" parent="Root/Center/Panel/Content/Body"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="BackpackTitle" type="Label" parent="Root/Center/Panel/Content/Body/Storage"]
+layout_mode = 2
+theme_type_variation = &"DimLabel"
+text = "Backpack"
+
+[node name="Backpack" type="GridContainer" parent="Root/Center/Panel/Content/Body/Storage"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+columns = 6
+
+[node name="B0" parent="Root/Center/Panel/Content/Body/Storage/Backpack" instance=ExtResource("3_slot")]
+layout_mode = 2
+index = 6
+
+[node name="B1" parent="Root/Center/Panel/Content/Body/Storage/Backpack" instance=ExtResource("3_slot")]
+layout_mode = 2
+index = 7
+
+[node name="B2" parent="Root/Center/Panel/Content/Body/Storage/Backpack" instance=ExtResource("3_slot")]
+layout_mode = 2
+index = 8
+
+[node name="B3" parent="Root/Center/Panel/Content/Body/Storage/Backpack" instance=ExtResource("3_slot")]
+layout_mode = 2
+index = 9
+
+[node name="B4" parent="Root/Center/Panel/Content/Body/Storage/Backpack" instance=ExtResource("3_slot")]
+layout_mode = 2
+index = 10
+
+[node name="B5" parent="Root/Center/Panel/Content/Body/Storage/Backpack" instance=ExtResource("3_slot")]
+layout_mode = 2
+index = 11
+
+[node name="B6" parent="Root/Center/Panel/Content/Body/Storage/Backpack" instance=ExtResource("3_slot")]
+layout_mode = 2
+index = 12
+
+[node name="B7" parent="Root/Center/Panel/Content/Body/Storage/Backpack" instance=ExtResource("3_slot")]
+layout_mode = 2
+index = 13
+
+[node name="B8" parent="Root/Center/Panel/Content/Body/Storage/Backpack" instance=ExtResource("3_slot")]
+layout_mode = 2
+index = 14
+
+[node name="B9" parent="Root/Center/Panel/Content/Body/Storage/Backpack" instance=ExtResource("3_slot")]
+layout_mode = 2
+index = 15
+
+[node name="B10" parent="Root/Center/Panel/Content/Body/Storage/Backpack" instance=ExtResource("3_slot")]
+layout_mode = 2
+index = 16
+
+[node name="B11" parent="Root/Center/Panel/Content/Body/Storage/Backpack" instance=ExtResource("3_slot")]
+layout_mode = 2
+index = 17
+
+[node name="HotbarTitle" type="Label" parent="Root/Center/Panel/Content/Body/Storage"]
+layout_mode = 2
+theme_type_variation = &"DimLabel"
+text = "Hotbar"
+
+[node name="Hotbar" type="GridContainer" parent="Root/Center/Panel/Content/Body/Storage"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+columns = 6
+
+[node name="H0" parent="Root/Center/Panel/Content/Body/Storage/Hotbar" instance=ExtResource("3_slot")]
+layout_mode = 2
+index = 0
+number = 1
+
+[node name="H1" parent="Root/Center/Panel/Content/Body/Storage/Hotbar" instance=ExtResource("3_slot")]
+layout_mode = 2
+index = 1
+number = 2
+
+[node name="H2" parent="Root/Center/Panel/Content/Body/Storage/Hotbar" instance=ExtResource("3_slot")]
+layout_mode = 2
+index = 2
+number = 3
+
+[node name="H3" parent="Root/Center/Panel/Content/Body/Storage/Hotbar" instance=ExtResource("3_slot")]
+layout_mode = 2
+index = 3
+number = 4
+
+[node name="H4" parent="Root/Center/Panel/Content/Body/Storage/Hotbar" instance=ExtResource("3_slot")]
+layout_mode = 2
+index = 4
+number = 5
+
+[node name="H5" parent="Root/Center/Panel/Content/Body/Storage/Hotbar" instance=ExtResource("3_slot")]
+layout_mode = 2
+index = 5
+number = 6
+
+[node name="Craft" type="VBoxContainer" parent="Root/Center/Panel/Content/Body"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="CraftTitle" type="Label" parent="Root/Center/Panel/Content/Body/Craft"]
+layout_mode = 2
+theme_type_variation = &"DimLabel"
+text = "Crafting"
+
+[node name="CraftRow" type="HBoxContainer" parent="Root/Center/Panel/Content/Body/Craft"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 14
+
+[node name="CraftGrid" type="GridContainer" parent="Root/Center/Panel/Content/Body/Craft/CraftRow"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+columns = 2
+
+[node name="C0" parent="Root/Center/Panel/Content/Body/Craft/CraftRow/CraftGrid" instance=ExtResource("3_slot")]
+layout_mode = 2
+craft = 0
+
+[node name="C1" parent="Root/Center/Panel/Content/Body/Craft/CraftRow/CraftGrid" instance=ExtResource("3_slot")]
+layout_mode = 2
+craft = 1
+
+[node name="C2" parent="Root/Center/Panel/Content/Body/Craft/CraftRow/CraftGrid" instance=ExtResource("3_slot")]
+layout_mode = 2
+craft = 2
+
+[node name="C3" parent="Root/Center/Panel/Content/Body/Craft/CraftRow/CraftGrid" instance=ExtResource("3_slot")]
+layout_mode = 2
+craft = 3
+
+[node name="C4" parent="Root/Center/Panel/Content/Body/Craft/CraftRow/CraftGrid" instance=ExtResource("3_slot")]
+layout_mode = 2
+craft = 4
+
+[node name="C5" parent="Root/Center/Panel/Content/Body/Craft/CraftRow/CraftGrid" instance=ExtResource("3_slot")]
+layout_mode = 2
+craft = 5
+
+[node name="C6" parent="Root/Center/Panel/Content/Body/Craft/CraftRow/CraftGrid" instance=ExtResource("3_slot")]
+layout_mode = 2
+craft = 6
+
+[node name="C7" parent="Root/Center/Panel/Content/Body/Craft/CraftRow/CraftGrid" instance=ExtResource("3_slot")]
+layout_mode = 2
+craft = 7
+
+[node name="C8" parent="Root/Center/Panel/Content/Body/Craft/CraftRow/CraftGrid" instance=ExtResource("3_slot")]
+layout_mode = 2
+craft = 8
+
+[node name="Arrow" type="Label" parent="Root/Center/Panel/Content/Body/Craft/CraftRow"]
+layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"HeadingLabel"
+text = "->"
+
+[node name="ResultBox" type="VBoxContainer" parent="Root/Center/Panel/Content/Body/Craft/CraftRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+
+[node name="Result" parent="Root/Center/Panel/Content/Body/Craft/CraftRow/ResultBox" instance=ExtResource("3_slot")]
+layout_mode = 2
+is_result = true
+
+[node name="RecipeButton" type="Button" parent="Root/Center/Panel/Content/Body/Craft"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+text = "Recipes"
+
+[node name="ItemName" type="Label" parent="Root/Center/Panel/Content"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 26)
+layout_mode = 2
+theme_type_variation = &"AccentLabel"
+horizontal_alignment = 1
+
+[node name="RecipePanel" type="PanelContainer" parent="Root"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 6
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -470.0
+offset_top = -270.0
+offset_right = -24.0
+offset_bottom = 270.0
+grow_horizontal = 0
+grow_vertical = 2
+
+[node name="RecipeBox" type="VBoxContainer" parent="Root/RecipePanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="RecipeTitle" type="Label" parent="Root/RecipePanel/RecipeBox"]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+text = "Recipes"
+
+[node name="Scroll" type="ScrollContainer" parent="Root/RecipePanel/RecipeBox"]
+custom_minimum_size = Vector2(400, 400)
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="RecipeList" type="VBoxContainer" parent="Root/RecipePanel/RecipeBox/Scroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="RecipeHint" type="Label" parent="Root/RecipePanel/RecipeBox"]
+layout_mode = 2
+theme_type_variation = &"DimLabel"
+text = "Click a recipe to fill the grid"
+
+[node name="CursorSlot" parent="Root" instance=ExtResource("3_slot")]
+unique_name_in_owner = true
+z_index = 10
+layout_mode = 0
+theme_type_variation = &"SlotBare"

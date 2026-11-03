@@ -20,7 +20,7 @@ func _process(_delta):
 	strip_b.position.x = base + STRIP_WIDTH
 
 
-func _on_inventory_changed(_item, _count):
+func _on_inventory_changed():
 	_refresh_counts()
 
 

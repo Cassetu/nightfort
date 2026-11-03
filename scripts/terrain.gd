@@ -2,6 +2,7 @@ extends Node3D
 
 const TreeScript = preload("res://scripts/tree.gd")
 const RockScript = preload("res://scripts/rock.gd")
+const TileArt = preload("res://scripts/tile_art.gd")
 
 signal block_broken(cell: Vector3i)
 
@@ -25,6 +26,7 @@ const B_SAND := 5
 const B_SNOW := 6
 const B_COAL := 7
 const B_IRON := 8
+const B_BRICK := 9
 
 const AO_LEVELS := [0.55, 0.7, 0.85, 1.0]
 
@@ -39,10 +41,10 @@ const COL_BEDROCK := Color(0.12, 0.12, 0.14)
 const COL_COAL := Color(0.15, 0.15, 0.17)
 const COL_IRON := Color(0.72, 0.50, 0.38)
 
-const BASE_COL := [COL_DIRT, COL_DIRT, COL_DIRT, COL_STONE, COL_BEDROCK, COL_SAND, COL_SNOW, COL_COAL, COL_IRON]
-const HARDNESS := [0.0, 2.0, 2.0, 5.0, -1.0, 1.0, 1.0, 6.0, 8.0]
-const DROP_ITEM := ["", "dirt", "dirt", "stone", "", "sand", "snow", "coal", "iron"]
-const DROP_AMOUNT := [0, 1, 1, 1, 0, 1, 1, 1, 1]
+const BASE_COL := [COL_DIRT, COL_DIRT, COL_DIRT, COL_STONE, COL_BEDROCK, COL_SAND, COL_SNOW, COL_COAL, COL_IRON, COL_STONE]
+const HARDNESS := [0.0, 2.0, 2.0, 5.0, -1.0, 1.0, 1.0, 6.0, 8.0, 5.0]
+const DROP_ITEM := ["", "dirt", "dirt", "stone", "", "sand", "snow", "coal", "iron", "stone_brick"]
+const DROP_AMOUNT := [0, 1, 1, 1, 0, 1, 1, 1, 1, 1]
 
 const FACE_CORNERS := [
 	[Vector3(1, 0, 0), Vector3(1, 0, 1), Vector3(1, 1, 1), Vector3(1, 1, 0)],
@@ -54,8 +56,14 @@ const FACE_CORNERS := [
 ]
 const FACE_NORMALS := [Vector3.RIGHT, Vector3.LEFT, Vector3.UP, Vector3.DOWN, Vector3.BACK, Vector3.FORWARD]
 const FACE_DIRS := [Vector3i(1, 0, 0), Vector3i(-1, 0, 0), Vector3i(0, 1, 0), Vector3i(0, -1, 0), Vector3i(0, 0, 1), Vector3i(0, 0, -1)]
+const TILE_NAMES := ["grass_top", "grass_side", "dirt", "stone", "bedrock", "sand", "snow", "coal_ore", "iron_ore", "stone_brick"]
+const TILE_FALLBACK := [COL_LUSH, COL_DIRT, COL_DIRT, COL_STONE, COL_BEDROCK, COL_SAND, COL_SNOW, COL_COAL, COL_IRON, COL_STONE]
+const FACE_TILE := [[0, 0, 0], [0, 1, 2], [2, 2, 2], [3, 3, 3], [4, 4, 4], [5, 5, 5], [6, 6, 6], [7, 7, 7], [8, 8, 8], [9, 9, 9]]
 const FACE_DY := [0, 0, 1, -1, 0, 0]
 const FACE_DCOL := [1, -1, 0, 0, PAD, -PAD]
+
+@export_group("Art")
+@export_range(0.0, 1.0) var grass_tint: float = 0.35
 
 @export_group("World")
 @export var world_seed: int = 1337
@@ -114,6 +122,8 @@ class MeshBuf:
 	var verts := PackedVector3Array()
 	var norms := PackedVector3Array()
 	var cols := PackedColorArray()
+	var uvs := PackedVector2Array()
+	var uv2s := PackedVector2Array()
 
 var n_cont: FastNoiseLite
 var n_hills: FastNoiseLite
@@ -128,7 +138,7 @@ var n_chamber: FastNoiseLite
 var n_coal: FastNoiseLite
 var n_iron: FastNoiseLite
 
-var material: StandardMaterial3D
+var material: ShaderMaterial
 var player = null
 var core_node: Node3D = null
 var chunks: Dictionary = {}
@@ -382,10 +392,9 @@ func _make_noise(seed_offset: int, frequency: float, octaves: int) -> FastNoiseL
 
 
 func _setup_material() -> void:
-	material = StandardMaterial3D.new()
-	material.vertex_color_use_as_albedo = true
-	material.vertex_color_is_srgb = true
-	material.roughness = 1.0
+	material = ShaderMaterial.new()
+	material.shader = load("res://resources/terrain.gdshader")
+	material.set_shader_parameter("tiles", TileArt.tile_array(TILE_NAMES, TILE_FALLBACK))
 
 
 func _setup_fog() -> void:
@@ -746,6 +755,8 @@ func _make_mesh(data: Dictionary) -> ArrayMesh:
 	arrays[Mesh.ARRAY_VERTEX] = data["verts"]
 	arrays[Mesh.ARRAY_NORMAL] = data["norms"]
 	arrays[Mesh.ARRAY_COLOR] = data["cols"]
+	arrays[Mesh.ARRAY_TEX_UV] = data["uvs"]
+	arrays[Mesh.ARRAY_TEX_UV2] = data["uv2s"]
 
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
@@ -915,7 +926,7 @@ func _gen_block(x: int, iy: int, z: int, h: int, surf: int) -> int:
 	var depth := h - 1 - iy
 	if depth == 0:
 		if on_platform(x, z):
-			return B_STONE
+			return B_BRICK
 		return surf
 	if caves_enabled and depth >= cave_cover and iy > Y_MIN + 1 and _is_cave(x, iy, z):
 		return B_AIR
@@ -941,12 +952,28 @@ func _max_step(heights: PackedInt32Array, i: int, h: int) -> int:
 	return maxi(maxi(absi(h - heights[i + 1]), absi(h - heights[i - 1])), maxi(absi(h - heights[i + PAD]), absi(h - heights[i - PAD])))
 
 
-func _emit_face(buf: MeshBuf, vol: PackedByteArray, i: int, f: int, origin: Vector3, c_top: Color, c_bot: Color, light: float) -> void:
+func _face_uv(f: int, c: Vector3) -> Vector2:
+	match f:
+		0:
+			return Vector2(1.0 - c.z, 1.0 - c.y)
+		1:
+			return Vector2(c.z, 1.0 - c.y)
+		2:
+			return Vector2(c.x, c.z)
+		3:
+			return Vector2(c.x, 1.0 - c.z)
+		4:
+			return Vector2(c.x, 1.0 - c.y)
+	return Vector2(1.0 - c.x, 1.0 - c.y)
+
+
+func _emit_face(buf: MeshBuf, vol: PackedByteArray, i: int, f: int, origin: Vector3, c_top: Color, c_bot: Color, light: float, layer: float) -> void:
 	var table: Array = face_ao[f]
 	var corners: Array = FACE_CORNERS[f]
 	var pos: Array = []
 	var col: Array = []
 	var ao: Array = []
+	var uv: Array = []
 	for k in 4:
 		var o: PackedInt32Array = table[k]
 		var s1 := 1 if vol[i + o[0]] != 0 else 0
@@ -960,6 +987,7 @@ func _emit_face(buf: MeshBuf, vol: PackedByteArray, i: int, f: int, origin: Vect
 		pos.append(origin + corner)
 		col.append(Color(base.r * k2, base.g * k2, base.b * k2))
 		ao.append(a)
+		uv.append(_face_uv(f, corner))
 
 	var order: Array = [0, 1, 2, 0, 2, 3]
 	if ao[0] + ao[2] > ao[1] + ao[3]:
@@ -970,6 +998,8 @@ func _emit_face(buf: MeshBuf, vol: PackedByteArray, i: int, f: int, origin: Vect
 		buf.verts.append(pos[k])
 		buf.norms.append(n)
 		buf.cols.append(col[k])
+		buf.uvs.append(uv[k])
+		buf.uv2s.append(Vector2(layer, 0.0))
 
 
 func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictionary:
@@ -1084,13 +1114,10 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 					continue
 
 				var shade := 0.92 + 0.16 * _hash3(wx, iy, wz)
-				var base: Color = BASE_COL[id]
-				var ct := base
-				var cs := base
-				if iy == a1 and not on_platform(wx, wz):
-					ct = top_col
-					if id == B_GRASS:
-						cs = base.lerp(top_col, 0.5)
+				var ct := Color(1.0, 1.0, 1.0)
+				var cs := Color(1.0, 1.0, 1.0)
+				if id == B_GRASS and iy == a1:
+					ct = Color(1.0, 1.0, 1.0).lerp(top_col, grass_tint)
 				ct = Color(ct.r * shade, ct.g * shade, ct.b * shade)
 				cs = Color(cs.r * shade, cs.g * shade, cs.b * shade)
 				var cb := Color(cs.r * 0.8, cs.g * 0.8, cs.b * 0.8)
@@ -1103,12 +1130,13 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 					var light := 1.0
 					if air_depth > 1:
 						light = 1.0 - 0.7 * smoothstep(1.0, 10.0, float(air_depth))
+					var tiles: Array = FACE_TILE[id]
 					if f == 2:
-						_emit_face(buf, vol, i, f, origin, ct, ct, light)
+						_emit_face(buf, vol, i, f, origin, ct, ct, light, float(tiles[0]))
 					elif f == 3:
-						_emit_face(buf, vol, i, f, origin, cb, cb, light)
+						_emit_face(buf, vol, i, f, origin, cb, cb, light, float(tiles[2]))
 					else:
-						_emit_face(buf, vol, i, f, origin, cs, cb, light)
+						_emit_face(buf, vol, i, f, origin, cs, cb, light, float(tiles[1]))
 
 	var trees: Array = []
 	var rocks: Array = []
@@ -1191,4 +1219,4 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 				"seed": rng.randi(),
 			})
 
-	return {"verts": buf.verts, "norms": buf.norms, "cols": buf.cols, "trees": trees, "rocks": rocks, "remesh": not with_objects}
+	return {"verts": buf.verts, "norms": buf.norms, "cols": buf.cols, "uvs": buf.uvs, "uv2s": buf.uv2s, "trees": trees, "rocks": rocks, "remesh": not with_objects}

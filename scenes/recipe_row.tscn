@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[node name="RecipeRow" type="Button"]
+custom_minimum_size = Vector2(380, 58)
+toggle_mode = true
+alignment = 0

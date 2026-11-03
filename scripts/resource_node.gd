@@ -49,6 +49,9 @@ func _die() -> void:
 	if shake_tween:
 		shake_tween.kill()
 	harvested.emit(resource_type, resource_amount)
+	var world := get_tree().current_scene
+	if world != null and world.has_method("spawn_drop"):
+		world.spawn_drop(resource_type, resource_amount, global_position + Vector3(0.0, 0.9, 0.0))
 	_play_death()
 
 

@@ -1,0 +1,26 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/item_drop.gd" id="1_drop"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_drop"]
+size = Vector3(0.3, 0.3, 0.3)
+
+[sub_resource type="BoxMesh" id="BoxMesh_drop"]
+size = Vector3(0.28, 0.28, 0.28)
+
+[node name="ItemDrop" type="RigidBody3D" groups=["item_drop"]]
+collision_layer = 0
+collision_mask = 1
+axis_lock_angular_x = true
+axis_lock_angular_y = true
+axis_lock_angular_z = true
+linear_damp = 1.5
+script = ExtResource("1_drop")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("BoxShape3D_drop")
+
+[node name="Visual" type="Node3D" parent="."]
+
+[node name="Mesh" type="MeshInstance3D" parent="Visual"]
+mesh = SubResource("BoxMesh_drop")

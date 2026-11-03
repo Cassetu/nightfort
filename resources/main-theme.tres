@@ -1,4 +1,4 @@
-[gd_resource type="Theme" load_steps=10 format=3 uid="uid://gr2kk87lccmd"]
+[gd_resource type="Theme" load_steps=13 format=3 uid="uid://gr2kk87lccmd"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_disabled"]
 content_margin_left = 10.0
@@ -108,6 +108,42 @@ corner_radius_top_right = 10
 corner_radius_bottom_right = 10
 corner_radius_bottom_left = 10
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_slot_hover"]
+bg_color = Color(0.12, 0.14, 0.2, 0.8)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 1, 1, 0.7)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_slot"]
+bg_color = Color(0, 0, 0, 0.55)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 1, 1, 0.25)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_slot_selected"]
+bg_color = Color(0, 0, 0, 0.55)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(1, 0.8, 0.2, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
 [resource]
 AccentLabel/base_type = &"Label"
 AccentLabel/colors/font_color = Color(1, 0.78, 0.25, 1)
@@ -173,6 +209,26 @@ OverlayTitle/base_type = &"Label"
 OverlayTitle/colors/font_color = Color(0.93, 0.95, 1, 1)
 OverlayTitle/font_sizes/font_size = 56
 PanelContainer/styles/panel = SubResource("StyleBoxFlat_panel")
+SlotBare/base_type = &"Panel"
+SlotBare/styles/panel = SubResource("StyleBoxEmpty_focus")
+SlotCount/base_type = &"Label"
+SlotCount/colors/font_color = Color(1, 1, 1, 1)
+SlotCount/colors/font_shadow_color = Color(0, 0, 0, 0.9)
+SlotCount/constants/shadow_offset_x = 1
+SlotCount/constants/shadow_offset_y = 1
+SlotCount/font_sizes/font_size = 16
+SlotHint/base_type = &"Label"
+SlotHint/colors/font_color = Color(1, 1, 1, 0.3)
+SlotHint/font_sizes/font_size = 13
+SlotHover/base_type = &"Panel"
+SlotHover/styles/panel = SubResource("StyleBoxFlat_slot_hover")
+SlotNumber/base_type = &"Label"
+SlotNumber/colors/font_color = Color(1, 1, 1, 0.6)
+SlotNumber/font_sizes/font_size = 14
+SlotPanel/base_type = &"Panel"
+SlotPanel/styles/panel = SubResource("StyleBoxFlat_slot")
+SlotSelected/base_type = &"Panel"
+SlotSelected/styles/panel = SubResource("StyleBoxFlat_slot_selected")
 TaglineLabel/base_type = &"Label"
 TaglineLabel/colors/font_color = Color(1, 0.78, 0.25, 0.9)
 TaglineLabel/font_sizes/font_size = 24

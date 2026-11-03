@@ -142,7 +142,7 @@ func _over_load() -> void:
 func _input(event: InputEvent) -> void:
 	if not event.is_action_pressed("ui_cancel"):
 		return
-	if dead or game_over or world.intro_playing:
+	if dead or game_over or world.intro_playing or world.inventory_open:
 		return
 	get_viewport().set_input_as_handled()
 	if not pause_overlay.visible:

@@ -1,5 +1,7 @@
 extends "res://scripts/resource_node.gd"
 
+const TileArt = preload("res://scripts/tile_art.gd")
+
 const LEAF_COLORS := [
 	Color(0.13, 0.36, 0.17),
 	Color(0.17, 0.42, 0.20),
@@ -17,6 +19,7 @@ var variant: int = 0
 
 static var _meshes: Array = []
 static var _material: StandardMaterial3D
+static var _trunk_material: StandardMaterial3D
 
 
 func _configure() -> void:
@@ -60,6 +63,8 @@ static func _ensure_meshes() -> void:
 	_material.vertex_color_is_srgb = true
 	_material.roughness = 1.0
 
+	_trunk_material = TileArt.uv_material("wood", TRUNK_COLOR, Vector3(2.0, 2.0, 1.0))
+
 	for leaf: Color in LEAF_COLORS:
 		_meshes.append(_make_mesh(leaf))
 
@@ -71,7 +76,6 @@ static func _make_mesh(leaf: Color) -> ArrayMesh:
 	var indices := PackedInt32Array()
 
 	var base := TRUNK_HEIGHT * 0.6
-	_append_part(verts, norms, cols, indices, TRUNK_RADIUS * 0.75, TRUNK_RADIUS, TRUNK_HEIGHT, TRUNK_HEIGHT * 0.5, TRUNK_COLOR)
 	_append_part(verts, norms, cols, indices, 0.0, 1.7, 2.4, base + 1.2, leaf)
 	_append_part(verts, norms, cols, indices, 0.0, 1.3, 2.2, base + 2.3, leaf.lightened(0.07))
 	_append_part(verts, norms, cols, indices, 0.0, 0.9, 2.0, base + 3.4, leaf.lightened(0.14))
@@ -84,9 +88,28 @@ static func _make_mesh(leaf: Color) -> ArrayMesh:
 	arrays[Mesh.ARRAY_INDEX] = indices
 
 	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, _trunk_arrays())
+	mesh.surface_set_material(0, _trunk_material)
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	mesh.surface_set_material(0, _material)
+	mesh.surface_set_material(1, _material)
 	return mesh
+
+
+static func _trunk_arrays() -> Array:
+	var cylinder := CylinderMesh.new()
+	cylinder.top_radius = TRUNK_RADIUS * 0.75
+	cylinder.bottom_radius = TRUNK_RADIUS
+	cylinder.height = TRUNK_HEIGHT
+	cylinder.radial_segments = 8
+	cylinder.rings = 1
+	cylinder.cap_top = false
+	cylinder.cap_bottom = false
+	var arrays := cylinder.get_mesh_arrays()
+	var part_verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	for i in part_verts.size():
+		part_verts[i] += Vector3(0.0, TRUNK_HEIGHT * 0.5, 0.0)
+	arrays[Mesh.ARRAY_VERTEX] = part_verts
+	return arrays
 
 
 static func _append_part(verts: PackedVector3Array, norms: PackedVector3Array, cols: PackedColorArray, indices: PackedInt32Array, top_radius: float, bottom_radius: float, height: float, center_y: float, color: Color) -> void:

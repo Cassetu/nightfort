@@ -4,6 +4,7 @@ signal health_changed(current, maximum)
 signal damaged(amount)
 signal died
 signal notice(text)
+signal workbench_used
 
 const SPEED = 5.0
 const JUMP_VELOCITY = 4.5
@@ -11,6 +12,8 @@ const MINE_REACH = 3.5
 const PLACE_REACH = 5.0
 const MINE_DAMAGE = 1
 const MINE_COOLDOWN = 0.35
+const AIR_ACCEL = 7.0
+const AIR_DRAG = 1.5
 const FALL_SAFE_SPEED = 13.0
 const FALL_DAMAGE = 5.0
 const REGEN_DELAY = 6.0
@@ -39,6 +42,7 @@ var shown_health: int = 100
 
 
 func _ready():
+	add_to_group("player")
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	ghost_block.top_level = true
 	ghost_block.scale = Vector3.ONE * 1.002
@@ -105,6 +109,7 @@ func _physics_process(delta):
 		velocity.y -= gravity * delta
 
 	if dead or frozen:
+		ghost_block.hide()
 		velocity.x = 0.0
 		velocity.z = 0.0
 		move_and_slide()
@@ -116,7 +121,15 @@ func _physics_process(delta):
 	var input_dir = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 	var direction = (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
 
-	if direction:
+	if not is_on_floor():
+		var flat := Vector2(velocity.x, velocity.z)
+		if direction:
+			flat = flat.move_toward(Vector2(direction.x, direction.z) * SPEED, AIR_ACCEL * delta)
+		else:
+			flat = flat.move_toward(Vector2.ZERO, AIR_DRAG * delta)
+		velocity.x = flat.x
+		velocity.z = flat.y
+	elif direction:
 		velocity.x = direction.x * SPEED
 		velocity.z = direction.z * SPEED
 	else:
@@ -234,8 +247,7 @@ func in_core_zone(cell):
 func can_place(type, cell):
 	if in_core_zone(cell):
 		return false
-	var info = Inventory.BLOCK_TYPES[type]
-	if Inventory.get_count(info["resource"]) < Inventory.BLOCK_COST:
+	if Inventory.selected_count() < Inventory.BLOCK_COST:
 		return false
 	probe_query.transform = Transform3D(Basis.IDENTITY, cell)
 	return get_world_3d().direct_space_state.intersect_shape(probe_query, 1).is_empty()
@@ -267,8 +279,6 @@ func try_mine(hit):
 	if hit.position.distance_to(camera.global_position) > MINE_REACH:
 		return
 	mine_timer = MINE_COOLDOWN
-	if not target.harvested.is_connected(_on_harvested):
-		target.harvested.connect(_on_harvested)
 	target.take_damage(MINE_DAMAGE, hit.position)
 
 
@@ -282,7 +292,7 @@ func mine_terrain(hit):
 	var cell = terrain.cell_from_hit(hit.position, hit.normal)
 	var result = terrain.hit_block(cell, MINE_DAMAGE)
 	if result["state"] == "broken":
-		Inventory.add(result["item"], result["amount"])
+		get_tree().current_scene.spawn_drop(result["item"], result["amount"], Vector3(cell) + Vector3(0.5, 0.5, 0.5))
 
 
 func swing(weapon):
@@ -310,6 +320,9 @@ func swing(weapon):
 
 
 func try_place(hit):
+	if not hit.is_empty() and hit.collider.is_in_group("workbench"):
+		workbench_used.emit()
+		return
 	var type = Inventory.held_block_type()
 	if type == "" or hit.is_empty():
 		return
@@ -319,12 +332,12 @@ func try_place(hit):
 		return
 	if not can_place(type, cell):
 		return
-	Inventory.spend(Inventory.BLOCK_TYPES[type]["resource"], Inventory.BLOCK_COST)
-	var block = block_scene.instantiate()
+	Inventory.consume_selected(Inventory.BLOCK_COST)
+	var scene: PackedScene = block_scene
+	var scene_path: String = Inventory.BLOCK_TYPES[type].get("scene", "")
+	if scene_path != "":
+		scene = load(scene_path)
+	var block = scene.instantiate()
 	block.block_type = type
 	get_tree().current_scene.add_child(block)
 	block.global_position = cell
-
-
-func _on_harvested(resource_type, amount):
-	Inventory.add(resource_type, amount)

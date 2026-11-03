@@ -2,6 +2,8 @@ extends Node3D
 
 const BLOCK_SCENE_PATH := "res://scenes/block.tscn"
 const TORCH_SCENE_PATH := "res://scenes/torch.tscn"
+const DROP_SCENE_PATH := "res://scenes/item_drop.tscn"
+const Recipes = preload("res://scripts/recipes.gd")
 
 @onready var sun = $Sun
 @onready var terrain = $Terrain
@@ -12,8 +14,10 @@ const TORCH_SCENE_PATH := "res://scenes/torch.tscn"
 @onready var spawner = $WaveSpawner
 @onready var enemies = $Enemies
 @onready var intro = $Intro
+@onready var inv_ui = $InventoryUI
 
 var intro_playing: bool = false
+var inventory_open: bool = false
 
 
 func _ready() -> void:
@@ -23,6 +27,12 @@ func _ready() -> void:
 	spawner.status_changed.connect(ui.on_wave_status)
 	_place_torches()
 	player.notice.connect(ui.show_notice)
+	inv_ui.setup(player, ui, self)
+	inv_ui.toggled.connect(_on_inventory_toggled)
+	player.workbench_used.connect(inv_ui.open_table)
+	Inventory.recipes_unlocked.connect(_on_recipes_unlocked)
+	player.died.connect(inv_ui.force_close)
+	core.destroyed.connect(inv_ui.force_close)
 	ui.setup(player, core, self)
 	player.died.connect(ui.on_player_died)
 	core.destroyed.connect(ui.on_core_destroyed)
@@ -39,6 +49,42 @@ func _ready() -> void:
 	else:
 		intro.queue_free()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+
+
+func _on_recipes_unlocked(ids: Array) -> void:
+	var names: Array = []
+	for id in ids:
+		names.append(Inventory.item_name(Recipes.by_id(id)["out"]))
+	ui.show_notice("Recipe unlocked: " + ", ".join(names))
+
+
+func _on_inventory_toggled(is_open: bool) -> void:
+	inventory_open = is_open
+
+
+func spawn_drop(id: String, amount: int, pos: Vector3, merge: bool = true) -> void:
+	if id == "" or amount <= 0:
+		return
+	var cap := Inventory.max_stack(id)
+	var remaining := amount
+	if merge:
+		for d in get_tree().get_nodes_in_group("item_drop"):
+			if remaining <= 0:
+				break
+			if d.id == id and d.count < cap and d.global_position.distance_to(pos) < 1.5:
+				var put := mini(cap - d.count, remaining)
+				d.count += put
+				remaining -= put
+	var scene: PackedScene = load(DROP_SCENE_PATH)
+	while remaining > 0:
+		var n := mini(remaining, cap)
+		remaining -= n
+		var drop = scene.instantiate()
+		drop.id = id
+		drop.count = n
+		add_child(drop)
+		drop.global_position = pos
+		drop.linear_velocity = Vector3(randf_range(-1.2, 1.2), randf_range(2.0, 3.5), randf_range(-1.2, 1.2))
 
 
 func _on_intro_finished() -> void:
@@ -76,6 +122,11 @@ func collect_state() -> Dictionary:
 		var p: Vector3 = node.global_position
 		blocks.append({"type": node.block_type, "pos": [p.x, p.y, p.z], "hp": node.current_health})
 
+	var drops: Array = []
+	for node in get_tree().get_nodes_in_group("item_drop"):
+		var dp: Vector3 = node.global_position
+		drops.append({"id": node.id, "count": node.count, "pos": [dp.x, dp.y, dp.z]})
+
 	var q: Quaternion = sun.basis.get_rotation_quaternion()
 	var core_hp := 0
 	if is_instance_valid(core):
@@ -89,6 +140,7 @@ func collect_state() -> Dictionary:
 		"terrain": terrain.export_state(),
 		"blocks": blocks,
 		"waves": spawner.export_state(),
+		"drops": drops,
 	}
 
 
@@ -108,11 +160,18 @@ func apply_state(d: Dictionary) -> void:
 
 	Inventory.import_state(d.get("inventory", {}))
 	spawner.import_state(d.get("waves", {}))
+	for dd in d.get("drops", []):
+		if Inventory.ITEMS.has(dd["id"]):
+			spawn_drop(dd["id"], int(dd["count"]), Vector3(dd["pos"][0], dd["pos"][1], dd["pos"][2]), false)
 
-	var scene: PackedScene = load(BLOCK_SCENE_PATH)
 	for b in d.get("blocks", []):
+		var block_type := str(b["type"])
+		if not Inventory.BLOCK_TYPES.has(block_type):
+			continue
+		var scene_path: String = Inventory.BLOCK_TYPES[block_type].get("scene", BLOCK_SCENE_PATH)
+		var scene: PackedScene = load(scene_path)
 		var block = scene.instantiate()
-		block.block_type = str(b["type"])
+		block.block_type = block_type
 		add_child(block)
 		block.global_position = Vector3(b["pos"][0], b["pos"][1], b["pos"][2])
 		block.current_health = int(b["hp"])

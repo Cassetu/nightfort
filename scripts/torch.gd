@@ -1,5 +1,7 @@
 extends StaticBody3D
 
+const TileArt = preload("res://scripts/tile_art.gd")
+
 @export var base_energy: float = 1.8
 
 var time: float = 0.0
@@ -9,6 +11,7 @@ var time: float = 0.0
 
 func _ready() -> void:
 	time = randf() * 10.0
+	$Base.material_override = TileArt.block_material("torch_base", Color(0.2, 0.18, 0.17))
 
 
 func _process(delta: float) -> void:
