@@ -1,10 +1,31 @@
-[gd_scene load_steps=6 format=3 uid="uid://bf1aawx5guoi"]
+[gd_scene load_steps=11 format=3 uid="uid://bf1aawx5guoi"]
 
 [ext_resource type="Script" uid="uid://dt525sk8gbbmo" path="res://scripts/main_menu.gd" id="1_menu"]
 [ext_resource type="Theme" uid="uid://gr2kk87lccmd" path="res://resources/main-theme.tres" id="2_theme"]
 [ext_resource type="PackedScene" path="res://scenes/menus/new_game_panel.tscn" id="3_new"]
 [ext_resource type="PackedScene" path="res://scenes/menus/slots_panel.tscn" id="4_slots"]
 [ext_resource type="PackedScene" path="res://scenes/menus/settings_panel.tscn" id="5_settings"]
+[ext_resource type="Shader" path="res://resources/menu_bg.gdshader" id="6_bgshader"]
+[ext_resource type="Texture2D" path="res://art/tiles/stone_brick.png" id="7_stone"]
+[ext_resource type="Texture2D" path="res://art/tiles/diorite_brick.png" id="8_diorite"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_stone"]
+shader = ExtResource("6_bgshader")
+shader_parameter/tex = ExtResource("7_stone")
+shader_parameter/tile_px = 192.0
+shader_parameter/drift = Vector2(0.03, 0.0)
+shader_parameter/brightness = 0.5
+shader_parameter/vignette = 0.6
+shader_parameter/tint = Vector3(1, 1, 1)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_diorite"]
+shader = ExtResource("6_bgshader")
+shader_parameter/tex = ExtResource("8_diorite")
+shader_parameter/tile_px = 192.0
+shader_parameter/drift = Vector2(0.03, 0.0)
+shader_parameter/brightness = 0.5
+shader_parameter/vignette = 0.6
+shader_parameter/tint = Vector3(0.95, 1, 1.05)
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -16,7 +37,8 @@ grow_vertical = 2
 theme = ExtResource("2_theme")
 script = ExtResource("1_menu")
 
-[node name="Sky" type="ColorRect" parent="."]
+[node name="Background" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_stone")
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -24,9 +46,9 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-color = Color(0.53, 0.78, 0.96, 1)
 
 [node name="Center" type="CenterContainer" parent="."]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -42,7 +64,7 @@ alignment = 1
 [node name="Title" type="Label" parent="Center/Column"]
 layout_mode = 2
 theme_type_variation = &"TitleLabel"
-text = "NIGHTFORT"
+text = "Nightfort"
 horizontal_alignment = 1
 
 [node name="Tagline" type="Label" parent="Center/Column"]
@@ -95,12 +117,6 @@ custom_minimum_size = Vector2(300, 46)
 layout_mode = 2
 text = "Quit"
 
-[node name="NewGamePanel" parent="Center/Column/Content" instance=ExtResource("3_new")]
-unique_name_in_owner = true
-visible = false
-layout_mode = 2
-size_flags_horizontal = 4
-
 [node name="LoadPanel" parent="Center/Column/Content" instance=ExtResource("4_slots")]
 unique_name_in_owner = true
 visible = false
@@ -118,6 +134,38 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"ErrorLabel"
 horizontal_alignment = 1
+
+[node name="NewWorldPage" type="Control" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Background" type="ColorRect" parent="NewWorldPage"]
+material = SubResource("ShaderMaterial_diorite")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Center" type="CenterContainer" parent="NewWorldPage"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="NewGamePanel" parent="NewWorldPage/Center" instance=ExtResource("3_new")]
+unique_name_in_owner = true
+layout_mode = 2
 
 [node name="Loading" type="ColorRect" parent="."]
 unique_name_in_owner = true

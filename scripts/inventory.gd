@@ -23,6 +23,17 @@ const BLOCK_TYPES := {
 	"iron_block": {"name": "Iron Block", "resource": "iron_block", "tile": "iron_block", "health": 14, "color": Color(0.78, 0.78, 0.82)},
 	"fortified_brick": {"name": "Fortified Bricks", "resource": "fortified_brick", "tile": "fortified_brick", "health": 16, "color": Color(0.4, 0.42, 0.5)},
 	"workbench": {"name": "Workbench", "resource": "workbench", "tile": "workbench_side", "health": 5, "color": Color(0.5, 0.33, 0.16), "scene": "res://scenes/workbench.tscn"},
+	"diorite": {"name": "Diorite", "resource": "diorite", "tile": "diorite", "health": 5, "color": Color(0.62, 0.62, 0.60)},
+	"diorite_brick": {"name": "Diorite Bricks", "resource": "diorite_brick", "tile": "diorite_brick", "health": 8, "color": Color(0.62, 0.62, 0.60)},
+	"granite": {"name": "Granite", "resource": "granite", "tile": "granite", "health": 6, "color": Color(0.55, 0.40, 0.36)},
+	"granite_brick": {"name": "Granite Bricks", "resource": "granite_brick", "tile": "granite_brick", "health": 9, "color": Color(0.55, 0.40, 0.36)},
+	"basalt": {"name": "Basalt", "resource": "basalt", "tile": "basalt", "health": 8, "color": Color(0.20, 0.20, 0.23)},
+	"basalt_brick": {"name": "Basalt Bricks", "resource": "basalt_brick", "tile": "basalt_brick", "health": 11, "color": Color(0.20, 0.20, 0.23)},
+	"limestone": {"name": "Limestone", "resource": "limestone", "tile": "limestone", "health": 4, "color": Color(0.72, 0.68, 0.58)},
+	"limestone_brick": {"name": "Limestone Bricks", "resource": "limestone_brick", "tile": "limestone_brick", "health": 7, "color": Color(0.72, 0.68, 0.58)},
+	"door": {"name": "Door", "resource": "door", "health": 6, "color": Color(0.45, 0.3, 0.17), "scene": "res://scenes/door.tscn", "height": 2, "needs_support": true},
+	"stone_forge": {"name": "Stone Forge", "resource": "stone_forge", "tile": "stone_brick", "health": 14, "color": Color(0.5, 0.5, 0.52), "scene": "res://scenes/forge.tscn", "height": 2},
+	"torch": {"name": "Torch", "resource": "torch", "health": 1, "color": Color(0.9, 0.6, 0.25), "scene": "res://scenes/torch.tscn", "needs_support": true, "ghost": Vector3(0.25, 1.0, 0.25)},
 }
 
 const ITEMS := {
@@ -30,6 +41,7 @@ const ITEMS := {
 	"wood": {"name": "Wood", "kind": "block", "tile": "wood", "color": Color(0.58, 0.40, 0.22)},
 	"stone": {"name": "Stone", "kind": "block", "tile": "stone", "color": Color(0.62, 0.62, 0.65)},
 	"dirt": {"name": "Dirt", "kind": "block", "tile": "dirt", "color": Color(0.42, 0.29, 0.18)},
+	"cactus": {"name": "Cactus", "kind": "material", "tile": "cactus", "color": Color(0.3, 0.45, 0.28)},
 	"sand": {"name": "Sand", "kind": "material", "tile": "sand", "color": Color(0.76, 0.68, 0.45)},
 	"snow": {"name": "Snow", "kind": "material", "tile": "snow", "color": Color(0.92, 0.94, 0.97)},
 	"coal": {"name": "Coal", "kind": "material", "color": Color(0.27, 0.27, 0.32)},
@@ -40,6 +52,33 @@ const ITEMS := {
 	"iron_block": {"name": "Iron Block", "kind": "block", "tile": "iron_block", "color": Color(0.78, 0.78, 0.82)},
 	"fortified_brick": {"name": "Fortified Bricks", "kind": "block", "tile": "fortified_brick", "color": Color(0.4, 0.42, 0.5)},
 	"workbench": {"name": "Workbench", "kind": "block", "tile": "workbench_side", "color": Color(0.5, 0.33, 0.16)},
+	"diorite": {"name": "Diorite", "kind": "block", "tile": "diorite", "color": Color(0.62, 0.62, 0.60)},
+	"diorite_brick": {"name": "Diorite Bricks", "kind": "block", "tile": "diorite_brick", "color": Color(0.62, 0.62, 0.60)},
+	"granite": {"name": "Granite", "kind": "block", "tile": "granite", "color": Color(0.55, 0.40, 0.36)},
+	"granite_brick": {"name": "Granite Bricks", "kind": "block", "tile": "granite_brick", "color": Color(0.55, 0.40, 0.36)},
+	"basalt": {"name": "Basalt", "kind": "block", "tile": "basalt", "color": Color(0.20, 0.20, 0.23)},
+	"basalt_brick": {"name": "Basalt Bricks", "kind": "block", "tile": "basalt_brick", "color": Color(0.20, 0.20, 0.23)},
+	"limestone": {"name": "Limestone", "kind": "block", "tile": "limestone", "color": Color(0.72, 0.68, 0.58)},
+	"limestone_brick": {"name": "Limestone Bricks", "kind": "block", "tile": "limestone_brick", "color": Color(0.72, 0.68, 0.58)},
+	"door": {"name": "Door", "kind": "block", "color": Color(0.45, 0.3, 0.17)},
+	"torch": {"name": "Torch", "kind": "block", "color": Color(0.9, 0.6, 0.25)},
+	"stone_forge": {"name": "Stone Forge", "kind": "block", "color": Color(0.5, 0.5, 0.52)},
+	"stone_pickaxe": {"name": "Stone Pickaxe", "kind": "tool", "tool": "pickaxe", "power": 2.0, "max_stack": 1, "color": Color(0.55, 0.57, 0.52)},
+	"stone_axe": {"name": "Stone Axe", "kind": "tool", "tool": "axe", "power": 2.0, "max_stack": 1, "color": Color(0.55, 0.57, 0.52)},
+	"stone_shovel": {"name": "Stone Shovel", "kind": "tool", "tool": "shovel", "power": 2.0, "max_stack": 1, "color": Color(0.55, 0.57, 0.52)},
+	"stone_sword": {"name": "Stone Sword", "kind": "weapon", "max_stack": 1, "damage": 4, "cooldown": 0.45, "reach": 2.6, "color": Color(0.55, 0.57, 0.52)},
+	"stone_helmet": {"name": "Stone Helmet", "kind": "armor", "slot": "head", "defense": 1, "max_stack": 1, "color": Color(0.55, 0.57, 0.52)},
+	"stone_chestplate": {"name": "Stone Chestplate", "kind": "armor", "slot": "chest", "defense": 2, "max_stack": 1, "color": Color(0.55, 0.57, 0.52)},
+	"stone_leggings": {"name": "Stone Leggings", "kind": "armor", "slot": "legs", "defense": 2, "max_stack": 1, "color": Color(0.55, 0.57, 0.52)},
+	"stone_boots": {"name": "Stone Boots", "kind": "armor", "slot": "feet", "defense": 1, "max_stack": 1, "color": Color(0.55, 0.57, 0.52)},
+	"iron_pickaxe": {"name": "Iron Pickaxe", "kind": "tool", "tool": "pickaxe", "power": 3.4, "max_stack": 1, "color": Color(0.72, 0.78, 0.84)},
+	"iron_axe": {"name": "Iron Axe", "kind": "tool", "tool": "axe", "power": 3.4, "max_stack": 1, "color": Color(0.72, 0.78, 0.84)},
+	"iron_shovel": {"name": "Iron Shovel", "kind": "tool", "tool": "shovel", "power": 3.4, "max_stack": 1, "color": Color(0.72, 0.78, 0.84)},
+	"iron_sword": {"name": "Iron Sword", "kind": "weapon", "max_stack": 1, "damage": 6, "cooldown": 0.4, "reach": 2.6, "color": Color(0.72, 0.78, 0.84)},
+	"iron_helmet": {"name": "Iron Helmet", "kind": "armor", "slot": "head", "defense": 2, "max_stack": 1, "color": Color(0.72, 0.78, 0.84)},
+	"iron_chestplate": {"name": "Iron Chestplate", "kind": "armor", "slot": "chest", "defense": 4, "max_stack": 1, "color": Color(0.72, 0.78, 0.84)},
+	"iron_leggings": {"name": "Iron Leggings", "kind": "armor", "slot": "legs", "defense": 3, "max_stack": 1, "color": Color(0.72, 0.78, 0.84)},
+	"iron_boots": {"name": "Iron Boots", "kind": "armor", "slot": "feet", "defense": 2, "max_stack": 1, "color": Color(0.72, 0.78, 0.84)},
 }
 
 var slots: Array = []
@@ -60,7 +99,8 @@ func reset() -> void:
 	for slot_name in EQUIP_SLOTS:
 		equipment[slot_name] = {}
 	slots[0] = {"id": "sword", "count": 1}
-	discovered = {"sword": true}
+	slots[1] = {"id": "torch", "count": 4}
+	discovered = {"sword": true, "torch": true}
 	selected = 0
 	changed.emit()
 	selection_changed.emit(0)
@@ -256,6 +296,33 @@ func held_weapon() -> Dictionary:
 	if info.get("kind", "") == "weapon":
 		return info
 	return {}
+
+
+func held_tool() -> Dictionary:
+	var s: Dictionary = slots[selected]
+	if s.is_empty():
+		return {}
+	var info: Dictionary = ITEMS.get(s["id"], {})
+	if info.get("kind", "") == "tool":
+		return info
+	return {}
+
+
+func tool_power(category: String) -> float:
+	var info := held_tool()
+	if info.is_empty() or info.get("tool", "") != category:
+		return 1.0
+	return float(info.get("power", 1.0))
+
+
+func armor_reduction() -> float:
+	var total := 0
+	for slot_name in EQUIP_SLOTS:
+		var item: Dictionary = equipment.get(slot_name, {})
+		if item.is_empty():
+			continue
+		total += int(ITEMS.get(item["id"], {}).get("defense", 0))
+	return clampf(float(total) * 0.04, 0.0, 0.6)
 
 
 func held_block_type() -> String:

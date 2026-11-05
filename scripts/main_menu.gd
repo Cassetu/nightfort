@@ -7,6 +7,8 @@ extends Control
 @onready var settings_button = %Settings
 @onready var quit_button = %Quit
 @onready var new_panel = %NewGamePanel
+@onready var new_page = %NewWorldPage
+@onready var main_center = %Center
 @onready var load_panel = %LoadPanel
 @onready var settings_panel = %SettingsPanel
 @onready var error_label = %ErrorLabel
@@ -43,7 +45,8 @@ func _set_view(view: String) -> void:
 	current_view = view
 	error_label.text = ""
 	main_buttons.visible = view == "main"
-	new_panel.visible = view == "new"
+	new_page.visible = view == "new"
+	main_center.visible = view != "new"
 	load_panel.visible = view == "load"
 	settings_panel.visible = view == "settings"
 

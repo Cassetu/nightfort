@@ -2,6 +2,7 @@ extends Node3D
 
 const TreeScript = preload("res://scripts/tree.gd")
 const RockScript = preload("res://scripts/rock.gd")
+const CactusScript = preload("res://scripts/cactus.gd")
 const TileArt = preload("res://scripts/tile_art.gd")
 
 signal block_broken(cell: Vector3i)
@@ -27,6 +28,11 @@ const B_SNOW := 6
 const B_COAL := 7
 const B_IRON := 8
 const B_BRICK := 9
+const B_DIORITE := 10
+const B_GRANITE := 11
+const B_BASALT := 12
+const B_LIMESTONE := 13
+const B_SANDSTONE := 14
 
 const AO_LEVELS := [0.55, 0.7, 0.85, 1.0]
 
@@ -40,11 +46,16 @@ const COL_SNOW := Color(0.92, 0.94, 0.97)
 const COL_BEDROCK := Color(0.12, 0.12, 0.14)
 const COL_COAL := Color(0.15, 0.15, 0.17)
 const COL_IRON := Color(0.72, 0.50, 0.38)
+const COL_DIORITE := Color(0.62, 0.62, 0.60)
+const COL_GRANITE := Color(0.55, 0.40, 0.36)
+const COL_BASALT := Color(0.20, 0.20, 0.23)
+const COL_LIMESTONE := Color(0.72, 0.68, 0.58)
+const COL_SANDSTONE := Color(0.62, 0.54, 0.38)
 
-const BASE_COL := [COL_DIRT, COL_DIRT, COL_DIRT, COL_STONE, COL_BEDROCK, COL_SAND, COL_SNOW, COL_COAL, COL_IRON, COL_STONE]
-const HARDNESS := [0.0, 2.0, 2.0, 5.0, -1.0, 1.0, 1.0, 6.0, 8.0, 5.0]
-const DROP_ITEM := ["", "dirt", "dirt", "stone", "", "sand", "snow", "coal", "iron", "stone_brick"]
-const DROP_AMOUNT := [0, 1, 1, 1, 0, 1, 1, 1, 1, 1]
+const BASE_COL := [COL_DIRT, COL_DIRT, COL_DIRT, COL_STONE, COL_BEDROCK, COL_SAND, COL_SNOW, COL_COAL, COL_IRON, COL_STONE, COL_DIORITE, COL_GRANITE, COL_BASALT, COL_LIMESTONE, COL_SANDSTONE]
+const HARDNESS := [0.0, 2.0, 2.0, 5.0, -1.0, 1.0, 1.0, 6.0, 8.0, 5.0, 5.5, 6.5, 8.0, 4.0, 3.0]
+const DROP_ITEM := ["", "dirt", "dirt", "stone", "", "sand", "snow", "coal", "iron", "stone_brick", "diorite", "granite", "basalt", "limestone", "sandstone"]
+const DROP_AMOUNT := [0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 
 const FACE_CORNERS := [
 	[Vector3(1, 0, 0), Vector3(1, 0, 1), Vector3(1, 1, 1), Vector3(1, 1, 0)],
@@ -56,9 +67,9 @@ const FACE_CORNERS := [
 ]
 const FACE_NORMALS := [Vector3.RIGHT, Vector3.LEFT, Vector3.UP, Vector3.DOWN, Vector3.BACK, Vector3.FORWARD]
 const FACE_DIRS := [Vector3i(1, 0, 0), Vector3i(-1, 0, 0), Vector3i(0, 1, 0), Vector3i(0, -1, 0), Vector3i(0, 0, 1), Vector3i(0, 0, -1)]
-const TILE_NAMES := ["grass_top", "grass_side", "dirt", "stone", "bedrock", "sand", "snow", "coal_ore", "iron_ore", "stone_brick"]
-const TILE_FALLBACK := [COL_LUSH, COL_DIRT, COL_DIRT, COL_STONE, COL_BEDROCK, COL_SAND, COL_SNOW, COL_COAL, COL_IRON, COL_STONE]
-const FACE_TILE := [[0, 0, 0], [0, 1, 2], [2, 2, 2], [3, 3, 3], [4, 4, 4], [5, 5, 5], [6, 6, 6], [7, 7, 7], [8, 8, 8], [9, 9, 9]]
+const TILE_NAMES := ["grass_top", "grass_side", "dirt", "stone", "bedrock", "sand", "snow", "coal_ore", "iron_ore", "stone_brick", "diorite", "granite", "basalt", "limestone", "sandstone"]
+const TILE_FALLBACK := [COL_LUSH, COL_DIRT, COL_DIRT, COL_STONE, COL_BEDROCK, COL_SAND, COL_SNOW, COL_COAL, COL_IRON, COL_STONE, COL_DIORITE, COL_GRANITE, COL_BASALT, COL_LIMESTONE, COL_SANDSTONE]
+const FACE_TILE := [[0, 0, 0], [0, 1, 2], [2, 2, 2], [3, 3, 3], [4, 4, 4], [5, 5, 5], [6, 6, 6], [7, 7, 7], [8, 8, 8], [9, 9, 9], [10, 10, 10], [11, 11, 11], [12, 12, 12], [13, 13, 13], [14, 14, 14]]
 const FACE_DY := [0, 0, 1, -1, 0, 0]
 const FACE_DCOL := [1, -1, 0, 0, PAD, -PAD]
 
@@ -90,8 +101,9 @@ const FACE_DCOL := [1, -1, 0, 0, PAD, -PAD]
 @export_group("Underground")
 @export var caves_enabled: bool = true
 @export var cave_cover: int = 5
-@export var tunnel_width: float = 0.07
-@export var chamber_threshold: float = 0.66
+@export var tunnel_width: float = 0.13
+@export var chamber_threshold: float = 0.5
+@export var cavern_threshold: float = 0.52
 @export var coal_threshold: float = 0.62
 @export var iron_threshold: float = 0.64
 @export var core_protect_radius: float = 9.0
@@ -101,6 +113,25 @@ const FACE_DCOL := [1, -1, 0, 0, PAD, -PAD]
 @export var tree_spacing: float = 3.0
 @export var tree_clear_radius: float = 40.0
 @export var tree_line: int = 24
+
+@export_group("Plants")
+@export var plants_enabled: bool = true
+@export_range(0.0, 1.5) var grass_density: float = 1.0
+@export var bush_attempts: int = 12
+@export var bush_spacing: float = 1.8
+@export var bush_clear_radius: float = 12.0
+@export var grass_view_range: float = 36.0
+@export var bush_view_range: float = 70.0
+
+@export_group("Desert")
+@export var desert_enabled: bool = true
+@export var desert_threshold: float = 0.2
+@export var desert_clear_radius: float = 70.0
+@export var desert_sand_depth: int = 4
+@export var desert_sandstone_depth: int = 14
+@export var cactus_attempts: int = 7
+@export var cactus_spacing: float = 3.2
+@export var shrub_density: float = 0.1
 
 @export_group("Rocks")
 @export var rock_attempts: int = 8
@@ -117,6 +148,9 @@ class Chunk:
 	var faces: PackedVector3Array
 	var trees: Array
 	var rocks: Array
+	var cacti: Array
+	var plants: Dictionary = {}
+	var plant_nodes: Dictionary = {}
 
 class MeshBuf:
 	var verts := PackedVector3Array()
@@ -137,8 +171,13 @@ var n_cave_b: FastNoiseLite
 var n_chamber: FastNoiseLite
 var n_coal: FastNoiseLite
 var n_iron: FastNoiseLite
+var n_cavern: FastNoiseLite
+var n_stone_a: FastNoiseLite
+var n_stone_b: FastNoiseLite
+var n_biome: FastNoiseLite
 
 var material: ShaderMaterial
+var plant_meshes: Dictionary = {}
 var player = null
 var core_node: Node3D = null
 var chunks: Dictionary = {}
@@ -180,6 +219,7 @@ func _ready() -> void:
 
 	_setup_noise()
 	_setup_material()
+	_setup_plants()
 	_setup_fog()
 	_build_ao_tables()
 	_setup_crack()
@@ -283,7 +323,8 @@ func block_at(x: int, iy: int, z: int) -> int:
 	if iy < Y_MIN:
 		return B_BEDROCK
 	var h := _height(x, z)
-	return _gen_block(x, iy, z, h, _surface_id(h, _moisture(x + 0.5, z + 0.5)))
+	var dv := _desert(x + 0.5, z + 0.5)
+	return _gen_block(x, iy, z, h, _surface_id(h, _moisture(x + 0.5, z + 0.5), dv), dv > 0.5)
 
 
 func cell_from_hit(pos: Vector3, normal: Vector3) -> Vector3i:
@@ -371,11 +412,15 @@ func _setup_noise() -> void:
 	n_detail = _make_noise(5, 0.09, 2)
 	n_moist = _make_noise(6, 0.005, 2)
 	n_forest = _make_noise(7, 0.03, 1)
-	n_cave_a = _make_noise(8, 0.035, 1)
-	n_cave_b = _make_noise(9, 0.035, 1)
-	n_chamber = _make_noise(10, 0.03, 1)
+	n_cave_a = _make_noise(8, 0.03, 1)
+	n_cave_b = _make_noise(9, 0.03, 1)
+	n_chamber = _make_noise(10, 0.026, 1)
 	n_coal = _make_noise(11, 0.16, 1)
 	n_iron = _make_noise(12, 0.18, 1)
+	n_cavern = _make_noise(13, 0.016, 1)
+	n_stone_a = _make_noise(14, 0.028, 1)
+	n_stone_b = _make_noise(15, 0.024, 1)
+	n_biome = _make_noise(16, 0.0032, 2)
 
 
 func _make_noise(seed_offset: int, frequency: float, octaves: int) -> FastNoiseLite:
@@ -576,6 +621,7 @@ func _release_support(cell: Vector3i) -> void:
 	if not chunks.has(cc):
 		return
 	var chunk: Chunk = chunks[cc]
+	_remove_plants(chunk, cell)
 	if chunk.objects == null:
 		return
 	for child in chunk.objects.get_children():
@@ -770,6 +816,8 @@ func _finalize(coord: Vector2i, data: Dictionary) -> Chunk:
 	chunk.faces = data["verts"]
 	chunk.trees = data["trees"]
 	chunk.rocks = data["rocks"]
+	chunk.cacti = data["cacti"]
+	chunk.plants = data["plants"]
 
 	var root := Node3D.new()
 	root.name = "Chunk_%d_%d" % [coord.x, coord.y]
@@ -819,6 +867,8 @@ func _add_objects(chunk: Chunk) -> void:
 	holder.name = "Objects"
 	chunk.root.add_child(holder)
 	chunk.objects = holder
+	_prune_plants(chunk)
+	_spawn_plants(chunk)
 
 	for i in chunk.trees.size():
 		var key := Vector3i(chunk.coord.x, chunk.coord.y, i)
@@ -847,6 +897,247 @@ func _add_objects(chunk: Chunk) -> void:
 		rock.harvested.connect(_on_depleted.bind(key))
 		holder.add_child(rock)
 
+	for i in chunk.cacti.size():
+		var key := Vector3i(chunk.coord.x, chunk.coord.y, 2000 + i)
+		var d: Dictionary = chunk.cacti[i]
+		if depleted.has(key) or _support_gone(chunk.coord, d):
+			continue
+		var cactus = CactusScript.new()
+		cactus.cactus_seed = d["seed"]
+		cactus.position = Vector3(d["x"], d["y"], d["z"])
+		cactus.rotation.y = d["rot"]
+		cactus.harvested.connect(_on_depleted.bind(key))
+		holder.add_child(cactus)
+
+
+func _setup_plants() -> void:
+	var tuft_tex := TileArt.texture("grass_tuft", Color(0.2, 0.35, 0.15, 0.0))
+	var flower_tex := TileArt.texture("flower_tuft", Color(0.2, 0.35, 0.15, 0.0))
+	var leaf_tex := TileArt.texture("leaves", Color(0.17, 0.42, 0.2, 1.0))
+	plant_meshes["tuft"] = _tuft_mesh(_plant_material(tuft_tex, Vector2.ONE, 0.12, 0.8))
+	plant_meshes["flower"] = _tuft_mesh(_plant_material(flower_tex, Vector2.ONE, 0.12, 0.8))
+	var shrub_tex := TileArt.texture("dry_shrub", Color(0.5, 0.42, 0.25, 0.0))
+	plant_meshes["shrub"] = _tuft_mesh(_plant_material(shrub_tex, Vector2.ONE, 0.07, 0.8))
+	plant_meshes["bush"] = _bush_mesh(_plant_material(leaf_tex, Vector2(2.0, 2.0), 0.035, 0.9))
+
+
+func _plant_material(tex: Texture2D, uv_scale: Vector2, sway: float, sway_height: float) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = load("res://resources/plant.gdshader")
+	m.set_shader_parameter("albedo_tex", tex)
+	m.set_shader_parameter("uv_scale", uv_scale)
+	m.set_shader_parameter("sway", sway)
+	m.set_shader_parameter("sway_height", sway_height)
+	return m
+
+
+func _tuft_mesh(mat: Material) -> ArrayMesh:
+	var h := 0.8
+	var verts := PackedVector3Array([
+		Vector3(-0.5, 0.0, 0.0), Vector3(0.5, 0.0, 0.0), Vector3(0.5, h, 0.0), Vector3(-0.5, h, 0.0),
+		Vector3(0.0, 0.0, -0.5), Vector3(0.0, 0.0, 0.5), Vector3(0.0, h, 0.5), Vector3(0.0, h, -0.5),
+	])
+	var uvs := PackedVector2Array([
+		Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), Vector2(0, 0),
+		Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), Vector2(0, 0),
+	])
+	var norms := PackedVector3Array()
+	for i in 8:
+		norms.append(Vector3.UP)
+	var indices := PackedInt32Array([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7])
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = norms
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	mesh.surface_set_material(0, mat)
+	return mesh
+
+
+func _bush_mesh(mat: Material) -> ArrayMesh:
+	var blobs: Array = [
+		[Vector3(0.0, 0.3, 0.0), Vector3(1.0, 0.7, 1.0), 0.5],
+		[Vector3(0.32, 0.24, 0.1), Vector3(1.0, 0.75, 1.0), 0.34],
+		[Vector3(-0.3, 0.22, -0.14), Vector3(1.0, 0.75, 1.0), 0.36],
+		[Vector3(0.05, 0.28, -0.32), Vector3(1.0, 0.7, 1.0), 0.3],
+	]
+	var verts := PackedVector3Array()
+	var norms := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+	for blob in blobs:
+		var sphere := SphereMesh.new()
+		sphere.radius = blob[2]
+		sphere.height = blob[2] * 2.0
+		sphere.radial_segments = 8
+		sphere.rings = 4
+		var arrays := sphere.get_mesh_arrays()
+		var pv: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var pn: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var pu: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var pi: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		var offset := verts.size()
+		var center: Vector3 = blob[0]
+		var squash: Vector3 = blob[1]
+		for i in pv.size():
+			verts.append(pv[i] * squash + center)
+			norms.append(Vector3.UP)
+			uvs.append(pu[i])
+		for index in pi:
+			indices.append(offset + index)
+	var out := []
+	out.resize(Mesh.ARRAY_MAX)
+	out[Mesh.ARRAY_VERTEX] = verts
+	out[Mesh.ARRAY_NORMAL] = norms
+	out[Mesh.ARRAY_TEX_UV] = uvs
+	out[Mesh.ARRAY_INDEX] = indices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, out)
+	mesh.surface_set_material(0, mat)
+	return mesh
+
+
+func _push_plant(arr: Array, x: float, y: float, z: float, rot: float, sx: float, sy: float, col: Color) -> void:
+	var c := cos(rot)
+	var s := sin(rot)
+	arr.append_array([c * sx, 0.0, s * sx, x, 0.0, sy, 0.0, y, -s * sx, 0.0, c * sx, z, col.r, col.g, col.b, 1.0])
+
+
+func _gen_plants(coord: Vector2i, heights: PackedInt32Array, surf: PackedByteArray, moist: PackedFloat32Array, top_cols: PackedColorArray, desert: PackedFloat32Array, placed: Array, rng: RandomNumberGenerator) -> Dictionary:
+	var shrub: Array = []
+	var tuft: Array = []
+	var flower: Array = []
+	var bush: Array = []
+	var ox := coord.x * CHUNK
+	var oz := coord.y * CHUNK
+
+	for lz in CHUNK:
+		for lx in CHUNK:
+			var ci := lz * CHUNK + lx
+			if desert[ci] > 0.5 and surf[ci] == B_SAND:
+				if rng.randf() < shrub_density:
+					var sc := rng.randf_range(0.6, 1.2)
+					var v := rng.randf_range(0.85, 1.1)
+					_push_plant(shrub, lx + rng.randf_range(0.15, 0.85), heights[(lz + 1) * PAD + lx + 1] - 0.02, lz + rng.randf_range(0.15, 0.85), rng.randf() * TAU, sc, sc * rng.randf_range(0.7, 1.1), Color(v, v, v))
+				continue
+			if surf[ci] != B_GRASS:
+				continue
+			if Vector2(ox + lx + 0.5, oz + lz + 0.5).length() < 4.5:
+				continue
+			var h := heights[(lz + 1) * PAD + lx + 1]
+			var lush := smoothstep(0.05, 0.6, moist[ci])
+			if rng.randf() > grass_density * (0.25 + 0.75 * lush):
+				continue
+			var base := Color(1.0, 1.0, 1.0).lerp(top_cols[ci], 0.55)
+			var count := 1
+			if rng.randf() < 0.5 * lush:
+				count += 1
+			if rng.randf() < 0.25 * lush:
+				count += 1
+			for _k in count:
+				var px := lx + rng.randf_range(0.1, 0.9)
+				var pz := lz + rng.randf_range(0.1, 0.9)
+				var v := rng.randf_range(0.82, 1.12)
+				var sc := rng.randf_range(0.7, 1.25)
+				var rot := rng.randf() * TAU
+				if rng.randf() < 0.05:
+					_push_plant(flower, px, h - 0.02, pz, rot, sc * 0.9, sc * 0.9, Color(v, v, v))
+				else:
+					_push_plant(tuft, px, h - 0.02, pz, rot, sc, sc * rng.randf_range(0.7, 1.3), Color(base.r * v, base.g * v, base.b * v))
+
+	for _b in bush_attempts:
+		var px := rng.randf_range(1.0, CHUNK - 1.0)
+		var pz := rng.randf_range(1.0, CHUNK - 1.0)
+		var lx := int(px)
+		var lz := int(pz)
+		var ci := lz * CHUNK + lx
+		if surf[ci] != B_GRASS:
+			continue
+		var world := Vector2(ox + px, oz + pz)
+		if world.length() < bush_clear_radius:
+			continue
+		var density := 0.15 + smoothstep(-0.8, 0.3, n_forest.get_noise_2d(world.x, world.y)) * (0.3 + 0.6 * moist[ci])
+		if rng.randf() > density:
+			continue
+		var pos := Vector2(px, pz)
+		var blocked := false
+		for other: Vector2 in placed:
+			if other.distance_squared_to(pos) < bush_spacing * bush_spacing:
+				blocked = true
+				break
+		if blocked:
+			continue
+		placed.append(pos)
+		var h := heights[(lz + 1) * PAD + lx + 1]
+		var sc := rng.randf_range(0.8, 1.4)
+		var v := rng.randf_range(0.8, 1.1)
+		_push_plant(bush, px, h - 0.05, pz, rng.randf() * TAU, sc, sc * rng.randf_range(0.8, 1.0), Color(v, v, v))
+
+	return {"tuft": PackedFloat32Array(tuft), "flower": PackedFloat32Array(flower), "bush": PackedFloat32Array(bush), "shrub": PackedFloat32Array(shrub)}
+
+
+func _spawn_plants(chunk: Chunk) -> void:
+	if not plants_enabled:
+		return
+	for kind: String in chunk.plants.keys():
+		var buf: PackedFloat32Array = chunk.plants[kind]
+		if buf.is_empty():
+			continue
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
+		mm.mesh = plant_meshes[kind]
+		mm.instance_count = buf.size() / 16
+		mm.buffer = buf
+		var mmi := MultiMeshInstance3D.new()
+		mmi.name = "Plants_" + kind
+		mmi.multimesh = mm
+		if kind == "bush":
+			mmi.visibility_range_end = bush_view_range
+		else:
+			mmi.visibility_range_end = grass_view_range
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		chunk.root.add_child(mmi)
+		chunk.plant_nodes[kind] = mmi
+
+
+func _filter_plants(chunk: Chunk, drop: Callable) -> void:
+	for kind: String in chunk.plants.keys():
+		var buf: PackedFloat32Array = chunk.plants[kind]
+		var out := PackedFloat32Array()
+		var i := 0
+		while i < buf.size():
+			var key := Vector3i(chunk.coord.x * CHUNK + floori(buf[i + 3]), floori(buf[i + 7]), chunk.coord.y * CHUNK + floori(buf[i + 11]))
+			if not drop.call(key):
+				out.append_array(buf.slice(i, i + 16))
+			i += 16
+		if out.size() == buf.size():
+			continue
+		chunk.plants[kind] = out
+		if not chunk.plant_nodes.has(kind):
+			continue
+		var node: MultiMeshInstance3D = chunk.plant_nodes[kind]
+		if out.is_empty():
+			node.queue_free()
+			chunk.plant_nodes.erase(kind)
+		else:
+			node.multimesh.instance_count = out.size() / 16
+			node.multimesh.buffer = out
+
+
+func _prune_plants(chunk: Chunk) -> void:
+	if not edit_chunks.has(chunk.coord):
+		return
+	var edits: Dictionary = edit_chunks[chunk.coord]
+	_filter_plants(chunk, func(key: Vector3i) -> bool: return edits.has(key))
+
+
+func _remove_plants(chunk: Chunk, cell: Vector3i) -> void:
+	_filter_plants(chunk, func(key: Vector3i) -> bool: return key == cell)
+
 
 func _on_depleted(_resource_type, _amount, key) -> void:
 	depleted[key] = true
@@ -864,7 +1155,8 @@ func _height(x: int, z: int) -> int:
 	var mount := smoothstep(0.54, 0.74, cont)
 	var massif := mount * (0.45 + 0.55 * ridge) * (0.75 + 0.5 * rough)
 	var detail := n_detail.get_noise_2d(fx, fz) * 1.6 * (0.4 + 0.6 * hill_scale)
-	var relief := pow(hills, 1.4) * hill_amplitude * hill_scale + massif * mountain_amplitude + detail
+	var dry := _desert(fx, fz)
+	var relief := (pow(hills, 1.4) * hill_amplitude * hill_scale + massif * mountain_amplitude * (1.0 - 0.75 * dry) + detail) * (1.0 - 0.5 * dry)
 
 	var dist := Vector2(fx, fz).length()
 	var blend := smoothstep(plateau_radius, plateau_radius + plateau_blend, dist)
@@ -873,26 +1165,37 @@ func _height(x: int, z: int) -> int:
 	return clampi(base_height + roundi(maxf(relief, 0.0) * blend + wall), 1, Y_MAX - 2)
 
 
+func _desert(x: float, z: float) -> float:
+	if not desert_enabled:
+		return 0.0
+	var n := n_biome.get_noise_2d(x, z)
+	var base := smoothstep(desert_threshold, desert_threshold + 0.14, n)
+	var away := smoothstep(desert_clear_radius, desert_clear_radius + 50.0, Vector2(x, z).length())
+	return base * away
+
+
 func _moisture(x: float, z: float) -> float:
 	var m := n_moist.get_noise_2d(x, z) * 0.5 + 0.5
 	return clampf((m - 0.5) * 1.8 + 0.5, 0.0, 1.0)
 
 
-func _top_color(h: int, moist: float) -> Color:
+func _top_color(h: int, moist: float, desert: float) -> Color:
 	var hf := float(h)
 	var c := COL_DRY.lerp(COL_LUSH, moist)
 	var sand_t := (1.0 - smoothstep(0.05, 0.22, moist)) * (1.0 - smoothstep(2.0, rock_line - 4.0, hf))
-	c = c.lerp(COL_SAND, sand_t)
+	c = c.lerp(COL_SAND, maxf(sand_t, desert))
 	c = c.lerp(COL_ROCK, smoothstep(rock_line, rock_line + 5.0, hf))
 	return c.lerp(COL_SNOW, smoothstep(snow_line, snow_line + 3.0, hf))
 
 
-func _surface_id(h: int, moist: float) -> int:
+func _surface_id(h: int, moist: float, desert: float) -> int:
 	var hf := float(h)
 	if hf >= snow_line + 2.0:
 		return B_SNOW
 	if hf >= rock_line + 3.0:
 		return B_STONE
+	if desert > 0.5:
+		return B_SAND
 	var sand_t := (1.0 - smoothstep(0.05, 0.22, moist)) * (1.0 - smoothstep(2.0, rock_line - 4.0, hf))
 	if sand_t > 0.5:
 		return B_SAND
@@ -913,10 +1216,26 @@ func _is_cave(x: int, iy: int, z: int) -> bool:
 		return true
 	if iy < -6 and n_chamber.get_noise_3d(fx, fy, fz) > chamber_threshold:
 		return true
+	if iy < -2 and iy > -26 and n_cavern.get_noise_3d(fx, fy * 2.2, fz) > cavern_threshold:
+		return true
 	return false
 
 
-func _gen_block(x: int, iy: int, z: int, h: int, surf: int) -> int:
+func _stone_at(fx: float, fy: float, fz: float, iy: int) -> int:
+	var a := n_stone_a.get_noise_3d(fx, fy, fz)
+	if a > 0.34:
+		return B_DIORITE
+	if a < -0.38:
+		return B_GRANITE
+	var b := n_stone_b.get_noise_3d(fx, fy, fz)
+	if b > 0.36 and iy < -4:
+		return B_BASALT
+	if b < -0.36 and iy > -18:
+		return B_LIMESTONE
+	return B_STONE
+
+
+func _gen_block(x: int, iy: int, z: int, h: int, surf: int, in_desert: bool) -> int:
 	if iy >= h:
 		return B_AIR
 	if iy <= Y_MIN:
@@ -928,23 +1247,30 @@ func _gen_block(x: int, iy: int, z: int, h: int, surf: int) -> int:
 		if on_platform(x, z):
 			return B_BRICK
 		return surf
-	if caves_enabled and depth >= cave_cover and iy > Y_MIN + 1 and _is_cave(x, iy, z):
+	if caves_enabled and depth >= cave_cover and iy > Y_MIN + 1 and Vector2(x + 0.5, z + 0.5).length() > core_protect_radius + 3.0 and _is_cave(x, iy, z):
 		return B_AIR
 	if surf == B_GRASS and depth <= 3:
 		return B_DIRT
+	if surf == B_SAND and in_desert:
+		if depth < desert_sand_depth:
+			return B_SAND
+		if depth < desert_sandstone_depth:
+			return B_SANDSTONE
 	if surf == B_SAND:
 		if depth <= 1:
 			return B_SAND
 		if depth <= 3:
 			return B_DIRT
+	var fx := x + 0.5
+	var fy := iy + 0.5
+	var fz := z + 0.5
 	if depth >= 4:
-		var fx := x + 0.5
-		var fy := iy + 0.5
-		var fz := z + 0.5
 		if iy < 0 and n_iron.get_noise_3d(fx, fy, fz) > iron_threshold:
 			return B_IRON
 		if n_coal.get_noise_3d(fx, fy, fz) > coal_threshold:
 			return B_COAL
+	if depth >= 2:
+		return _stone_at(fx, fy, fz, iy)
 	return B_STONE
 
 
@@ -1012,8 +1338,16 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 		for x in PAD:
 			heights[z * PAD + x] = _height(ox + x, oz + z)
 
+	var dcol := PackedFloat32Array()
+	dcol.resize(PAD * PAD)
+	for z in PAD:
+		for x in PAD:
+			dcol[z * PAD + x] = _desert(ox + x + 0.5, oz + z + 0.5)
+
 	var moist := PackedFloat32Array()
 	moist.resize(CHUNK * CHUNK)
+	var desert := PackedFloat32Array()
+	desert.resize(CHUNK * CHUNK)
 	var top_cols := PackedColorArray()
 	top_cols.resize(CHUNK * CHUNK)
 	var surf := PackedByteArray()
@@ -1024,8 +1358,10 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 			var m := _moisture(coord.x * CHUNK + lx + 0.5, coord.y * CHUNK + lz + 0.5)
 			var ci := lz * CHUNK + lx
 			moist[ci] = m
-			top_cols[ci] = _top_color(h, m)
-			surf[ci] = _surface_id(h, m)
+			var dv := dcol[(lz + 1) * PAD + lx + 1]
+			desert[ci] = dv
+			top_cols[ci] = _top_color(h, m, dv)
+			surf[ci] = _surface_id(h, m, dv)
 
 	var vol := PackedByteArray()
 	vol.resize(LAYER * Y_LAYERS)
@@ -1048,7 +1384,7 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 				s = surf[(z - 1) * CHUNK + x - 1]
 			vol[col] = B_BEDROCK
 			for iy in range(Y_MIN, h):
-				var id := _gen_block(wx, iy, wz, h, s)
+				var id := _gen_block(wx, iy, wz, h, s, dcol[col] > 0.5)
 				vol[(iy - Y_BASE) * LAYER + col] = id
 				if id == B_AIR:
 					cmin[col] = mini(cmin[col], iy)
@@ -1140,6 +1476,8 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 
 	var trees: Array = []
 	var rocks: Array = []
+	var cacti: Array = []
+	var plants := {"tuft": PackedFloat32Array(), "flower": PackedFloat32Array(), "bush": PackedFloat32Array(), "shrub": PackedFloat32Array()}
 	if with_objects:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = (coord.x * 73856093) ^ (coord.y * 19349663) ^ (world_seed * 83492791)
@@ -1153,7 +1491,7 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 			var lz := int(pz)
 			var i := (lz + 1) * PAD + lx + 1
 			var h := heights[i]
-			if h > tree_line or _max_step(heights, i, h) > 1:
+			if h > tree_line or _max_step(heights, i, h) > 1 or desert[lz * CHUNK + lx] > 0.3:
 				continue
 			var world := origin2 + Vector2(px, pz)
 			if world.length() < tree_clear_radius:
@@ -1187,7 +1525,7 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 			var i := (lz + 1) * PAD + lx + 1
 			var h := heights[i]
 			var world := origin2 + Vector2(px, pz)
-			if world.length() < rock_clear_radius:
+			if world.length() < rock_clear_radius or desert[lz * CHUNK + lx] > 0.3:
 				continue
 			var chance := clampf(0.2 + float(h) / 30.0 + 0.25 * (1.0 - moist[lz * CHUNK + lx]), 0.0, 0.8)
 			if rng.randf() > chance:
@@ -1219,4 +1557,30 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 				"seed": rng.randi(),
 			})
 
-	return {"verts": buf.verts, "norms": buf.norms, "cols": buf.cols, "uvs": buf.uvs, "uv2s": buf.uv2s, "trees": trees, "rocks": rocks, "remesh": not with_objects}
+		for _c in cactus_attempts:
+			var px := rng.randf_range(1.5, CHUNK - 1.5)
+			var pz := rng.randf_range(1.5, CHUNK - 1.5)
+			var lx := int(px)
+			var lz := int(pz)
+			var ci := lz * CHUNK + lx
+			if desert[ci] < 0.6 or surf[ci] != B_SAND:
+				continue
+			var i := (lz + 1) * PAD + lx + 1
+			var h := heights[i]
+			if _max_step(heights, i, h) > 1 or rng.randf() > 0.55:
+				continue
+			var pos := Vector2(px, pz)
+			var blocked := false
+			for other: Vector2 in placed:
+				if other.distance_squared_to(pos) < cactus_spacing * cactus_spacing:
+					blocked = true
+					break
+			if blocked:
+				continue
+			placed.append(pos)
+			cacti.append({"x": px, "y": float(h), "z": pz, "rot": rng.randf() * TAU, "seed": rng.randi()})
+
+		if plants_enabled:
+			plants = _gen_plants(coord, heights, surf, moist, top_cols, desert, placed, rng)
+
+	return {"verts": buf.verts, "norms": buf.norms, "cols": buf.cols, "uvs": buf.uvs, "uv2s": buf.uv2s, "trees": trees, "rocks": rocks, "cacti": cacti, "plants": plants, "remesh": not with_objects}

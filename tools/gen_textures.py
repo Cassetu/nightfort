@@ -315,6 +315,276 @@ def torch_base(seed=151):
     return c
 
 
+def leaves(seed=171):
+    from PIL import ImageDraw
+    r = np.random.default_rng(seed)
+    big = 256
+    im = Image.new("RGB", (big, big), (9, 17, 9))
+    d = ImageDraw.Draw(im)
+    stops = [(0, (16, 30, 14)), (0.5, (46, 70, 32)), (1, (104, 128, 66))]
+    xs = [s[0] for s in stops]
+    for _ in range(190):
+        cx, cy = r.random() * big, r.random() * big
+        ang = r.random() * np.pi
+        ln, wd = 17 + r.random() * 11, 7 + r.random() * 4
+        t = r.random() ** 1.3
+        col = tuple(int(np.interp(t, xs, [s[1][c] for s in stops])) for c in range(3))
+        vein = tuple(min(255, int(c * 1.35) + 8) for c in col)
+        edge = tuple(int(c * 0.6) for c in col)
+        th = np.linspace(0, 2 * np.pi, 20)
+        px = ln * np.cos(th) * (1.0 - 0.25 * np.abs(np.sin(th)) ** 3)
+        py = wd * np.sin(th)
+        ca, sa = np.cos(ang), np.sin(ang)
+        for ox in (-big, 0, big):
+            for oy in (-big, 0, big):
+                pts = [(cx + ox + a * ca - b * sa, cy + oy + a * sa + b * ca) for a, b in zip(px, py)]
+                d.polygon(pts, fill=col, outline=edge)
+                d.line([(cx + ox - ln * ca * 0.8, cy + oy - ln * sa * 0.8), (cx + ox + ln * ca * 0.8, cy + oy + ln * sa * 0.8)], fill=vein, width=1)
+    arr = np.array(im.resize((N, N), Image.BOX)).astype(float)
+    shade = 0.8 + 0.4 * mixn(seed + 3, (0.6, 0.4), (2.4, 1.2))
+    return grit(arr * shade[..., None], seed + 5, 0.06)
+
+
+def door_planks(seed):
+    edges = [0, 21, 43, 64]
+    out = np.zeros((N, N, 3))
+    r = np.random.default_rng(seed)
+    for i in range(3):
+        g = mixn(seed + i * 5, (0.5, 0.3, 0.2), (2.0, 1.4, 0.6), ax=1.0, ay=8.0)
+        c = ramp(np.clip(g + (r.random() - 0.5) * 0.2, 0, 1), PLANK) * 0.78
+        out[:, edges[i]:edges[i + 1]] = c[:, edges[i]:edges[i + 1]]
+    for e in edges[1:3]:
+        out = mul(out, (XX == e) | (XX == e + 1), 0.35)
+        out = mul(out, XX == e - 1, 1.1)
+    out = mul(out, (XX < 2) | (XX >= N - 2), 0.55)
+    out = speckle(out, seed + 40, 0.02, 0.2)
+    return grit(out, seed + 41, 0.04)
+
+
+def strap(arr, y0, y1, x1):
+    band = (YY >= y0) & (YY < y1) & (XX < x1)
+    metal_c = metal(5, [(0, (20, 22, 24)), (0.5, (52, 58, 64)), (1, (92, 100, 108))])
+    arr = np.where(band[..., None], metal_c, arr)
+    arr = mul(arr, (YY == y0) & (XX < x1), 1.3)
+    arr = mul(arr, (YY == y1 - 1) & (XX < x1), 0.55)
+    arr = over(arr, disk(5, (y0 + y1) // 2, 1.6), (30, 30, 32), 1.0)
+    arr = over(arr, disk(x1 - 6, (y0 + y1) // 2, 1.6), (30, 30, 32), 1.0)
+    return arr
+
+
+def door_bottom(seed=181):
+    c = door_planks(seed)
+    c = mul(c, (YY >= 42) & (YY < 52), 0.62)
+    c = mul(c, (YY == 42), 0.6)
+    for cx in (8, 32, 56):
+        c = over(c, disk(cx, 47, 1.4), (26, 22, 18), 1.0)
+    c = strap(c, 8, 17, 26)
+    c = over(c, disk(54.5, 12.5, 4.5), (8, 8, 8), 0.45)
+    c = over(c, disk(54, 12, 3.6), (128, 100, 52), 1.0)
+    c = over(c, disk(53, 11, 1.3), (190, 164, 104), 0.8)
+    c = mul(c, YY >= N - 3, 0.6)
+    return c[:, ::-1]
+
+
+def door_top(seed=191):
+    c = door_planks(seed)
+    win = (XX >= 20) & (XX < 44) & (YY >= 12) & (YY < 36)
+    c = mul(c, (XX >= 18) & (XX < 46) & (YY >= 10) & (YY < 38) & ~win, 0.5)
+    c = np.where(win[..., None], np.array([10.0, 12.0, 10.0]) + 0 * c, c)
+    gl = fnoise(seed + 7, 2.0)
+    c = np.where(win[..., None], c + (gl[..., None] * 18.0), c)
+    for bx in (26, 31, 36):
+        c = over(c, win & (XX >= bx) & (XX < bx + 2), (58, 62, 64), 1.0)
+    c = over(c, win & (YY >= 22) & (YY < 24), (58, 62, 64), 1.0)
+    c = strap(c, 46, 55, 26)
+    c = mul(c, YY < 3, 0.6)
+    return c[:, ::-1]
+
+
+def door_item():
+    top = Image.open(f"{ROOT}/art/tiles/door_top.png").convert("RGB").resize((28, 28), Image.LANCZOS)
+    bot = Image.open(f"{ROOT}/art/tiles/door_bottom.png").convert("RGB").resize((28, 28), Image.LANCZOS)
+    arr = np.zeros((N, N, 3))
+    alpha = np.zeros((N, N), np.uint8)
+    x0, y0 = 18, 4
+    arr[y0:y0 + 28, x0:x0 + 28] = np.array(top)
+    arr[y0 + 28:y0 + 56, x0:x0 + 28] = np.array(bot)
+    alpha[y0:y0 + 56, x0:x0 + 28] = 255
+    m = alpha > 0
+    p = np.pad(m, 1)
+    nb = p[:-2, 1:-1] | p[2:, 1:-1] | p[1:-1, :-2] | p[1:-1, 2:]
+    ol = nb & ~m
+    arr[ol] = (8, 8, 10)
+    alpha[ol] = 255
+    rgb = np.clip(arr, 0, 255).astype(np.uint8)
+    return Image.fromarray(np.concatenate([rgb, alpha[..., None]], -1), "RGBA")
+
+
+def blade_canvas(seed, flowers):
+    from PIL import ImageDraw
+    r = np.random.default_rng(seed)
+    big = 256
+    im = Image.new("RGBA", (big, big), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    nb = 9 if flowers else 13
+    order = sorted(r.random(nb))
+    for t in order:
+        x0 = 28 + t * (big - 56)
+        base_w = (5 + r.random() * 5) * (0.7 if flowers else 1.0)
+        height = (110 + r.random() * 120) * (0.8 if flowers else 1.0)
+        lean = (r.random() - 0.5) * 90
+        dry = r.random() < 0.12
+        steps = 14
+        left, right, mids = [], [], []
+        for i in range(steps + 1):
+            u = i / steps
+            cx = x0 + lean * u ** 1.7
+            cy = big - 1 - height * u
+            w = base_w * (1.0 - u) ** 0.8 + 0.6
+            left.append((cx - w, cy))
+            right.append((cx + w, cy))
+            mids.append((cx, cy, u))
+        for i in range(steps):
+            u = (i + 0.5) / steps
+            if dry:
+                col = np.interp(u, [0, 1], [76, 124]), np.interp(u, [0, 1], [66, 108]), np.interp(u, [0, 1], [38, 62])
+            else:
+                col = np.interp(u, [0, 0.5, 1], [26, 56, 118]), np.interp(u, [0, 0.5, 1], [42, 84, 136]), np.interp(u, [0, 0.5, 1], [20, 38, 76])
+            col = tuple(int(c) for c in col) + (255,)
+            d.polygon([left[i], left[i + 1], right[i + 1], right[i]], fill=col)
+    if flowers:
+        heads = [(222, 216, 184), (132, 94, 156), (196, 174, 96)]
+        for k in range(3):
+            x0 = 50 + k * 78 + r.random() * 20
+            top = 36 + r.random() * 40
+            col = heads[int(r.integers(0, 3))]
+            d.line([(x0, big - 1), (x0 + (r.random() - 0.5) * 16, top + 8)], fill=(40, 62, 30, 255), width=6)
+            for a in range(6):
+                ang = a * np.pi / 3
+                px, py = x0 + np.cos(ang) * 11, top + np.sin(ang) * 11
+                d.ellipse([px - 8, py - 8, px + 8, py + 8], fill=col + (255,))
+            d.ellipse([x0 - 6, top - 6, x0 + 6, top + 6], fill=(70, 54, 34, 255))
+    a = np.array(im).astype(float).reshape(N, 4, N, 4, 4)
+    alpha = a[..., 3].mean((1, 3)) / 255.0
+    wsum = a[..., 3].sum((1, 3))
+    rgb = (a[..., :3] * a[..., 3:4]).sum((1, 3)) / np.maximum(wsum[..., None], 1.0)
+    return rgb, (alpha >= 0.5)
+
+
+def tuft_img(seed, flowers):
+    rgb, mask = blade_canvas(seed, flowers)
+    rgb = grit(rgb, seed + 3, 0.05)
+    return to_img(rgb, np.where(mask, 255, 0))
+
+
+DIORITE = [(0, (66, 68, 64)), (0.4, (124, 126, 120)), (0.8, (172, 174, 166)), (1, (204, 204, 196))]
+GRANITE = [(0, (54, 38, 36)), (0.4, (100, 74, 68)), (0.8, (148, 114, 104)), (1, (176, 146, 132))]
+BASALT = [(0, (9, 10, 13)), (0.5, (28, 30, 36)), (1, (62, 66, 74))]
+LIMESTONE = [(0, (104, 98, 80)), (0.5, (164, 154, 130)), (1, (204, 196, 170))]
+
+
+def flecks(arr, seed, p, color, amt=0.85):
+    r = np.random.default_rng(seed)
+    big = fnoise(seed + 1, 0.6) > 0.8
+    m = (r.random((N, N)) < p) | (big & (r.random((N, N)) < p * 6))
+    return over(arr, m, color, amt)
+
+
+def diorite(seed=231):
+    c = ramp(mixn(seed, (0.4, 0.3, 0.3), (2.4, 1.2, 0.3)), DIORITE)
+    c = flecks(c, seed + 2, 0.05, (26, 26, 24), 0.8)
+    c = flecks(c, seed + 3, 0.03, (224, 224, 214), 0.7)
+    return grit(c * cracks(seed + 4, 0.25, 0.015)[..., None], seed + 5, 0.05)
+
+
+def granite(seed=241):
+    c = ramp(mixn(seed, (0.4, 0.3, 0.3), (2.2, 1.2, 0.3)), GRANITE)
+    c = flecks(c, seed + 2, 0.05, (26, 20, 20), 0.85)
+    c = flecks(c, seed + 3, 0.04, (212, 202, 188), 0.75)
+    return grit(c * cracks(seed + 4, 0.25, 0.015)[..., None], seed + 5, 0.05)
+
+
+def basalt(seed=251):
+    v = mixn(seed, (0.5, 0.3, 0.2), (2.0, 1.4, 0.6), ax=1.0, ay=3.0)
+    c = ramp(v, BASALT)
+    c = c * cracks(seed + 4, 0.7, 0.025)[..., None]
+    c = flecks(c, seed + 3, 0.02, (110, 116, 124), 0.5)
+    return grit(c, seed + 5, 0.05)
+
+
+def limestone(seed=261):
+    v = mixn(seed, (0.6, 0.3, 0.1), (2.6, 1.4, 0.4), ax=5.0, ay=1.0)
+    band = 0.5 + 0.5 * np.sin((YY / N + 0.04 * fnoise(seed + 3, 3.0)) * 2 * np.pi * 6)
+    c = ramp(np.clip(0.75 * v + 0.25 * band, 0, 1), LIMESTONE)
+    fos = fnoise(seed + 6, 0.9) > 0.93
+    c = over(c, fos, (222, 214, 190), 0.6)
+    c = speckle(c, seed + 7, 0.04, 0.15)
+    return grit(c, seed + 8, 0.04)
+
+
+def cactus(seed=331):
+    rib = 0.5 + 0.5 * np.cos(XX / N * 2 * np.pi * 4)
+    v = np.clip(0.55 * rib + 0.45 * mixn(seed, (0.6, 0.3, 0.1), (2.4, 1.4, 0.4), ax=8.0, ay=1.0), 0, 1)
+    c = ramp(v, [(0, (22, 36, 26)), (0.5, (48, 72, 46)), (1, (84, 110, 70))])
+    groove = (np.cos(XX / N * 2 * np.pi * 4) < -0.93)
+    c = mul(c, groove, 0.55)
+    spine = ((XX % 16) == 8) & ((YY % 8) == 3)
+    c = over(c, spine, (196, 190, 150), 0.9)
+    c = speckle(c, seed + 3, 0.04, 0.15)
+    return grit(c, seed + 4, 0.05)
+
+
+def shrub_canvas(seed):
+    from PIL import ImageDraw
+    r = np.random.default_rng(seed)
+    big = 256
+    im = Image.new("RGBA", (big, big), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+
+    def branch(x, y, ang, length, width, depth):
+        steps = 6
+        for i in range(steps):
+            nx = x + np.sin(ang) * length / steps
+            ny = y - np.cos(ang) * length / steps
+            t = 0.5 + 0.5 * (depth / 4.0)
+            col = (int(96 + 70 * (1 - t)), int(80 + 60 * (1 - t)), int(52 + 40 * (1 - t)), 255)
+            d.line([(x, y), (nx, ny)], fill=col, width=max(2, int(width)))
+            x, y = nx, ny
+            ang += (r.random() - 0.5) * 0.22
+        if depth > 0:
+            for k in range(2):
+                branch(x, y, ang + (k - 0.5) * (0.9 + r.random() * 0.5), length * 0.66, width * 0.75, depth - 1)
+        else:
+            for k in range(3):
+                a2 = ang + (k - 1) * 0.7
+                d.line([(x, y), (x + np.sin(a2) * 14, y - np.cos(a2) * 14)], fill=(128, 108, 64, 255), width=3)
+
+    for k in range(5):
+        branch(128 + (k - 2) * 18, big - 2, (k - 2) * 0.32 + (r.random() - 0.5) * 0.2, 60 + r.random() * 30, 11, 3)
+    a = np.array(im).astype(float).reshape(N, 4, N, 4, 4)
+    alpha = a[..., 3].mean((1, 3)) / 255.0
+    wsum = a[..., 3].sum((1, 3))
+    rgb = (a[..., :3] * a[..., 3:4]).sum((1, 3)) / np.maximum(wsum[..., None], 1.0)
+    return rgb, (alpha >= 0.4)
+
+
+def dry_shrub(seed=341):
+    rgb, mask = shrub_canvas(seed)
+    rgb = grit(rgb, seed + 3, 0.06)
+    return to_img(rgb, np.where(mask, 255, 0))
+
+
+def gloom_skin(seed=351):
+    v = mixn(seed, (0.5, 0.3, 0.2), (2.6, 1.6, 0.6))
+    c = ramp(v, [(0, (70, 66, 78)), (0.5, (130, 124, 140)), (1, (196, 188, 204))])
+    vein = np.abs(fnoise(seed + 5, 2.2) - 0.5) < 0.035
+    c = mul(c, vein, 0.45)
+    blot = fnoise(seed + 9, 1.4) > 0.78
+    c = mul(c, blot, 0.7)
+    c = speckle(c, seed + 3, 0.012, 0.12)
+    return grit(c, seed + 4, 0.03)
+
+
 def tile_set():
     return {
         "grass_top": grass_top(),
@@ -335,6 +605,19 @@ def tile_set():
         "workbench_side": workbench_side(),
         "workbench_top": workbench_top(),
         "torch_base": torch_base(),
+        "leaves": leaves(),
+        "door_bottom": door_bottom(),
+        "diorite": diorite(),
+        "granite": granite(),
+        "basalt": basalt(),
+        "limestone": limestone(),
+        "diorite_brick": bricks(271, DIORITE),
+        "granite_brick": bricks(272, GRANITE, 1.0, (24, 18, 17)),
+        "basalt_brick": bricks(273, BASALT, 1.0, (46, 50, 58)),
+        "limestone_brick": bricks(274, LIMESTONE, 1.0, (60, 56, 46)),
+        "door_top": door_top(),
+        "cactus": cactus(),
+        "gloom_skin": gloom_skin(),
     }
 
 
@@ -405,6 +688,25 @@ def sword_item():
     return finish_item(out, lab)
 
 
+def torch_item():
+    def draw(d):
+        d.rectangle([116, 104, 140, 246], fill=1)
+        d.rectangle([112, 92, 144, 118], fill=2)
+        d.polygon([(128, 6), (160, 52), (168, 84), (128, 100), (88, 84), (96, 52)], fill=3)
+        d.polygon([(128, 40), (146, 68), (128, 90), (110, 68)], fill=4)
+    lab = label_canvas(draw, 0)
+    wood = ramp(mixn(321, (0.5, 0.4), (1.0, 3.0), ax=1.0, ay=6.0), [(0, (22, 14, 10)), (1, (92, 64, 40))])
+    char = ramp(fnoise(322, 2.0), [(0, (6, 6, 8)), (1, (38, 34, 32))])
+    flame = ramp(1.0 - YY / 52.0, [(0, (150, 60, 18)), (0.5, (214, 120, 34)), (1, (250, 200, 90))])
+    core = np.zeros((N, N, 3)) + np.array([255.0, 236, 160])
+    out = np.zeros((N, N, 3))
+    out = np.where((lab == 1)[..., None], wood, out)
+    out = np.where((lab == 2)[..., None], char, out)
+    out = np.where((lab == 3)[..., None], flame, out)
+    out = np.where((lab == 4)[..., None], core, out)
+    return finish_item(out, lab)
+
+
 def coal_item():
     th = np.linspace(0, 2 * np.pi, 90)
     r = 92 + 12 * np.sin(3 * th + 1) + 8 * np.sin(5 * th + 2) + 5 * np.sin(8 * th)
@@ -451,12 +753,24 @@ def main():
     import os
     os.makedirs(ROOT + "/art/tiles", exist_ok=True)
     os.makedirs(ROOT + "/art/items", exist_ok=True)
+    only = sys.argv[2:]
     tiles = tile_set()
     for k, v in tiles.items():
-        to_img(v).save(f"{ROOT}/art/tiles/{k}.png")
-    items = {"sword": sword_item(), "coal": coal_item(), "iron": iron_item()}
+        if not only or k in only:
+            to_img(v).save(f"{ROOT}/art/tiles/{k}.png")
+    items = {"sword": sword_item(), "coal": coal_item(), "iron": iron_item(), "torch": torch_item()}
+    for nm, fl, sd in (("grass_tuft", False, 211), ("flower_tuft", True, 223)):
+        if not only or nm in only:
+            tuft_img(sd, fl).save(f"{ROOT}/art/tiles/{nm}.png")
+    if not only or "dry_shrub" in only:
+        dry_shrub().save(f"{ROOT}/art/tiles/dry_shrub.png")
+    if not only or "door" in only:
+        door_item().save(f"{ROOT}/art/items/door.png")
     for k, v in items.items():
-        v.save(f"{ROOT}/art/items/{k}.png")
+        if not only or k in only:
+            v.save(f"{ROOT}/art/items/{k}.png")
+    if only:
+        return
     names = list(tiles) + list(items)
     cols = 6
     rows = (len(names) + cols - 1) // cols

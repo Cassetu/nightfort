@@ -1,4 +1,6 @@
-[gd_resource type="Theme" load_steps=13 format=3 uid="uid://gr2kk87lccmd"]
+[gd_resource type="Theme" load_steps=14 format=3 uid="uid://gr2kk87lccmd"]
+
+[ext_resource type="FontFile" uid="uid://daflq5l2yyfjt" path="res://resources/fonts/Jacquard12-Regular.ttf" id="font_title"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_disabled"]
 content_margin_left = 10.0
@@ -169,6 +171,12 @@ CheckBox/font_sizes/font_size = 20
 CoreBar/base_type = &"ProgressBar"
 CoreBar/styles/background = SubResource("StyleBoxFlat_bar_bg")
 CoreBar/styles/fill = SubResource("StyleBoxFlat_bar_core")
+CoreMarker/base_type = &"Label"
+CoreMarker/colors/font_color = Color(0.55, 1, 1, 1)
+CoreMarker/colors/font_outline_color = Color(0, 0.1, 0.15, 1)
+CoreMarker/constants/line_spacing = -2
+CoreMarker/constants/outline_size = 5
+CoreMarker/font_sizes/font_size = 22
 DeathTitle/base_type = &"Label"
 DeathTitle/colors/font_color = Color(0.95, 0.25, 0.25, 1)
 DeathTitle/font_sizes/font_size = 72
@@ -208,6 +216,12 @@ NoticeLabel/font_sizes/font_size = 22
 OverlayTitle/base_type = &"Label"
 OverlayTitle/colors/font_color = Color(0.93, 0.95, 1, 1)
 OverlayTitle/font_sizes/font_size = 56
+PageTitle/base_type = &"Label"
+PageTitle/colors/font_color = Color(0.86, 0.82, 0.72, 1)
+PageTitle/colors/font_outline_color = Color(0.04, 0.04, 0.05, 1)
+PageTitle/constants/outline_size = 6
+PageTitle/font_sizes/font_size = 72
+PageTitle/fonts/font = ExtResource("font_title")
 PanelContainer/styles/panel = SubResource("StyleBoxFlat_panel")
 SlotBare/base_type = &"Panel"
 SlotBare/styles/panel = SubResource("StyleBoxEmpty_focus")
@@ -233,10 +247,11 @@ TaglineLabel/base_type = &"Label"
 TaglineLabel/colors/font_color = Color(1, 0.78, 0.25, 0.9)
 TaglineLabel/font_sizes/font_size = 24
 TitleLabel/base_type = &"Label"
-TitleLabel/colors/font_color = Color(0.93, 0.95, 1, 1)
-TitleLabel/colors/font_outline_color = Color(0.05, 0.06, 0.16, 1)
-TitleLabel/colors/font_shadow_color = Color(0, 0, 0, 0.6)
-TitleLabel/constants/outline_size = 10
+TitleLabel/colors/font_color = Color(0.86, 0.82, 0.72, 1)
+TitleLabel/colors/font_outline_color = Color(0.04, 0.04, 0.05, 1)
+TitleLabel/colors/font_shadow_color = Color(0, 0, 0, 0.7)
+TitleLabel/constants/outline_size = 8
 TitleLabel/constants/shadow_offset_x = 0
-TitleLabel/constants/shadow_offset_y = 5
-TitleLabel/font_sizes/font_size = 112
+TitleLabel/constants/shadow_offset_y = 6
+TitleLabel/font_sizes/font_size = 128
+TitleLabel/fonts/font = ExtResource("font_title")

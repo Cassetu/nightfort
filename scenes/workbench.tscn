@@ -1,6 +1,6 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=2 format=3 uid="uid://beq7q2irmiehq"]
 
-[ext_resource type="Script" path="res://scripts/workbench.gd" id="1_bench"]
+[ext_resource type="Script" uid="uid://b7dwub2gj8uyx" path="res://scripts/workbench.gd" id="1_bench"]
 
 [node name="Workbench" type="StaticBody3D"]
 script = ExtResource("1_bench")

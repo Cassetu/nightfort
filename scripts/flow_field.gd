@@ -178,7 +178,7 @@ func _collect_extra() -> int:
 	var nodes: Array = get_tree().get_nodes_in_group("resource")
 	nodes.append_array(get_tree().get_nodes_in_group("torch"))
 	for node: Node in nodes:
-		if node.get("dying"):
+		if node.get("dying") or node.get("is_open"):
 			continue
 		var p: Vector3 = node.global_position
 		var gx := floori(p.x) - origin.x

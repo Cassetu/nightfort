@@ -5,7 +5,14 @@ const LIST := [
 	{"id": "plank", "out": "plank", "count": 4, "shapeless": ["wood"]},
 	{"id": "stone_brick", "out": "stone_brick", "count": 4, "shape": [["stone", "stone"], ["stone", "stone"]]},
 	{"id": "sandstone", "out": "sandstone", "count": 4, "shape": [["sand", "sand"], ["sand", "sand"]]},
+	{"id": "diorite_brick", "out": "diorite_brick", "count": 4, "shape": [["diorite", "diorite"], ["diorite", "diorite"]]},
+	{"id": "granite_brick", "out": "granite_brick", "count": 4, "shape": [["granite", "granite"], ["granite", "granite"]]},
+	{"id": "basalt_brick", "out": "basalt_brick", "count": 4, "shape": [["basalt", "basalt"], ["basalt", "basalt"]]},
+	{"id": "limestone_brick", "out": "limestone_brick", "count": 4, "shape": [["limestone", "limestone"], ["limestone", "limestone"]]},
+	{"id": "torch", "out": "torch", "count": 4, "shape": [["coal"], ["plank"]]},
+	{"id": "door", "out": "door", "count": 1, "shape": [["plank", "plank"], ["plank", "plank"], ["plank", "plank"]]},
 	{"id": "iron_block", "out": "iron_block", "count": 1, "shape": [["iron", "iron", "iron"], ["iron", "iron", "iron"], ["iron", "iron", "iron"]]},
+	{"id": "stone_forge", "out": "stone_forge", "count": 1, "shape": [["stone_brick", "stone_brick", "stone_brick"], ["stone_brick", "coal", "stone_brick"], ["stone_brick", "stone_brick", "stone_brick"]]},
 	{"id": "fortified_brick", "out": "fortified_brick", "count": 4, "shape": [["stone_brick", "stone_brick", "stone_brick"], ["stone_brick", "", "stone_brick"], ["stone_brick", "stone_brick", "stone_brick"]]},
 ]
 

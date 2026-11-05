@@ -1,6 +1,7 @@
 [gd_scene load_steps=14 format=3 uid="uid://dub2ibctw8foy"]
 
 [ext_resource type="Script" uid="uid://qvqooruqfm8u" path="res://scripts/core.gd" id="1_5634n"]
+[ext_resource type="Theme" uid="uid://gr2kk87lccmd" path="res://resources/main-theme.tres" id="2_theme"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_lvavo"]
 albedo_color = Color(0.49019608, 1, 1, 1)
@@ -14,9 +15,6 @@ radius = 0.95
 height = 1.9
 radial_segments = 32
 rings = 16
-
-[sub_resource type="SphereShape3D" id="SphereShape3D_core"]
-radius = 0.95
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_glow"]
 transparency = 1
@@ -70,9 +68,6 @@ script = ExtResource("1_5634n")
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 mesh = SubResource("SphereMesh_core")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-shape = SubResource("SphereShape3D_core")
-
 [node name="OmniLight3D" type="OmniLight3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
 light_energy = 2.0
@@ -101,17 +96,16 @@ visible = false
 cast_shadow = 0
 mesh = SubResource("SphereMesh_glow")
 
-[node name="Marker" type="Node3D" parent="."]
-top_level = true
-visible = false
+[node name="MarkerLayer" type="CanvasLayer" parent="."]
 
-[node name="Label" type="Label3D" parent="Marker"]
-pixel_size = 0.01
-billboard = 1
-no_depth_test = true
-shaded = false
-modulate = Color(0.55, 1, 1, 1)
-outline_modulate = Color(0, 0.1, 0.15, 1)
+[node name="Label" type="Label" parent="MarkerLayer"]
+unique_name_in_owner = true
+visible = false
+offset_right = 90.0
+offset_bottom = 50.0
+mouse_filter = 2
+theme = ExtResource("2_theme")
+theme_type_variation = &"CoreMarker"
 text = "Core"
-font_size = 40
-outline_size = 14
+horizontal_alignment = 1
+vertical_alignment = 2

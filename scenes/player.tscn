@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://dudcni17usbht"]
+[gd_scene load_steps=15 format=3 uid="uid://dudcni17usbht"]
 
 [ext_resource type="Script" uid="uid://yna0135auaya" path="res://scripts/player.gd" id="1_3vyb7"]
 [ext_resource type="PackedScene" uid="uid://bflgykjdtufop" path="res://scenes/block.tscn" id="2_g2els"]
@@ -26,6 +26,23 @@ size = Vector3(0.05, 0.3, 0.06)
 [sub_resource type="BoxMesh" id="BoxMesh_handle"]
 material = SubResource("StandardMaterial3D_grip")
 size = Vector3(0.05, 0.05, 0.18)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_torchstick"]
+albedo_color = Color(0.2, 0.14, 0.1, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_torchstick"]
+material = SubResource("StandardMaterial3D_torchstick")
+size = Vector3(0.07, 0.5, 0.07)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_torchflame"]
+albedo_color = Color(1, 0.7, 0.25, 1)
+emission_enabled = true
+emission = Color(1, 0.55, 0.15, 1)
+emission_energy_multiplier = 4.0
+
+[sub_resource type="BoxMesh" id="BoxMesh_torchflame"]
+material = SubResource("StandardMaterial3D_torchflame")
+size = Vector3(0.1, 0.1, 0.1)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_3vyb7"]
 transparency = 1
@@ -62,6 +79,35 @@ mesh = SubResource("BoxMesh_guard")
 [node name="Handle" type="MeshInstance3D" parent="Head/Camera3D/SwordHolder"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.1)
 mesh = SubResource("BoxMesh_handle")
+
+[node name="TorchHolder" type="Node3D" parent="Head/Camera3D"]
+transform = Transform3D(1, 0, 0, 0, 0.96, 0.27, 0, -0.27, 0.96, 0.36, -0.42, -0.6)
+visible = false
+
+[node name="Stick" type="MeshInstance3D" parent="Head/Camera3D/TorchHolder"]
+cast_shadow = 0
+mesh = SubResource("BoxMesh_torchstick")
+
+[node name="Flame" type="MeshInstance3D" parent="Head/Camera3D/TorchHolder"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.31, 0)
+cast_shadow = 0
+mesh = SubResource("BoxMesh_torchflame")
+
+[node name="Light" type="OmniLight3D" parent="Head/Camera3D/TorchHolder"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+light_color = Color(1, 0.72, 0.4, 1)
+light_energy = 1.8
+shadow_enabled = true
+shadow_bias = 0.04
+omni_range = 10.0
+
+[node name="ToolSprite" type="Sprite3D" parent="Head/Camera3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.42, -0.3, -0.7)
+visible = false
+cast_shadow = 0
+pixel_size = 0.008
+no_depth_test = true
+texture_filter = 0
 
 [node name="GhostBlock" type="MeshInstance3D" parent="."]
 mesh = SubResource("BoxMesh_g2els")

@@ -74,8 +74,8 @@ static func block_material(tile_name: String, fallback: Color) -> StandardMateri
 	return m
 
 
-static func uv_material(tile_name: String, fallback: Color, uv_scale: Vector3) -> StandardMaterial3D:
-	var key := tile_name + "_uv"
+static func uv_material(tile_name: String, fallback: Color, uv_scale: Vector3, vertex_tint: bool = false) -> StandardMaterial3D:
+	var key := tile_name + "_uv" + ("_vc" if vertex_tint else "")
 	if _materials.has(key):
 		return _materials[key]
 	var img := Image.new()
@@ -85,9 +85,16 @@ static func uv_material(tile_name: String, fallback: Color, uv_scale: Vector3) -
 	m.albedo_texture = ImageTexture.create_from_image(img)
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
 	m.uv1_scale = uv_scale
+	if vertex_tint:
+		m.vertex_color_use_as_albedo = true
+		m.vertex_color_is_srgb = true
 	m.roughness = 0.95
 	_materials[key] = m
 	return m
+
+
+static func texture(tile_name: String, fallback: Color) -> ImageTexture:
+	return ImageTexture.create_from_image(tile_image(tile_name, fallback))
 
 
 static func icon(item_id: String, tile_name: String = "") -> Texture2D:
@@ -101,3 +108,29 @@ static func icon(item_id: String, tile_name: String = "") -> Texture2D:
 		tex = ImageTexture.create_from_image(img)
 	_icons[item_id] = tex
 	return tex
+
+
+static func box_mesh(size: Vector3, material: Material) -> ArrayMesh:
+	var h := size * 0.5
+	var faces: Array = [
+		[Vector3(-h.x, h.y, h.z), Vector3(h.x, h.y, h.z), Vector3(h.x, -h.y, h.z), Vector3(-h.x, -h.y, h.z), Vector3(0, 0, 1), false],
+		[Vector3(h.x, h.y, -h.z), Vector3(-h.x, h.y, -h.z), Vector3(-h.x, -h.y, -h.z), Vector3(h.x, -h.y, -h.z), Vector3(0, 0, -1), true],
+		[Vector3(h.x, h.y, h.z), Vector3(h.x, h.y, -h.z), Vector3(h.x, -h.y, -h.z), Vector3(h.x, -h.y, h.z), Vector3(1, 0, 0), false],
+		[Vector3(-h.x, h.y, -h.z), Vector3(-h.x, h.y, h.z), Vector3(-h.x, -h.y, h.z), Vector3(-h.x, -h.y, -h.z), Vector3(-1, 0, 0), false],
+		[Vector3(-h.x, h.y, -h.z), Vector3(h.x, h.y, -h.z), Vector3(h.x, h.y, h.z), Vector3(-h.x, h.y, h.z), Vector3(0, 1, 0), false],
+		[Vector3(-h.x, -h.y, h.z), Vector3(h.x, -h.y, h.z), Vector3(h.x, -h.y, -h.z), Vector3(-h.x, -h.y, -h.z), Vector3(0, -1, 0), false],
+	]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for f in faces:
+		var flip: bool = f[5]
+		var uvs: Array = [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)]
+		if flip:
+			uvs = [Vector2(1, 0), Vector2(0, 0), Vector2(0, 1), Vector2(1, 1)]
+		for i in [0, 1, 2, 0, 2, 3]:
+			st.set_normal(f[4])
+			st.set_uv(uvs[i])
+			st.add_vertex(f[i])
+	var mesh := st.commit()
+	mesh.surface_set_material(0, material)
+	return mesh

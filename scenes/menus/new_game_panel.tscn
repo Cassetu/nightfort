@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://scripts/new_game_panel.gd" id="1_panel"]
 
 [node name="NewGamePanel" type="PanelContainer"]
-custom_minimum_size = Vector2(520, 0)
+custom_minimum_size = Vector2(680, 0)
 script = ExtResource("1_panel")
 
 [node name="Box" type="VBoxContainer" parent="."]
@@ -12,8 +12,8 @@ theme_override_constants/separation = 14
 
 [node name="Title" type="Label" parent="Box"]
 layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-text = "New Game"
+theme_type_variation = &"PageTitle"
+text = "New World"
 horizontal_alignment = 1
 
 [node name="SeedLabel" type="Label" parent="Box"]
@@ -29,7 +29,7 @@ placeholder_text = "Leave blank for a random seed"
 max_length = 24
 
 [node name="SeedHint" type="Label" parent="Box"]
-custom_minimum_size = Vector2(460, 0)
+custom_minimum_size = Vector2(620, 0)
 layout_mode = 2
 theme_type_variation = &"DimLabel"
 text = "Numbers are used as they are. Any other text is turned into a seed."

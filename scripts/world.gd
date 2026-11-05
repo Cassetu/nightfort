@@ -4,6 +4,8 @@ const BLOCK_SCENE_PATH := "res://scenes/block.tscn"
 const TORCH_SCENE_PATH := "res://scenes/torch.tscn"
 const DROP_SCENE_PATH := "res://scenes/item_drop.tscn"
 const Recipes = preload("res://scripts/recipes.gd")
+const ForgeUIScene = preload("res://scenes/forge_ui.tscn")
+const WildSpawnerScript = preload("res://scripts/wild_spawner.gd")
 
 @onready var sun = $Sun
 @onready var terrain = $Terrain
@@ -25,11 +27,22 @@ func _ready() -> void:
 	flow.setup(terrain, core)
 	spawner.setup(terrain, flow, core, player, sun, enemies)
 	spawner.status_changed.connect(ui.on_wave_status)
+	var wild_spawner = Node.new()
+	wild_spawner.name = "WildSpawner"
+	wild_spawner.set_script(WildSpawnerScript)
+	add_child(wild_spawner)
+	wild_spawner.setup(terrain, core, player, sun, enemies)
 	_place_torches()
 	player.notice.connect(ui.show_notice)
 	inv_ui.setup(player, ui, self)
 	inv_ui.toggled.connect(_on_inventory_toggled)
 	player.workbench_used.connect(inv_ui.open_table)
+	var forge_ui = ForgeUIScene.instantiate()
+	add_child(forge_ui)
+	forge_ui.setup(player, self, inv_ui)
+	player.forge_used.connect(forge_ui.open_forge)
+	player.died.connect(forge_ui.force_close)
+	core.destroyed.connect(forge_ui.force_close)
 	Inventory.recipes_unlocked.connect(_on_recipes_unlocked)
 	player.died.connect(inv_ui.force_close)
 	core.destroyed.connect(inv_ui.force_close)
@@ -99,6 +112,7 @@ func _place_torches() -> void:
 	for cx in [lo, hi]:
 		for cz in [lo, hi]:
 			var torch = scene.instantiate()
+			torch.fixture = true
 			add_child(torch)
 			var top: int = terrain.surface_y(cx, cz)
 			torch.global_position = Vector3(cx + 0.5, top + 0.5, cz + 0.5)
@@ -120,7 +134,7 @@ func collect_state() -> Dictionary:
 		if node.dying:
 			continue
 		var p: Vector3 = node.global_position
-		blocks.append({"type": node.block_type, "pos": [p.x, p.y, p.z], "hp": node.current_health})
+		blocks.append({"type": node.block_type, "pos": [p.x, p.y, p.z], "hp": node.current_health, "yaw": node.rotation.y, "open": node.get("is_open") == true})
 
 	var drops: Array = []
 	for node in get_tree().get_nodes_in_group("item_drop"):
@@ -174,4 +188,7 @@ func apply_state(d: Dictionary) -> void:
 		block.block_type = block_type
 		add_child(block)
 		block.global_position = Vector3(b["pos"][0], b["pos"][1], b["pos"][2])
+		block.rotation.y = float(b.get("yaw", 0.0))
 		block.current_health = int(b["hp"])
+		if block.has_method("set_open"):
+			block.set_open(bool(b.get("open", false)), true)

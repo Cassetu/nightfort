@@ -6,6 +6,7 @@ signal destroyed
 @export var max_health: int = 100
 @export var marker_min_distance: float = 20.0
 @export var build_exclusion_radius: float = 3.0
+@export var hide_distance: float = 1.25
 
 const GLOW_ALPHA := 0.5
 const CORE_HALF := 1.0
@@ -17,8 +18,9 @@ var sun
 var last_text: String = ""
 
 @onready var glow: MeshInstance3D = $Glow
-@onready var marker: Node3D = $Marker
-@onready var marker_label: Label3D = $Marker/Label
+@onready var body_mesh: MeshInstance3D = $MeshInstance3D
+@onready var mist: CPUParticles3D = $Mist
+@onready var marker_label: Label = %Label
 
 
 func _ready():
@@ -40,24 +42,31 @@ func _process(_delta: float) -> void:
 	if sun != null:
 		elevation = sun.elevation
 	var night := 1.0 - smoothstep(-0.2, 0.05, elevation)
-	glow.visible = night > 0.01
-	var mat: StandardMaterial3D = glow.mesh.material
-	mat.albedo_color = Color(0.4, 1.0, 1.0, GLOW_ALPHA * night)
 
 	var cam := get_viewport().get_camera_3d()
 	if cam == null:
 		return
 	var dist := cam.global_position.distance_to(global_position)
-	marker.visible = dist >= marker_min_distance
-	if not marker.visible:
+	var inside := dist < hide_distance
+	body_mesh.visible = not inside
+	mist.visible = not inside
+	glow.visible = night > 0.01 and not inside
+	if glow.visible:
+		var mat: StandardMaterial3D = glow.mesh.material
+		mat.albedo_color = Color(0.4, 1.0, 1.0, GLOW_ALPHA * night)
+
+	var anchor := global_position + Vector3(0.0, 1.6, 0.0)
+	var show_marker := dist >= marker_min_distance and not cam.is_position_behind(anchor)
+	marker_label.visible = show_marker
+	if not show_marker:
 		return
-	var s := maxf(dist / 14.0, 1.0)
-	marker.scale = Vector3.ONE * s
-	marker.global_position = global_position + Vector3(0.0, 2.2 + s * 0.4, 0.0)
 	var text := "Core %du\n▼" % roundi(dist)
 	if text != last_text:
 		last_text = text
 		marker_label.text = text
+		marker_label.reset_size()
+	var screen := cam.unproject_position(anchor)
+	marker_label.position = screen - Vector2(marker_label.size.x * 0.5, marker_label.size.y)
 
 
 func take_damage(amount: int, _hit_position = Vector3.INF):

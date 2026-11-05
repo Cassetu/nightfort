@@ -58,10 +58,7 @@ static func _ensure_meshes() -> void:
 	if not _meshes.is_empty():
 		return
 
-	_material = StandardMaterial3D.new()
-	_material.vertex_color_use_as_albedo = true
-	_material.vertex_color_is_srgb = true
-	_material.roughness = 1.0
+	_material = TileArt.uv_material("leaves", LEAF_COLORS[0], Vector3(4.0, 3.0, 1.0), true)
 
 	_trunk_material = TileArt.uv_material("wood", TRUNK_COLOR, Vector3(2.0, 2.0, 1.0))
 
@@ -73,18 +70,21 @@ static func _make_mesh(leaf: Color) -> ArrayMesh:
 	var verts := PackedVector3Array()
 	var norms := PackedVector3Array()
 	var cols := PackedColorArray()
+	var uvs := PackedVector2Array()
 	var indices := PackedInt32Array()
 
+	var tint := Color.from_hsv(leaf.h, 0.22, 0.95)
 	var base := TRUNK_HEIGHT * 0.6
-	_append_part(verts, norms, cols, indices, 0.0, 1.7, 2.4, base + 1.2, leaf)
-	_append_part(verts, norms, cols, indices, 0.0, 1.3, 2.2, base + 2.3, leaf.lightened(0.07))
-	_append_part(verts, norms, cols, indices, 0.0, 0.9, 2.0, base + 3.4, leaf.lightened(0.14))
+	_append_part(verts, norms, cols, uvs, indices, 0.0, 1.7, 2.4, base + 1.2, tint)
+	_append_part(verts, norms, cols, uvs, indices, 0.0, 1.3, 2.2, base + 2.3, tint.lightened(0.07))
+	_append_part(verts, norms, cols, uvs, indices, 0.0, 0.9, 2.0, base + 3.4, tint.lightened(0.14))
 
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = verts
 	arrays[Mesh.ARRAY_NORMAL] = norms
 	arrays[Mesh.ARRAY_COLOR] = cols
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
 	arrays[Mesh.ARRAY_INDEX] = indices
 
 	var mesh := ArrayMesh.new()
@@ -112,7 +112,7 @@ static func _trunk_arrays() -> Array:
 	return arrays
 
 
-static func _append_part(verts: PackedVector3Array, norms: PackedVector3Array, cols: PackedColorArray, indices: PackedInt32Array, top_radius: float, bottom_radius: float, height: float, center_y: float, color: Color) -> void:
+static func _append_part(verts: PackedVector3Array, norms: PackedVector3Array, cols: PackedColorArray, uvs: PackedVector2Array, indices: PackedInt32Array, top_radius: float, bottom_radius: float, height: float, center_y: float, color: Color) -> void:
 	var cylinder := CylinderMesh.new()
 	cylinder.top_radius = top_radius
 	cylinder.bottom_radius = bottom_radius
@@ -125,6 +125,7 @@ static func _append_part(verts: PackedVector3Array, norms: PackedVector3Array, c
 	var arrays := cylinder.get_mesh_arrays()
 	var part_verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var part_norms: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var part_uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
 	var part_indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
 
 	var offset := verts.size()
@@ -132,5 +133,6 @@ static func _append_part(verts: PackedVector3Array, norms: PackedVector3Array, c
 		verts.append(part_verts[i] + Vector3(0.0, center_y, 0.0))
 		norms.append(part_norms[i])
 		cols.append(color)
+		uvs.append(part_uvs[i])
 	for index in part_indices:
 		indices.append(offset + index)
