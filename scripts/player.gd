@@ -328,6 +328,38 @@ func try_mine(hit):
 		take_damage(CACTUS_PUNCH_DAMAGE)
 
 
+func holds_repair_item():
+	var item = Inventory.selected_item()
+	return not item.is_empty() and item["id"] == "stone_brick"
+
+
+func repair_slot(slot):
+	if not holds_repair_item():
+		notice.emit("Repair this with Stone Bricks")
+		return
+	if slot.global_position.distance_to(camera.global_position) > PLACE_REACH:
+		return
+	Inventory.consume_selected(1)
+	var world = get_tree().current_scene
+	world.restore_block("stone_brick", slot.global_position)
+	slot.remove_from_group("ruin_slot")
+	slot.queue_free()
+
+
+func repair_ruined(block):
+	if not holds_repair_item():
+		notice.emit("Repair this with Stone Bricks")
+		return
+	Inventory.consume_selected(1)
+	var world = get_tree().current_scene
+	var pos = block.global_position
+	block.dying = true
+	block.remove_from_group("block")
+	block.remove_from_group("resource")
+	block.queue_free()
+	world.restore_block("stone_brick", pos)
+
+
 func resource_category(target):
 	var kind = str(target.resource_type)
 	if kind in AXE_RESOURCES:
@@ -403,6 +435,12 @@ func swing(weapon):
 func try_place(hit):
 	if not hit.is_empty() and hit.collider.is_in_group("workbench"):
 		workbench_used.emit()
+		return
+	if not hit.is_empty() and hit.collider.is_in_group("ruin_slot"):
+		repair_slot(hit.collider)
+		return
+	if not hit.is_empty() and hit.collider.is_in_group("block") and hit.collider.block_type == "ruined_brick":
+		repair_ruined(hit.collider)
 		return
 	if not hit.is_empty() and hit.collider.is_in_group("forge"):
 		forge_used.emit(hit.collider)

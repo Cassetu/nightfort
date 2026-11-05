@@ -5,6 +5,8 @@ const TORCH_SCENE_PATH := "res://scenes/torch.tscn"
 const DROP_SCENE_PATH := "res://scenes/item_drop.tscn"
 const Recipes = preload("res://scripts/recipes.gd")
 const ForgeUIScene = preload("res://scenes/forge_ui.tscn")
+const RuinsScript = preload("res://scripts/ruins.gd")
+const RuinSlotScript = preload("res://scripts/ruin_slot.gd")
 const WildSpawnerScript = preload("res://scripts/wild_spawner.gd")
 
 @onready var sun = $Sun
@@ -51,6 +53,8 @@ func _ready() -> void:
 	core.destroyed.connect(ui.on_core_destroyed)
 
 	var state := Game.take_pending()
+	if state.is_empty():
+		RuinsScript.generate(self, terrain, terrain.world_seed)
 	if not state.is_empty():
 		apply_state(state)
 		intro.queue_free()
@@ -118,6 +122,27 @@ func _place_torches() -> void:
 			torch.global_position = Vector3(cx + 0.5, top + 0.5, cz + 0.5)
 
 
+func restore_block(block_type: String, pos: Vector3, yaw: float = 0.0) -> Node:
+	if not Inventory.BLOCK_TYPES.has(block_type):
+		return null
+	var scene_path: String = Inventory.BLOCK_TYPES[block_type].get("scene", BLOCK_SCENE_PATH)
+	var scene: PackedScene = load(scene_path)
+	var block = scene.instantiate()
+	block.block_type = block_type
+	add_child(block)
+	block.global_position = pos
+	block.rotation.y = yaw
+	return block
+
+
+func spawn_ruin_slot(pos: Vector3) -> Node:
+	var slot := StaticBody3D.new()
+	slot.set_script(RuinSlotScript)
+	add_child(slot)
+	slot.global_position = pos
+	return slot
+
+
 func respawn_position() -> Vector3:
 	if is_instance_valid(core):
 		return core.global_position + Vector3(0.0, 1.2, 6.0)
@@ -136,6 +161,11 @@ func collect_state() -> Dictionary:
 		var p: Vector3 = node.global_position
 		blocks.append({"type": node.block_type, "pos": [p.x, p.y, p.z], "hp": node.current_health, "yaw": node.rotation.y, "open": node.get("is_open") == true})
 
+	var ruin_slots: Array = []
+	for node in get_tree().get_nodes_in_group("ruin_slot"):
+		var rp: Vector3 = node.global_position
+		ruin_slots.append([rp.x, rp.y, rp.z])
+
 	var drops: Array = []
 	for node in get_tree().get_nodes_in_group("item_drop"):
 		var dp: Vector3 = node.global_position
@@ -153,6 +183,7 @@ func collect_state() -> Dictionary:
 		"inventory": Inventory.export_state(),
 		"terrain": terrain.export_state(),
 		"blocks": blocks,
+		"ruin_slots": ruin_slots,
 		"waves": spawner.export_state(),
 		"drops": drops,
 	}
@@ -177,6 +208,9 @@ func apply_state(d: Dictionary) -> void:
 	for dd in d.get("drops", []):
 		if Inventory.ITEMS.has(dd["id"]):
 			spawn_drop(dd["id"], int(dd["count"]), Vector3(dd["pos"][0], dd["pos"][1], dd["pos"][2]), false)
+
+	for rs in d.get("ruin_slots", []):
+		spawn_ruin_slot(Vector3(rs[0], rs[1], rs[2]))
 
 	for b in d.get("blocks", []):
 		var block_type := str(b["type"])

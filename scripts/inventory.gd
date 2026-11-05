@@ -32,6 +32,7 @@ const BLOCK_TYPES := {
 	"limestone": {"name": "Limestone", "resource": "limestone", "tile": "limestone", "health": 4, "color": Color(0.72, 0.68, 0.58)},
 	"limestone_brick": {"name": "Limestone Bricks", "resource": "limestone_brick", "tile": "limestone_brick", "health": 7, "color": Color(0.72, 0.68, 0.58)},
 	"door": {"name": "Door", "resource": "door", "health": 6, "color": Color(0.45, 0.3, 0.17), "scene": "res://scenes/door.tscn", "height": 2, "needs_support": true},
+	"ruined_brick": {"name": "Ruined Bricks", "resource": "stone", "tile": "ruined_brick", "health": 3, "color": Color(0.36, 0.38, 0.33)},
 	"stone_forge": {"name": "Stone Forge", "resource": "stone_forge", "tile": "stone_brick", "health": 14, "color": Color(0.5, 0.5, 0.52), "scene": "res://scenes/forge.tscn", "height": 2},
 	"torch": {"name": "Torch", "resource": "torch", "health": 1, "color": Color(0.9, 0.6, 0.25), "scene": "res://scenes/torch.tscn", "needs_support": true, "ghost": Vector3(0.25, 1.0, 0.25)},
 }
