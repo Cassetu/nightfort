@@ -23,6 +23,7 @@ var world_seed: int = 1337
 var pending: Dictionary = {}
 var play_time: float = 0.0
 var current_slot: int = -1
+var gamemode: String = "survival"
 
 
 func _ready() -> void:
@@ -81,8 +82,9 @@ func seed_from_text(text: String) -> int:
 	return (t.hash() & 0x7FFFFFFF) % SEED_LIMIT
 
 
-func new_game(seed_text: String) -> bool:
+func new_game(seed_text: String, mode: String = "survival") -> bool:
 	Inventory.reset()
+	gamemode = mode if mode in ["survival", "creative"] else "survival"
 	world_seed = seed_from_text(seed_text)
 	has_session = true
 	in_world = true
@@ -100,6 +102,7 @@ func load_game(slot: int) -> bool:
 		return false
 	Inventory.reset()
 	world_seed = int(data.get("seed", 1337))
+	gamemode = str(data.get("mode", "survival"))
 	has_session = true
 	in_world = true
 	pending = data.get("state", {})
@@ -137,6 +140,7 @@ func save_game(slot: int) -> bool:
 	var data := {
 		"version": 1,
 		"seed": world_seed,
+		"mode": gamemode,
 		"play_time": play_time,
 		"saved_at": Time.get_datetime_string_from_system(false, true),
 		"unix": Time.get_unix_time_from_system(),
@@ -182,6 +186,7 @@ func slot_info(slot: int) -> Dictionary:
 	return {
 		"exists": true,
 		"seed": int(data.get("seed", 0)),
+		"mode": str(data.get("mode", "survival")),
 		"play_time": float(data.get("play_time", 0.0)),
 		"saved_at": str(data.get("saved_at", "")),
 		"unix": float(data.get("unix", 0.0)),

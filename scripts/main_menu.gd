@@ -73,8 +73,8 @@ func _on_continue() -> void:
 	_launch(Game.load_game.bind(Game.latest_slot()))
 
 
-func _start_new(seed_text: String) -> void:
-	_launch(Game.new_game.bind(seed_text))
+func _start_new(seed_text: String, mode: String) -> void:
+	_launch(Game.new_game.bind(seed_text, mode))
 
 
 func _launch(action: Callable) -> void:

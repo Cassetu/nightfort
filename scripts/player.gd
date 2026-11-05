@@ -13,7 +13,7 @@ const MINE_REACH = 3.5
 const PLACE_REACH = 5.0
 const MINE_DAMAGE = 1
 const TileArt = preload("res://scripts/tile_art.gd")
-const AXE_RESOURCES = ["wood", "plank", "cactus", "door", "workbench", "torch"]
+const AXE_RESOURCES = ["wood", "plank", "cactus", "door", "workbench", "torch", "scaffold"]
 const SHOVEL_RESOURCES = ["dirt", "sand", "snow"]
 const SHOVEL_BLOCKS = [1, 2, 5, 6]
 const MINE_COOLDOWN = 0.35
@@ -33,6 +33,7 @@ var attack_timer = 0.0
 var frozen = false
 var ghost_valid_mat
 var ghost_blocked_mat
+var ghost_warn_mat
 var probe_query
 var health: float = 100.0
 var dead: bool = false
@@ -59,6 +60,7 @@ func _ready():
 	ghost_block.scale = Vector3.ONE * 1.002
 	ghost_valid_mat = make_ghost_material(Color(0.43, 1.0, 1.0, 0.35))
 	ghost_blocked_mat = make_ghost_material(Color(1.0, 0.3, 0.3, 0.35))
+	ghost_warn_mat = make_ghost_material(Color(1.0, 0.85, 0.3, 0.35))
 
 	var probe_shape = BoxShape3D.new()
 	probe_shape.size = Vector3(0.9, 0.9, 0.9)
@@ -290,7 +292,16 @@ func can_place(type, cell):
 			return false
 	if Inventory.BLOCK_TYPES[type].get("needs_support", false) and not has_support(cell):
 		return false
+	if stability_of(type, cell) < 0:
+		return false
 	return true
+
+
+func stability_of(type, cell):
+	var stability = get_tree().get_first_node_in_group("stability")
+	if stability == null:
+		return 0
+	return stability.evaluate(type, Vector3i(floori(cell.x), floori(cell.y), floori(cell.z)))
 
 
 func update_ghost(hit):
@@ -304,7 +315,12 @@ func update_ghost(hit):
 	ghost_block.scale = Vector3(1.002 * gs.x, 1.002 * height * gs.y, 1.002 * gs.z)
 	ghost_block.global_position = cell + Vector3(0.0, (height - 1) * 0.5, 0.0)
 	if can_place(type, cell):
-		ghost_block.material_override = ghost_valid_mat
+		var stability = get_tree().get_first_node_in_group("stability")
+		var reach = 0 if stability == null else stability.reach_for_type(type)
+		if reach > 0 and stability_of(type, cell) == reach:
+			ghost_block.material_override = ghost_warn_mat
+		else:
+			ghost_block.material_override = ghost_valid_mat
 	else:
 		ghost_block.material_override = ghost_blocked_mat
 	ghost_block.show()
@@ -331,19 +347,6 @@ func try_mine(hit):
 func holds_repair_item():
 	var item = Inventory.selected_item()
 	return not item.is_empty() and item["id"] == "stone_brick"
-
-
-func repair_slot(slot):
-	if not holds_repair_item():
-		notice.emit("Repair this with Stone Bricks")
-		return
-	if slot.global_position.distance_to(camera.global_position) > PLACE_REACH:
-		return
-	Inventory.consume_selected(1)
-	var world = get_tree().current_scene
-	world.restore_block("stone_brick", slot.global_position)
-	slot.remove_from_group("ruin_slot")
-	slot.queue_free()
 
 
 func repair_ruined(block):
@@ -435,9 +438,6 @@ func swing(weapon):
 func try_place(hit):
 	if not hit.is_empty() and hit.collider.is_in_group("workbench"):
 		workbench_used.emit()
-		return
-	if not hit.is_empty() and hit.collider.is_in_group("ruin_slot"):
-		repair_slot(hit.collider)
 		return
 	if not hit.is_empty() and hit.collider.is_in_group("block") and hit.collider.block_type == "ruined_brick":
 		repair_ruined(hit.collider)

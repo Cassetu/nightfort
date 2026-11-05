@@ -26,7 +26,8 @@ func _describe(info: Dictionary) -> String:
 	if not info["exists"]:
 		return "Empty"
 	var stamp: String = info["saved_at"]
-	return "Seed %d  -  %s played  -  %s" % [info["seed"], _format_time(info["play_time"]), stamp.substr(0, 16)]
+	var mode: String = str(info.get("mode", "survival")).capitalize()
+	return "%s  -  Seed %d  -  %s played  -  %s" % [mode, info["seed"], _format_time(info["play_time"]), stamp.substr(0, 16)]
 
 
 func _format_time(seconds: float) -> String:

@@ -55,5 +55,3 @@ static func _column(world, terrain, rng: RandomNumberGenerator, x: int, z: int, 
 			var top_layer := layer == standing - 1 and standing < height
 			var intact := standing == height or (not top_layer and rng.randf() < 0.55)
 			world.restore_block("stone_brick" if intact else "ruined_brick", pos)
-		else:
-			world.spawn_ruin_slot(pos)

@@ -5,7 +5,7 @@
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_fj7yv"]
 radius = 0.4
-height = 1.7
+height = 1.8
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_steel"]
 albedo_color = Color(0.78, 0.84, 0.92, 1)
@@ -27,8 +27,16 @@ size = Vector3(0.05, 0.3, 0.06)
 material = SubResource("StandardMaterial3D_grip")
 size = Vector3(0.05, 0.05, 0.18)
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_3vyb7"]
+transparency = 1
+albedo_color = Color(0.43, 1, 1, 0.39215687)
+
+[sub_resource type="BoxMesh" id="BoxMesh_g2els"]
+material = SubResource("StandardMaterial3D_3vyb7")
+
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_torchstick"]
 albedo_color = Color(0.2, 0.14, 0.1, 1)
+roughness = 1.0
 
 [sub_resource type="BoxMesh" id="BoxMesh_torchstick"]
 material = SubResource("StandardMaterial3D_torchstick")
@@ -44,18 +52,12 @@ emission_energy_multiplier = 4.0
 material = SubResource("StandardMaterial3D_torchflame")
 size = Vector3(0.1, 0.1, 0.1)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_3vyb7"]
-transparency = 1
-albedo_color = Color(0.43, 1, 1, 0.39215687)
-
-[sub_resource type="BoxMesh" id="BoxMesh_g2els"]
-material = SubResource("StandardMaterial3D_3vyb7")
-
 [node name="Player" type="CharacterBody3D"]
 script = ExtResource("1_3vyb7")
 block_scene = ExtResource("2_g2els")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
 shape = SubResource("CapsuleShape3D_fj7yv")
 
 [node name="Head" type="Node3D" parent="."]
@@ -80,6 +82,9 @@ mesh = SubResource("BoxMesh_guard")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.1)
 mesh = SubResource("BoxMesh_handle")
 
+[node name="GhostBlock" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_g2els")
+
 [node name="TorchHolder" type="Node3D" parent="Head/Camera3D"]
 transform = Transform3D(1, 0, 0, 0, 0.96, 0.27, 0, -0.27, 0.96, 0.36, -0.42, -0.6)
 visible = false
@@ -99,6 +104,7 @@ light_color = Color(1, 0.72, 0.4, 1)
 light_energy = 1.8
 shadow_enabled = true
 shadow_bias = 0.04
+shadow_normal_bias = 1.0
 omni_range = 10.0
 
 [node name="ToolSprite" type="Sprite3D" parent="Head/Camera3D"]
@@ -106,8 +112,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.42, -0.3, -0.7)
 visible = false
 cast_shadow = 0
 pixel_size = 0.008
-no_depth_test = true
+double_sided = true
 texture_filter = 0
-
-[node name="GhostBlock" type="MeshInstance3D" parent="."]
-mesh = SubResource("BoxMesh_g2els")
+no_depth_test = true

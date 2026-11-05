@@ -353,11 +353,26 @@ func hit_block(cell: Vector3i, damage: float) -> Dictionary:
 		_clear_crack()
 		_set_edit(cell, B_AIR)
 		_release_support(cell)
+		_drop_sand_above(cell)
 		block_broken.emit(cell)
 		return {"state": "broken", "item": DROP_ITEM[id], "amount": DROP_AMOUNT[id]}
 
 	_show_crack(cell, crack_progress / hardness)
 	return {"state": "damaged"}
+
+
+func _drop_sand_above(cell: Vector3i) -> void:
+	var world := get_tree().current_scene
+	if world == null or not world.has_method("restore_block"):
+		return
+	var up := cell + Vector3i(0, 1, 0)
+	var count := 0
+	while count < 10 and block_at(up.x, up.y, up.z) == B_SAND:
+		_set_edit(up, B_AIR)
+		_release_support(up)
+		world.restore_block("sand", Vector3(up) + Vector3(0.5, 0.5, 0.5))
+		up += Vector3i(0, 1, 0)
+		count += 1
 
 
 func _process(_delta: float) -> void:

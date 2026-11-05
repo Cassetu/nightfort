@@ -2,6 +2,8 @@
 
 [ext_resource type="Script" path="res://scripts/new_game_panel.gd" id="1_panel"]
 
+[sub_resource type="ButtonGroup" id="ButtonGroup_modes"]
+
 [node name="NewGamePanel" type="PanelContainer"]
 custom_minimum_size = Vector2(680, 0)
 script = ExtResource("1_panel")
@@ -33,6 +35,41 @@ custom_minimum_size = Vector2(620, 0)
 layout_mode = 2
 theme_type_variation = &"DimLabel"
 text = "Numbers are used as they are. Any other text is turned into a seed."
+autowrap_mode = 3
+
+[node name="ModeLabel" type="Label" parent="Box"]
+layout_mode = 2
+theme_type_variation = &"BodyLabel"
+text = "Gamemode"
+
+[node name="Modes" type="HBoxContainer" parent="Box"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Survival" type="Button" parent="Box/Modes"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+button_pressed = true
+button_group = SubResource("ButtonGroup_modes")
+text = "Survival"
+
+[node name="Creative" type="Button" parent="Box/Modes"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+button_group = SubResource("ButtonGroup_modes")
+text = "Creative"
+
+[node name="ModeHint" type="Label" parent="Box"]
+custom_minimum_size = Vector2(620, 0)
+layout_mode = 2
+theme_type_variation = &"DimLabel"
+text = "Survival is the regular game. Creative adds a menu with every block and item."
 autowrap_mode = 3
 
 [node name="Options" type="VBoxContainer" parent="Box"]
