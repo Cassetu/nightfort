@@ -1,7 +1,5 @@
 extends "res://scripts/block.gd"
 
-const PickScript = preload("res://scripts/scaffold_pick.gd")
-
 const DECK := 0.125
 const POST := 0.125
 const POLL := 0.3
@@ -11,7 +9,6 @@ var deck_col: CollisionShape3D
 var posts: Array = []
 var short_mesh: ArrayMesh
 var full_mesh: ArrayMesh
-var pick
 var poll_timer: float = 0.0
 var deck_on: bool = true
 
@@ -43,11 +40,6 @@ func _build() -> void:
 	deck_col.position = Vector3(0.0, 0.5 - DECK * 0.5, 0.0)
 	add_child(deck_col)
 
-	pick = PickScript.new()
-	pick.target = self
-	pick.resource_type = resource_type
-	add_child(pick)
-
 	_refresh_deck()
 
 
@@ -76,10 +68,3 @@ func _refresh_deck() -> void:
 	for post in posts:
 		post.mesh = short_mesh if open else full_mesh
 		post.position.y = -DECK * 0.5 if open else 0.0
-
-
-func _die() -> void:
-	if pick != null:
-		pick.collision_layer = 0
-		pick.remove_from_group("resource")
-	super()

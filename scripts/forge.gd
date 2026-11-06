@@ -1,5 +1,10 @@
 extends "res://scripts/block.gd"
 
+const HeldItem = preload("res://scripts/held_item.gd")
+const ITEM_SCALE := 1.3
+const ANVIL_SIDE := Vector3(1.0, 0.0, 0.0)
+const ITEM_POS := Vector3(1.0, 0.25, 0.0)
+const CAM_POS := Vector3(1.0, 1.3, 0.0)
 const IDLE_ENERGY := 0.55
 const ACTIVE_ENERGY := 3.2
 
@@ -8,6 +13,8 @@ var time: float = 0.0
 var mouth_material: StandardMaterial3D
 var light: OmniLight3D
 var sparks: CPUParticles3D
+var item_holder: Node3D
+var item_node: MeshInstance3D
 var smoke: CPUParticles3D
 
 
@@ -43,6 +50,20 @@ func _build() -> void:
 	shape.shape = box
 	shape.position = Vector3(0.0, 0.5, 0.0)
 	add_child(shape)
+
+	_part(Vector3(1.0, -0.2, 0.0), Vector3(1.0, 0.6, 1.0), brick)
+	_part(Vector3(1.0, 0.14, 0.0), Vector3(0.74, 0.08, 0.74), TileArt.uv_material("iron_block", Color(0.5, 0.5, 0.55), Vector3.ONE))
+	var anvil_shape := CollisionShape3D.new()
+	var anvil_box := BoxShape3D.new()
+	anvil_box.size = Vector3(1.0, 0.68, 1.0)
+	anvil_shape.shape = anvil_box
+	anvil_shape.position = Vector3(1.0, -0.16, 0.0)
+	add_child(anvil_shape)
+
+	item_holder = Node3D.new()
+	item_holder.position = ITEM_POS
+	item_holder.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
+	add_child(item_holder)
 
 	light = OmniLight3D.new()
 	light.position = Vector3(0.0, 0.0, 1.2)
@@ -105,9 +126,27 @@ func _part(pos: Vector3, size: Vector3, material: Material) -> MeshInstance3D:
 	return mi
 
 
+func extra_cells() -> Array:
+	var yaw := rotation.y
+	var side := Vector3i(roundi(cos(yaw)), 0, roundi(-sin(yaw)))
+	return [side, side + Vector3i.UP]
+
+
 func covers(p: Vector3) -> bool:
-	var d := p - global_position
-	return absf(d.x) < 0.6 and absf(d.z) < 0.6 and d.y > -0.6 and d.y < 1.6
+	var d := to_local(p)
+	return d.x > -0.6 and d.x < 1.6 and absf(d.z) < 0.6 and d.y > -0.6 and d.y < 1.6
+
+
+func show_item(id: String) -> void:
+	if item_node != null:
+		item_node.queue_free()
+		item_node = null
+	if id == "":
+		return
+	item_node = MeshInstance3D.new()
+	item_node.mesh = HeldItem.mesh_for(id)
+	item_node.scale = Vector3.ONE * ITEM_SCALE
+	item_holder.add_child(item_node)
 
 
 func set_active(value: bool) -> void:

@@ -39,6 +39,7 @@ const AO_LEVELS := [0.55, 0.7, 0.85, 1.0]
 const COL_DRY := Color(0.62, 0.60, 0.28)
 const COL_LUSH := Color(0.18, 0.46, 0.16)
 const COL_SAND := Color(0.76, 0.68, 0.45)
+const RUIN_RADIUS := 10
 const COL_DIRT := Color(0.42, 0.29, 0.18)
 const COL_ROCK := Color(0.50, 0.50, 0.53)
 const COL_STONE := Color(0.44, 0.44, 0.47)
@@ -95,6 +96,13 @@ const FACE_DCOL := [1, -1, 0, 0, PAD, -PAD]
 @export var mountain_amplitude: float = 46.0
 @export var border_width: float = 140.0
 @export var border_height: float = 70.0
+@export var mount_dist: float = 72.0
+@export var mount_radius: float = 24.0
+@export var mount_height: float = 54.0
+@export var mouth_dist: float = 38.0
+@export var tunnel_length: float = 52.0
+@export var tunnel_slope: float = 0.3
+@export var tunnel_half_width: float = 2.6
 @export var rock_line: float = 17.0
 @export var snow_line: float = 32.0
 
@@ -175,6 +183,8 @@ var n_cavern: FastNoiseLite
 var n_stone_a: FastNoiseLite
 var n_stone_b: FastNoiseLite
 var n_biome: FastNoiseLite
+var mount_dir: Vector2 = Vector2.RIGHT
+var mouth_y: int = 0
 
 var material: ShaderMaterial
 var plant_meshes: Dictionary = {}
@@ -324,7 +334,7 @@ func block_at(x: int, iy: int, z: int) -> int:
 		return B_BEDROCK
 	var h := _height(x, z)
 	var dv := _desert(x + 0.5, z + 0.5)
-	return _gen_block(x, iy, z, h, _surface_id(h, _moisture(x + 0.5, z + 0.5), dv), dv > 0.5)
+	return _gen_block(x, iy, z, h, _surface_id(h, _moisture(x + 0.5, z + 0.5), dv, x, z), dv > 0.5)
 
 
 func cell_from_hit(pos: Vector3, normal: Vector3) -> Vector3i:
@@ -436,6 +446,11 @@ func _setup_noise() -> void:
 	n_stone_a = _make_noise(14, 0.028, 1)
 	n_stone_b = _make_noise(15, 0.024, 1)
 	n_biome = _make_noise(16, 0.0032, 2)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = world_seed ^ 0x5EED
+	mount_dir = Vector2.RIGHT.rotated(rng.randf() * TAU)
+	mouth_y = 0
+	mouth_y = _height(roundi(mount_dir.x * mouth_dist), roundi(mount_dir.y * mouth_dist))
 
 
 func _make_noise(seed_offset: int, frequency: float, octaves: int) -> FastNoiseLite:
@@ -1177,7 +1192,42 @@ func _height(x: int, z: int) -> int:
 	var blend := smoothstep(plateau_radius, plateau_radius + plateau_blend, dist)
 	var wall := pow(clampf((dist - (world_radius - border_width)) / border_width, 0.0, 1.0), 2.0) * border_height
 
-	return clampi(base_height + roundi(maxf(relief, 0.0) * blend + wall), 1, Y_MAX - 2)
+	return clampi(base_height + roundi(maxf(relief, 0.0) * blend + wall + _mount_bump(fx, fz, rough) * blend), 1, Y_MAX - 2)
+
+
+func _mount_bump(fx: float, fz: float, rough: float) -> float:
+	var s := fx * mount_dir.x + fz * mount_dir.y
+	var t := -fx * mount_dir.y + fz * mount_dir.x
+	var ds := (s - mount_dist) / mount_radius
+	var dt := t / (mount_radius * 1.35)
+	var g := exp(-(ds * ds + dt * dt))
+	return g * mount_height * (0.8 + 0.4 * rough)
+
+
+func _is_tunnel(x: int, iy: int, z: int) -> bool:
+	var fx := x + 0.5
+	var fz := z + 0.5
+	var s := fx * mount_dir.x + fz * mount_dir.y
+	if s < mouth_dist - 1.0 or s > mouth_dist + tunnel_length + 6.0:
+		return false
+	var t := -fx * mount_dir.y + fz * mount_dir.x
+	if absf(t) > tunnel_half_width + 6.0:
+		return false
+	var floor_y := float(mouth_y) - maxf(s - mouth_dist, 0.0) * tunnel_slope
+	var end_s := mouth_dist + tunnel_length
+	if s > end_s - 6.0:
+		var dx := s - (end_s + 1.0)
+		var dy := iy + 0.5 - (floor_y + 3.0)
+		if dx * dx + t * t + dy * dy < 36.0:
+			return true
+	if absf(t) > tunnel_half_width or s > end_s:
+		return false
+	var rel := iy + 0.5 - floor_y
+	if rel < 0.0:
+		return false
+	var u := t / tunnel_half_width
+	var v := (rel - 1.4) / 2.8
+	return u * u + v * v <= 1.0 or rel < 1.4 and absf(u) <= 1.0
 
 
 func _desert(x: float, z: float) -> float:
@@ -1203,7 +1253,13 @@ func _top_color(h: int, moist: float, desert: float) -> Color:
 	return c.lerp(COL_SNOW, smoothstep(snow_line, snow_line + 3.0, hf))
 
 
-func _surface_id(h: int, moist: float, desert: float) -> int:
+func in_ruins(x: int, z: int) -> bool:
+	return absi(x) <= RUIN_RADIUS and absi(z) <= RUIN_RADIUS
+
+
+func _surface_id(h: int, moist: float, desert: float, x: int, z: int) -> int:
+	if in_ruins(x, z):
+		return B_DIRT
 	var hf := float(h)
 	if hf >= snow_line + 2.0:
 		return B_SNOW
@@ -1257,6 +1313,8 @@ func _gen_block(x: int, iy: int, z: int, h: int, surf: int, in_desert: bool) -> 
 		return B_BEDROCK
 	if iy == Y_MIN + 1 and _hash3(x, iy, z) > 0.5:
 		return B_BEDROCK
+	if _is_tunnel(x, iy, z):
+		return B_AIR
 	var depth := h - 1 - iy
 	if depth == 0:
 		if on_platform(x, z):
@@ -1375,8 +1433,10 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 			moist[ci] = m
 			var dv := dcol[(lz + 1) * PAD + lx + 1]
 			desert[ci] = dv
-			top_cols[ci] = _top_color(h, m, dv)
-			surf[ci] = _surface_id(h, m, dv)
+			var wx0: int = coord.x * CHUNK + lx
+			var wz0: int = coord.y * CHUNK + lz
+			top_cols[ci] = COL_DIRT if in_ruins(wx0, wz0) else _top_color(h, m, dv)
+			surf[ci] = _surface_id(h, m, dv, wx0, wz0)
 
 	var vol := PackedByteArray()
 	vol.resize(LAYER * Y_LAYERS)

@@ -1,0 +1,18 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/held_item.gd" id="1_held"]
+
+[node name="HeldItem" type="Node3D"]
+script = ExtResource("1_held")
+
+[node name="Model" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+
+[node name="Light" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
+light_color = Color(1, 0.72, 0.4, 1)
+light_energy = 1.8
+shadow_enabled = true
+shadow_bias = 0.04
+shadow_normal_bias = 1.0
+omni_range = 10.0

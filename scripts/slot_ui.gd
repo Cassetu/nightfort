@@ -30,9 +30,11 @@ func show_item(item: Dictionary) -> void:
 		art.visible = false
 		count_label.text = ""
 		hint_label.visible = equip != ""
+		tooltip_text = ""
 		return
 
 	hint_label.visible = false
+	tooltip_text = Inventory.item_name(item["id"])
 	var info: Dictionary = Inventory.ITEMS.get(item["id"], {})
 	var tex := TileArt.icon(item["id"], info.get("tile", ""))
 	art.texture = tex

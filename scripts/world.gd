@@ -9,6 +9,8 @@ const CreativeUIScene = preload("res://scenes/creative_ui.tscn")
 const RuinsScript = preload("res://scripts/ruins.gd")
 const StabilityScript = preload("res://scripts/stability.gd")
 const WildSpawnerScript = preload("res://scripts/wild_spawner.gd")
+const WeatherScript = preload("res://scripts/weather.gd")
+const AttackMarkerScene = preload("res://scenes/attack_marker.tscn")
 
 @onready var sun = $Sun
 @onready var terrain = $Terrain
@@ -40,6 +42,14 @@ func _ready() -> void:
 	wild_spawner.set_script(WildSpawnerScript)
 	add_child(wild_spawner)
 	wild_spawner.setup(terrain, core, player, sun, enemies)
+	var attack_marker = AttackMarkerScene.instantiate()
+	add_child(attack_marker)
+	attack_marker.setup(spawner, core, terrain)
+	var weather = Node.new()
+	weather.name = "Weather"
+	weather.set_script(WeatherScript)
+	add_child(weather)
+	weather.setup(sun, $WorldEnvironment.environment, player, terrain)
 	_place_torches()
 	player.notice.connect(ui.show_notice)
 	inv_ui.setup(player, ui, self)

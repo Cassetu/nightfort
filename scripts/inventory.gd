@@ -34,8 +34,9 @@ const BLOCK_TYPES := {
 	"door": {"name": "Door", "resource": "door", "weight": 1, "health": 6, "color": Color(0.45, 0.3, 0.17), "scene": "res://scenes/door.tscn", "height": 2, "needs_support": true},
 	"sand": {"name": "Sand Block", "resource": "sand", "tile": "sand", "falls": true, "weight": 2, "health": 2, "color": Color(0.76, 0.68, 0.45)},
 	"ruined_brick": {"name": "Ruined Bricks", "resource": "stone", "tile": "ruined_brick", "weight": 3, "health": 3, "color": Color(0.36, 0.38, 0.33)},
-	"stone_forge": {"name": "Stone Forge", "resource": "stone_forge", "tile": "stone_brick", "weight": 3, "health": 14, "color": Color(0.5, 0.5, 0.52), "scene": "res://scenes/forge.tscn", "height": 2},
+	"stone_forge": {"name": "Stone Forge", "resource": "stone_forge", "tile": "stone_brick", "weight": 3, "health": 14, "color": Color(0.5, 0.5, 0.52), "scene": "res://scenes/forge.tscn", "height": 2, "wide": true},
 	"scaffold": {"name": "Scaffold", "resource": "scaffold", "tile": "plank", "weight": 0, "max_load": 3, "health": 3, "color": Color(0.72, 0.55, 0.32), "scene": "res://scenes/scaffold.tscn"},
+	"ladder": {"name": "Ladder", "resource": "ladder", "tile": "plank", "weight": 0, "structural": false, "health": 2, "color": Color(0.72, 0.55, 0.32), "scene": "res://scenes/ladder.tscn"},
 	"torch": {"name": "Torch", "resource": "torch", "structural": false, "health": 1, "color": Color(0.9, 0.6, 0.25), "scene": "res://scenes/torch.tscn", "needs_support": true, "ghost": Vector3(0.25, 1.0, 0.25)},
 }
 
@@ -65,6 +66,8 @@ const ITEMS := {
 	"limestone_brick": {"name": "Limestone Bricks", "kind": "block", "tile": "limestone_brick", "color": Color(0.72, 0.68, 0.58)},
 	"door": {"name": "Door", "kind": "block", "color": Color(0.45, 0.3, 0.17)},
 	"scaffold": {"name": "Scaffold", "kind": "block", "tile": "plank", "color": Color(0.72, 0.55, 0.32)},
+	"stick": {"name": "Stick", "kind": "material", "color": Color(0.58, 0.4, 0.22)},
+	"ladder": {"name": "Ladder", "kind": "block", "tile": "plank", "color": Color(0.72, 0.55, 0.32)},
 	"torch": {"name": "Torch", "kind": "block", "color": Color(0.9, 0.6, 0.25)},
 	"stone_forge": {"name": "Stone Forge", "kind": "block", "color": Color(0.5, 0.5, 0.52)},
 	"stone_pickaxe": {"name": "Stone Pickaxe", "kind": "tool", "tool": "pickaxe", "power": 2.0, "max_stack": 1, "color": Color(0.55, 0.57, 0.52)},

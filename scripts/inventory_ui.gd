@@ -141,10 +141,15 @@ func _return_craft_items() -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if Game.gamemode == "creative" and open and not table_mode:
+		if event.is_action_pressed("inventory") or event.is_action_pressed("ui_cancel"):
+			return
 	if event.is_action_pressed("inventory") and not event.is_echo():
 		if open:
 			close()
 			get_viewport().set_input_as_handled()
+		elif Game.gamemode == "creative":
+			return
 		elif can_open():
 			open_ui(false)
 			get_viewport().set_input_as_handled()

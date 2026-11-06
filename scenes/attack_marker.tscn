@@ -1,0 +1,35 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/attack_marker.gd" id="1_marker"]
+[ext_resource type="Theme" uid="uid://gr2kk87lccmd" path="res://resources/main-theme.tres" id="2_theme"]
+
+[node name="AttackMarker" type="CanvasLayer"]
+script = ExtResource("1_marker")
+
+[node name="A" type="Label" parent="."]
+unique_name_in_owner = true
+visible = false
+offset_right = 90.0
+offset_bottom = 50.0
+mouse_filter = 2
+theme = ExtResource("2_theme")
+theme_type_variation = &"CoreMarker"
+theme_override_colors/font_color = Color(1, 0.55, 0.35, 1)
+theme_override_colors/font_outline_color = Color(0.15, 0.03, 0.02, 1)
+text = "Gloom"
+horizontal_alignment = 1
+vertical_alignment = 2
+
+[node name="B" type="Label" parent="."]
+unique_name_in_owner = true
+visible = false
+offset_right = 90.0
+offset_bottom = 50.0
+mouse_filter = 2
+theme = ExtResource("2_theme")
+theme_type_variation = &"CoreMarker"
+theme_override_colors/font_color = Color(1, 0.55, 0.35, 1)
+theme_override_colors/font_outline_color = Color(0.15, 0.03, 0.02, 1)
+text = "Gloom"
+horizontal_alignment = 1
+vertical_alignment = 2

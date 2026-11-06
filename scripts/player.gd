@@ -7,7 +7,9 @@ signal notice(text)
 signal workbench_used
 signal forge_used
 
+const OutlineMesh = preload("res://scripts/outline_mesh.gd")
 const SPEED = 5.0
+const CLIMB_SPEED = 3.0
 const JUMP_VELOCITY = 4.5
 const MINE_REACH = 3.5
 const PLACE_REACH = 5.0
@@ -34,22 +36,19 @@ var frozen = false
 var ghost_valid_mat
 var ghost_blocked_mat
 var ghost_warn_mat
+var aim_normal: Vector3 = Vector3.UP
+var ladder_query: PhysicsShapeQueryParameters3D
 var probe_query
 var health: float = 100.0
 var dead: bool = false
 var since_damage: float = 0.0
 var was_on_floor: bool = true
 var shown_health: int = 100
-var shown_tool: String = ""
-var tool_tween: Tween
 
 @onready var head = $Head
 @onready var camera = $Head/Camera3D
 @onready var ghost_block = $GhostBlock
-@onready var sword_holder = $Head/Camera3D/SwordHolder
-@onready var tool_sprite = $Head/Camera3D/ToolSprite
-@onready var torch_holder = $Head/Camera3D/TorchHolder
-@onready var torch_light = $Head/Camera3D/TorchHolder/Light
+@onready var held = $Head/Camera3D/HeldItem
 @export var block_scene: PackedScene
 
 
@@ -57,10 +56,17 @@ func _ready():
 	add_to_group("player")
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	ghost_block.top_level = true
+	ghost_block.layers = 2
+	var ladder_shape := BoxShape3D.new()
+	ladder_shape.size = Vector3(0.9, 1.2, 0.9)
+	ladder_query = PhysicsShapeQueryParameters3D.new()
+	ladder_query.shape = ladder_shape
+	ladder_query.collision_mask = 16
+	ghost_block.mesh = OutlineMesh.build(0.03)
 	ghost_block.scale = Vector3.ONE * 1.002
-	ghost_valid_mat = make_ghost_material(Color(0.43, 1.0, 1.0, 0.35))
-	ghost_blocked_mat = make_ghost_material(Color(1.0, 0.3, 0.3, 0.35))
-	ghost_warn_mat = make_ghost_material(Color(1.0, 0.85, 0.3, 0.35))
+	ghost_valid_mat = make_ghost_material(Color(0.43, 1.0, 1.0, 1.0))
+	ghost_blocked_mat = make_ghost_material(Color(1.0, 0.3, 0.3, 1.0))
+	ghost_warn_mat = make_ghost_material(Color(1.0, 0.85, 0.3, 1.0))
 
 	var probe_shape = BoxShape3D.new()
 	probe_shape.size = Vector3(0.9, 0.9, 0.9)
@@ -91,9 +97,9 @@ func add_mouse_action(action, button):
 
 func make_ghost_material(color):
 	var mat = StandardMaterial3D.new()
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.albedo_color = color
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	return mat
 
 
@@ -117,21 +123,35 @@ func _unhandled_input(event):
 			Inventory.select_slot(slot)
 
 
+func touching_ladder():
+	ladder_query.transform = Transform3D(Basis.IDENTITY, global_position + Vector3(0.0, 0.05, 0.0))
+	for r in get_world_3d().direct_space_state.intersect_shape(ladder_query, 4):
+		if r["collider"].is_in_group("ladder"):
+			return true
+	return false
+
+
 func _physics_process(delta):
-	if not is_on_floor():
+	var on_ladder = not dead and not frozen and touching_ladder()
+	if not is_on_floor() and not on_ladder:
 		velocity.y -= gravity * delta
 
 	if dead or frozen:
 		ghost_block.hide()
 		velocity.x = 0.0
 		velocity.z = 0.0
+		held.set_motion(0.0)
 		move_and_slide()
 		return
 
+	var jumped = false
 	if Input.is_action_just_pressed("ui_accept") and is_on_floor():
 		velocity.y = JUMP_VELOCITY
+		jumped = true
 
 	var input_dir = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
+	if on_ladder and not jumped:
+		velocity.y = -input_dir.y * CLIMB_SPEED
 	var direction = (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
 
 	if not is_on_floor():
@@ -164,13 +184,8 @@ func _physics_process(delta):
 	attack_timer = maxf(attack_timer - delta, 0.0)
 	var hit = look_hit()
 	update_ghost(hit)
-	sword_holder.visible = not Inventory.held_weapon().is_empty()
-	_update_tool_sprite()
-	var holding_torch = Inventory.held_block_type() == "torch"
-	torch_holder.visible = holding_torch
-	if holding_torch:
-		var t = Time.get_ticks_msec() / 1000.0
-		torch_light.light_energy = 1.8 * (1.0 + 0.1 * sin(t * 9.0) + 0.06 * sin(t * 23.0))
+	held.set_item(held_visual_id())
+	held.set_motion(Vector2(velocity.x, velocity.z).length() / SPEED if is_on_floor() else 0.0)
 
 	if Input.is_action_pressed("mine") and attack_timer <= 0.0:
 		var weapon: Dictionary = Inventory.held_weapon()
@@ -268,6 +283,23 @@ func block_height(type):
 	return int(Inventory.BLOCK_TYPES[type].get("height", 1))
 
 
+func place_yaw():
+	return snappedf(rotation.y, PI * 0.5)
+
+
+func type_offsets(type):
+	var out: Array = []
+	var height = block_height(type)
+	for i in height:
+		out.append(Vector3(0.0, i, 0.0))
+	if Inventory.BLOCK_TYPES[type].get("wide", false):
+		var yaw = place_yaw()
+		var side = Vector3(roundf(cos(yaw)), 0.0, roundf(-sin(yaw)))
+		for i in height:
+			out.append(side + Vector3(0.0, i, 0.0))
+	return out
+
+
 func probe_empty(cell):
 	probe_query.transform = Transform3D(Basis.IDENTITY, cell)
 	return get_world_3d().direct_space_state.intersect_shape(probe_query, 1).is_empty()
@@ -281,14 +313,16 @@ func has_support(cell):
 
 
 func can_place(type, cell):
-	var height = block_height(type)
-	for i in height:
-		if in_core_zone(cell + Vector3(0.0, i, 0.0)):
+	if type == "ladder" and absf(aim_normal.y) > 0.5:
+		return false
+	var offsets = type_offsets(type)
+	for o in offsets:
+		if in_core_zone(cell + o):
 			return false
 	if Inventory.selected_count() < Inventory.BLOCK_COST:
 		return false
-	for i in height:
-		if not probe_empty(cell + Vector3(0.0, i, 0.0)):
+	for o in offsets:
+		if not probe_empty(cell + o):
 			return false
 	if Inventory.BLOCK_TYPES[type].get("needs_support", false) and not has_support(cell):
 		return false
@@ -312,8 +346,12 @@ func update_ghost(hit):
 	var cell = cell_center(hit)
 	var height = block_height(type)
 	var gs: Vector3 = Inventory.BLOCK_TYPES[type].get("ghost", Vector3.ONE)
-	ghost_block.scale = Vector3(1.002 * gs.x, 1.002 * height * gs.y, 1.002 * gs.z)
-	ghost_block.global_position = cell + Vector3(0.0, (height - 1) * 0.5, 0.0)
+	var span = Vector3.ZERO
+	if Inventory.BLOCK_TYPES[type].get("wide", false):
+		var yaw = place_yaw()
+		span = Vector3(roundf(cos(yaw)), 0.0, roundf(-sin(yaw)))
+	ghost_block.scale = Vector3(1.002 * gs.x * (1.0 + absf(span.x)), 1.002 * height * gs.y, 1.002 * gs.z * (1.0 + absf(span.z)))
+	ghost_block.global_position = cell + span * 0.5 + Vector3(0.0, (height - 1) * 0.5, 0.0)
 	if can_place(type, cell):
 		var stability = get_tree().get_first_node_in_group("stability")
 		var reach = 0 if stability == null else stability.reach_for_type(type)
@@ -372,28 +410,18 @@ func resource_category(target):
 	return "pickaxe"
 
 
-func _update_tool_sprite():
-	var info = Inventory.held_tool()
-	var id = ""
-	if not info.is_empty():
-		id = Inventory.selected_item()["id"]
-	if id == shown_tool:
-		return
-	shown_tool = id
-	tool_sprite.visible = id != ""
-	if id != "":
-		tool_sprite.texture = TileArt.icon(id, "")
+func held_visual_id():
+	var item = Inventory.selected_item()
+	if item.is_empty():
+		return ""
+	var kind = str(Inventory.ITEMS.get(item["id"], {}).get("kind", ""))
+	if kind == "tool" or kind == "weapon" or item["id"] == "torch":
+		return item["id"]
+	return ""
 
 
 func _tool_swing():
-	if shown_tool == "":
-		return
-	if tool_tween:
-		tool_tween.kill()
-	tool_sprite.rotation = Vector3(0.0, 0.0, -0.3)
-	tool_tween = create_tween()
-	tool_tween.tween_property(tool_sprite, "rotation", Vector3(-0.9, 0.0, -0.3), 0.08)
-	tool_tween.tween_property(tool_sprite, "rotation", Vector3(0.0, 0.0, -0.3), 0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	held.play_swing()
 
 
 func mine_terrain(hit):
@@ -414,10 +442,7 @@ func mine_terrain(hit):
 func swing(weapon):
 	attack_timer = weapon["cooldown"]
 
-	var holder_tween = create_tween()
-	sword_holder.rotation = Vector3(0.0, 0.0, 0.0)
-	holder_tween.tween_property(sword_holder, "rotation", Vector3(-1.2, 0.0, -0.5), 0.09)
-	holder_tween.tween_property(sword_holder, "rotation", Vector3.ZERO, 0.22).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	held.play_swing()
 
 	var shape = SphereShape3D.new()
 	shape.radius = 1.1
@@ -452,9 +477,11 @@ func try_place(hit):
 	if type == "" or hit.is_empty():
 		return
 	var cell = cell_center(hit)
-	if in_core_zone(cell) or in_core_zone(cell + Vector3(0.0, block_height(type) - 1, 0.0)):
-		notice.emit("You can't build this close to the Core")
-		return
+	aim_normal = hit.normal
+	for o in type_offsets(type):
+		if in_core_zone(cell + o):
+			notice.emit("You can't build this close to the Core")
+			return
 	if not can_place(type, cell):
 		return
 	Inventory.consume_selected(Inventory.BLOCK_COST)
@@ -467,4 +494,6 @@ func try_place(hit):
 	get_tree().current_scene.add_child(block)
 	block.global_position = cell
 	if block_height(type) > 1:
-		block.rotation.y = snappedf(rotation.y, PI * 0.5)
+		block.rotation.y = place_yaw()
+	if type == "ladder":
+		block.rotation.y = atan2(hit.normal.x, hit.normal.z)

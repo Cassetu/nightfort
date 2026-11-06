@@ -11,6 +11,8 @@ const LIST := [
 	{"id": "limestone_brick", "out": "limestone_brick", "count": 4, "shape": [["limestone", "limestone"], ["limestone", "limestone"]]},
 	{"id": "torch", "out": "torch", "count": 4, "shape": [["coal"], ["plank"]]},
 	{"id": "door", "out": "door", "count": 1, "shape": [["plank", "plank"], ["plank", "plank"], ["plank", "plank"]]},
+	{"id": "stick", "out": "stick", "count": 8, "shape": [["plank"], ["plank"]]},
+	{"id": "ladder", "out": "ladder", "count": 3, "shape": [["stick"], ["stick"], ["stick"]]},
 	{"id": "scaffold", "out": "scaffold", "count": 2, "shape": [["plank"], ["plank"], ["plank"]]},
 	{"id": "iron_block", "out": "iron_block", "count": 1, "shape": [["iron", "iron", "iron"], ["iron", "iron", "iron"], ["iron", "iron", "iron"]]},
 	{"id": "stone_forge", "out": "stone_forge", "count": 1, "shape": [["stone_brick", "stone_brick", "stone_brick"], ["stone_brick", "coal", "stone_brick"], ["stone_brick", "stone_brick", "stone_brick"]]},

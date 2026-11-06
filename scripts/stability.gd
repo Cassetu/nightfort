@@ -3,6 +3,7 @@ extends Node
 const MAX_DIST := 5
 const TICK := 0.2
 const DIRS := [Vector3i(1, 0, 0), Vector3i(-1, 0, 0), Vector3i(0, 0, 1), Vector3i(0, 0, -1)]
+const REINFORCE_HEIGHT := 4
 const BASE_REACH := 4
 
 var terrain
@@ -54,6 +55,44 @@ func _relax(v, nd: int, ncap: int, dist: Dictionary, cap: Dictionary, levels: Ar
 		levels[nd].append(v)
 
 
+func landing_cell(n) -> Vector3i:
+	var base: Vector3i = n.cells()[0]
+	var y := base.y - 1
+	while y > terrain.Y_MIN:
+		if terrain.block_at(base.x, y, base.z) != 0:
+			break
+		var other = cell_map.get(Vector3i(base.x, y, base.z))
+		if other != null and other != n:
+			break
+		y -= 1
+	if y <= terrain.Y_MIN:
+		return base
+	return Vector3i(base.x, y + 1, base.z)
+
+
+func _update_reinforcement() -> void:
+	var seen: Dictionary = {}
+	for c: Vector3i in cell_map:
+		var n = cell_map[c]
+		if seen.has(n) or not n.is_brick():
+			continue
+		var below = cell_map.get(c + Vector3i.DOWN)
+		if below != null and below.is_brick():
+			continue
+		var run: Array = []
+		var at := c
+		while true:
+			var m = cell_map.get(at)
+			if m == null or not m.is_brick():
+				break
+			run.append(m)
+			at += Vector3i.UP
+		var tall := run.size() > REINFORCE_HEIGHT
+		for m in run:
+			seen[m] = true
+			m.set_reinforced(tall)
+
+
 func _recompute() -> void:
 	dirty = false
 	cell_map.clear()
@@ -67,6 +106,8 @@ func _recompute() -> void:
 		nodes.append(n)
 		for c: Vector3i in n.cells():
 			cell_map[c] = n
+
+	_update_reinforcement()
 
 	var dist: Dictionary = {}
 	var cap: Dictionary = {}

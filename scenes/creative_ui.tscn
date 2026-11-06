@@ -1,7 +1,9 @@
-[gd_scene format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/creative_ui.gd" id="1_ui"]
 [ext_resource type="Theme" uid="uid://gr2kk87lccmd" path="res://resources/main-theme.tres" id="2_theme"]
+
+[sub_resource type="ButtonGroup" id="ButtonGroup_tabs"]
 
 [node name="CreativeUI" type="CanvasLayer"]
 layer = 13
@@ -16,16 +18,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme = ExtResource("2_theme")
 
-[node name="Dim" type="ColorRect" parent="Root"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-color = Color(0, 0, 0, 0.65)
-
-[node name="Center" type="CenterContainer" parent="Root"]
+[node name="Pane" type="Control" parent="Root"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -34,51 +27,97 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="Panel" type="PanelContainer" parent="Root/Center"]
+[node name="Dim" type="ColorRect" parent="Root/Pane"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.65)
+
+[node name="Center" type="CenterContainer" parent="Root/Pane"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Panel" type="PanelContainer" parent="Root/Pane/Center"]
 layout_mode = 2
 
-[node name="Content" type="VBoxContainer" parent="Root/Center/Panel"]
+[node name="Content" type="VBoxContainer" parent="Root/Pane/Center/Panel"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="Title" type="Label" parent="Root/Center/Panel/Content"]
+[node name="Title" type="Label" parent="Root/Pane/Center/Panel/Content"]
 layout_mode = 2
 theme_type_variation = &"HeadingLabel"
 text = "Creative Inventory"
 
-[node name="Search" type="LineEdit" parent="Root/Center/Panel/Content"]
+[node name="Search" type="LineEdit" parent="Root/Pane/Center/Panel/Content"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 placeholder_text = "Search items"
 clear_button_enabled = true
 
-[node name="Scroll" type="ScrollContainer" parent="Root/Center/Panel/Content"]
+[node name="Scroll" type="ScrollContainer" parent="Root/Pane/Center/Panel/Content"]
 custom_minimum_size = Vector2(600, 380)
 layout_mode = 2
 horizontal_scroll_mode = 0
 
-[node name="Grid" type="GridContainer" parent="Root/Center/Panel/Content/Scroll"]
+[node name="Grid" type="GridContainer" parent="Root/Pane/Center/Panel/Content/Scroll"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/h_separation = 4
 theme_override_constants/v_separation = 4
 columns = 8
 
-[node name="ItemName" type="Label" parent="Root/Center/Panel/Content"]
+[node name="ItemName" type="Label" parent="Root/Pane/Center/Panel/Content"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 theme_type_variation = &"BodyLabel"
 text = " "
 
-[node name="Hint" type="Label" parent="Root/Center/Panel/Content"]
-layout_mode = 2
-theme_type_variation = &"DimLabel"
-text = "Left click: full stack.  Right click: one.  Click a hotbar slot to clear it."
-
-[node name="HotbarRow" type="HBoxContainer" parent="Root/Center/Panel/Content"]
+[node name="HotbarRow" type="HBoxContainer" parent="Root/Pane/Center/Panel/Content"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 4
 alignment = 1
+
+[node name="TabRow" type="HBoxContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -150.0
+offset_top = 18.0
+offset_right = 150.0
+offset_bottom = 62.0
+grow_horizontal = 2
+theme_override_constants/separation = 6
+
+[node name="ItemsTab" type="Button" parent="Root/TabRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(140, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+toggle_mode = true
+button_pressed = true
+button_group = SubResource("ButtonGroup_tabs")
+text = "Items"
+
+[node name="InventoryTab" type="Button" parent="Root/TabRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(140, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+toggle_mode = true
+button_group = SubResource("ButtonGroup_tabs")
+text = "Inventory"

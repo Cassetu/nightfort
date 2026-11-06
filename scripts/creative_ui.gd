@@ -7,6 +7,9 @@ const CELL := Vector2(64, 64)
 const KIND_ORDER := {"block": 0, "material": 1, "tool": 2, "weapon": 3, "armor": 4}
 
 @onready var root: Control = $Root
+@onready var pane: Control = $Root/Pane
+@onready var items_tab: Button = %ItemsTab
+@onready var inventory_tab: Button = %InventoryTab
 @onready var search: LineEdit = %Search
 @onready var grid: GridContainer = %Grid
 @onready var item_name: Label = %ItemName
@@ -17,12 +20,15 @@ var game_ui
 var world
 var inv_ui
 var open: bool = false
+var tab: String = "items"
 var buttons: Dictionary = {}
 var hotbar_buttons: Array = []
 
 
 func _ready() -> void:
 	root.visible = false
+	items_tab.pressed.connect(_show_tab.bind("items"))
+	inventory_tab.pressed.connect(_show_tab.bind("inventory"))
 	search.text_changed.connect(_filter)
 	search.text_submitted.connect(_on_submitted)
 	_build_grid()
@@ -76,6 +82,7 @@ func _build_grid() -> void:
 	for id: String in _sorted_ids():
 		var b := _make_button()
 		_apply_icon(b, id)
+		b.tooltip_text = Inventory.item_name(id)
 		b.gui_input.connect(_on_cell_input.bind(id))
 		b.mouse_entered.connect(_on_hover.bind(id))
 		b.mouse_exited.connect(_on_hover.bind(""))
@@ -151,10 +158,35 @@ func can_open() -> bool:
 	return not world.intro_playing
 
 
+func _apply_tab() -> void:
+	pane.visible = tab == "items"
+	items_tab.set_pressed_no_signal(tab == "items")
+	inventory_tab.set_pressed_no_signal(tab == "inventory")
+
+
+func _show_tab(name: String) -> void:
+	if not open or name == tab:
+		_apply_tab()
+		return
+	search.release_focus()
+	tab = name
+	if name == "items":
+		inv_ui.close()
+		player.frozen = true
+		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+		toggled.emit(true)
+	else:
+		inv_ui.open_ui(false)
+	_apply_tab()
+
+
 func open_menu() -> void:
 	open = true
 	root.visible = true
 	player.frozen = true
+	_apply_tab()
+	if tab == "inventory":
+		inv_ui.open_ui(false)
 	search.clear()
 	_filter("")
 	item_name.text = " "
@@ -166,6 +198,8 @@ func close() -> void:
 	if not open:
 		return
 	search.release_focus()
+	if tab == "inventory":
+		inv_ui.close()
 	open = false
 	root.visible = false
 	player.frozen = false

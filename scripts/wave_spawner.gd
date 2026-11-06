@@ -10,7 +10,13 @@ signal status_changed(text: String)
 @export var count_growth: int = 3
 @export var max_count: int = 60
 @export var max_alive: int = 20
-@export var spawn_interval: float = 1.6
+@export var spread_fraction: float = 0.45
+@export var first_delay: float = 3.0
+@export var warn_elevation: float = 0.12
+@export_range(0.0, 1.0) var focus_share: float = 0.8
+@export var focus_spread_degrees: float = 18.0
+@export var two_front_night: int = 4
+@export var retry_interval: float = 0.4
 @export var min_player_distance: float = 14.0
 @export var night_start_elevation: float = -0.1
 @export var dawn_elevation: float = 0.03
@@ -23,7 +29,11 @@ var sun
 var enemies_root: Node3D
 var night: int = 0
 var night_active: bool = false
-var to_spawn: int = 0
+var total: int = 0
+var spawned: int = 0
+var night_time: float = 0.0
+var attack_dirs: Array = []
+var last_elevation: float = 1.0
 var spawn_timer: float = 0.0
 var last_status: String = ""
 
@@ -45,15 +55,22 @@ func wave_size(n: int) -> int:
 
 
 func export_state() -> Dictionary:
-	return {"night": night, "active": night_active}
+	return {"night": night, "active": night_active, "spawned": spawned, "elapsed": night_time, "dirs": attack_dirs}
 
 
 func import_state(d: Dictionary) -> void:
 	night = int(d.get("night", 0))
 	night_active = bool(d.get("active", false))
+	attack_dirs = []
+	for a in d.get("dirs", []):
+		attack_dirs.append(float(a))
 	if night_active:
-		to_spawn = wave_size(night)
-		spawn_timer = 3.0
+		total = wave_size(night)
+		spawned = mini(int(d.get("spawned", 0)), total)
+		night_time = float(d.get("elapsed", 0.0))
+		spawn_timer = first_delay
+		if attack_dirs.is_empty():
+			_choose_directions(night)
 
 
 func _process(delta: float) -> void:
@@ -61,31 +78,51 @@ func _process(delta: float) -> void:
 		return
 
 	var e: float = sun.elevation
+	if not night_active and attack_dirs.is_empty() and e < last_elevation and e < warn_elevation and wave_size(night + 1) > 0:
+		_choose_directions(night + 1)
+	last_elevation = e
 	if not night_active and e < night_start_elevation:
 		_begin_night()
 	elif night_active and e > dawn_elevation:
 		_end_night()
 
-	if night_active and to_spawn > 0:
+	if night_active and spawned < total:
+		night_time += delta
 		spawn_timer -= delta
-		if spawn_timer <= 0.0:
-			spawn_timer = spawn_interval
+		var spread: float = maxf(sun.day_length_seconds * spread_fraction, 1.0)
+		var target := ceili(total * clampf(night_time / spread, 0.0, 1.0))
+		if spawn_timer <= 0.0 and spawned < target:
+			spawn_timer = retry_interval
 			if get_tree().get_nodes_in_group("enemy").size() < max_alive and _spawn_one():
-				to_spawn -= 1
+				spawned += 1
 
 	_update_status()
+
+
+func _choose_directions(for_night: int) -> void:
+	attack_dirs.clear()
+	var first := randf() * TAU
+	attack_dirs.append(first)
+	if for_night >= two_front_night:
+		attack_dirs.append(first + randf_range(deg_to_rad(100.0), deg_to_rad(260.0)))
 
 
 func _begin_night() -> void:
 	night += 1
 	night_active = true
-	to_spawn = wave_size(night)
-	spawn_timer = 3.0
+	total = wave_size(night)
+	if attack_dirs.is_empty() and total > 0:
+		_choose_directions(night)
+	spawned = 0
+	night_time = 0.0
+	spawn_timer = first_delay
 
 
 func _end_night() -> void:
 	night_active = false
-	to_spawn = 0
+	total = 0
+	spawned = 0
+	attack_dirs.clear()
 	for enemy in get_tree().get_nodes_in_group("enemy"):
 		enemy.dissolve()
 
@@ -94,6 +131,9 @@ func _spawn_one() -> bool:
 	if enemy_scene == null or not is_instance_valid(core) or terrain == null:
 		return false
 	var angle := randf() * TAU
+	if not attack_dirs.is_empty() and randf() < focus_share:
+		var base: float = attack_dirs[randi() % attack_dirs.size()]
+		angle = base + randf_range(-1.0, 1.0) * deg_to_rad(focus_spread_degrees)
 	var radius := spawn_radius + randf_range(-spawn_jitter, spawn_jitter)
 	var c: Vector3 = core.global_position
 	var pos := Vector3(c.x + cos(angle) * radius, 0.0, c.z + sin(angle) * radius)
@@ -117,8 +157,7 @@ func _update_status() -> void:
 	if night_active and night <= calm_nights:
 		text = "NIGHT %d  -  Calm" % night
 	elif night_active:
-		var left: int = to_spawn + get_tree().get_nodes_in_group("enemy").size()
-		text = "NIGHT %d  -  Gloom left: %d" % [night, left]
+		text = "Gloom attacking: %d/%d" % [get_tree().get_nodes_in_group("enemy").size(), total]
 	else:
 		text = "Day  -  Night %d approaches" % (night + 1)
 	if text != last_status:

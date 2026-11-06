@@ -3,6 +3,9 @@ extends "res://scripts/resource_node.gd"
 const TileArt = preload("res://scripts/tile_art.gd")
 
 const SUPPORT_INTERVAL := 0.25
+const REINFORCE_HP := 2.5
+const DARKEN := 0.55
+const DECAL_TILE := "reinforced_decal"
 
 var block_type: String = "wood"
 var needs_support: bool = false
@@ -14,8 +17,14 @@ var weight: int = 2
 var max_load: int = 99
 var collapsing: bool = false
 var falling_now: bool = false
+var reinforced: bool = false
+var base_health: int = 0
+var body_mesh: MeshInstance3D
+var decal_mesh: MeshInstance3D
 
 static var _materials: Dictionary = {}
+static var _dark_materials: Dictionary = {}
+static var _decal_material: StandardMaterial3D
 
 
 func _configure() -> void:
@@ -23,6 +32,7 @@ func _configure() -> void:
 	resource_type = info["resource"]
 	resource_amount = Inventory.BLOCK_COST
 	max_health = info["health"]
+	base_health = max_health
 	chip_color = info["color"]
 	add_to_group("block")
 	terrain = get_tree().get_first_node_in_group("terrain")
@@ -39,6 +49,7 @@ func _build() -> void:
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	visual.add_child(mi)
+	body_mesh = mi
 
 	var col := CollisionShape3D.new()
 	col.shape = BoxShape3D.new()
@@ -70,12 +81,60 @@ func _supported() -> bool:
 
 
 func cells() -> Array:
-	var base := Vector3i(floori(global_position.x), floori(global_position.y), floori(global_position.z))
+	var base: Vector3i = Vector3i(floori(global_position.x), floori(global_position.y), floori(global_position.z))
 	var height := int(Inventory.BLOCK_TYPES[block_type].get("height", 1))
 	var out: Array = []
 	for i in height:
 		out.append(base + Vector3i(0, i, 0))
+	for extra: Vector3i in extra_cells():
+		out.append(base + extra)
 	return out
+
+
+func extra_cells() -> Array:
+	return []
+
+
+func is_brick() -> bool:
+	return body_mesh != null and block_type.ends_with("_brick") and block_type != "ruined_brick"
+
+
+func set_reinforced(value: bool) -> void:
+	if value == reinforced or body_mesh == null:
+		return
+	reinforced = value
+	var ratio := float(current_health) / float(maxi(max_health, 1))
+	max_health = roundi(base_health * REINFORCE_HP) if value else base_health
+	current_health = clampi(roundi(ratio * max_health), 1, max_health)
+	if value:
+		body_mesh.material_override = _dark_material_for(block_type)
+		decal_mesh = MeshInstance3D.new()
+		decal_mesh.mesh = TileArt.box_mesh(Vector3.ONE * 1.004, _get_decal_material())
+		decal_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		visual.add_child(decal_mesh)
+	else:
+		body_mesh.material_override = null
+		if decal_mesh != null:
+			decal_mesh.queue_free()
+			decal_mesh = null
+
+
+static func _dark_material_for(type: String) -> StandardMaterial3D:
+	if not _dark_materials.has(type):
+		var mat: StandardMaterial3D = _material_for(type).duplicate()
+		mat.albedo_color = mat.albedo_color * Color(DARKEN, DARKEN, DARKEN * 1.05, 1.0)
+		_dark_materials[type] = mat
+	return _dark_materials[type]
+
+
+static func _get_decal_material() -> StandardMaterial3D:
+	if _decal_material == null:
+		_decal_material = StandardMaterial3D.new()
+		_decal_material.albedo_texture = TileArt.texture(DECAL_TILE, Color(0, 0, 0, 0))
+		_decal_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_decal_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		_decal_material.roughness = 1.0
+	return _decal_material
 
 
 func _mark_stability() -> void:
@@ -113,6 +172,18 @@ func _finish_collapse(tween: Tween) -> void:
 	if stability != null and not stability.is_unstable(self):
 		collapsing = false
 		return
+	if stability != null and extra_cells().is_empty():
+		var base: Vector3i = cells()[0]
+		var landing: Vector3i = stability.landing_cell(self)
+		if landing.y < base.y:
+			collapsing = false
+			fall_to(landing)
+			return
+		var below = stability.cell_map.get(base + Vector3i.DOWN)
+		if below != null and stability.is_unstable(below):
+			collapsing = false
+			begin_collapse(0.35)
+			return
 	if randf() < 0.5:
 		resource_amount = 0
 	take_damage(max_health)

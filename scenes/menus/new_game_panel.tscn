@@ -65,13 +65,6 @@ toggle_mode = true
 button_group = SubResource("ButtonGroup_modes")
 text = "Creative"
 
-[node name="ModeHint" type="Label" parent="Box"]
-custom_minimum_size = Vector2(620, 0)
-layout_mode = 2
-theme_type_variation = &"DimLabel"
-text = "Survival is the regular game. Creative adds a menu with every block and item."
-autowrap_mode = 3
-
 [node name="Options" type="VBoxContainer" parent="Box"]
 layout_mode = 2
 theme_override_constants/separation = 14
