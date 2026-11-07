@@ -42,6 +42,7 @@ var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 var mine_timer = 0.0
 var attack_timer = 0.0
 var frozen = false
+var slow: float = 1.0
 var ghost_valid_mat
 var ghost_blocked_mat
 var ghost_warn_mat
@@ -175,23 +176,23 @@ func _physics_process(delta):
 
 	var input_dir = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 	if on_ladder and not jumped:
-		velocity.y = -input_dir.y * CLIMB_SPEED * climb_sign(ladder)
+		velocity.y = -input_dir.y * CLIMB_SPEED * slow * climb_sign(ladder)
 	var direction = (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
 
 	if not is_on_floor():
 		var flat := Vector2(velocity.x, velocity.z)
 		if direction:
-			flat = flat.move_toward(Vector2(direction.x, direction.z) * SPEED, AIR_ACCEL * delta)
+			flat = flat.move_toward(Vector2(direction.x, direction.z) * SPEED * slow, AIR_ACCEL * delta)
 		else:
 			flat = flat.move_toward(Vector2.ZERO, AIR_DRAG * delta)
 		velocity.x = flat.x
 		velocity.z = flat.y
 	elif direction:
-		velocity.x = direction.x * SPEED
-		velocity.z = direction.z * SPEED
+		velocity.x = direction.x * SPEED * slow
+		velocity.z = direction.z * SPEED * slow
 	else:
-		velocity.x = move_toward(velocity.x, 0, SPEED)
-		velocity.z = move_toward(velocity.z, 0, SPEED)
+		velocity.x = move_toward(velocity.x, 0, SPEED * slow)
+		velocity.z = move_toward(velocity.z, 0, SPEED * slow)
 
 	var impact = velocity.y
 	move_and_slide()

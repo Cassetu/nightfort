@@ -141,7 +141,8 @@ func _refresh() -> void:
 	health_label.text = "%d/%d" % [core.current_health, core.max_health]
 	health_bar.max_value = core.max_health
 	health_bar.value = core.current_health
-	heal_label.text = "+%d" % core.night_heal
+	var amount = core.get("night_heal")
+	heal_label.text = "+%d" % (int(amount) if amount != null else 5)
 
 
 func _input(event: InputEvent) -> void:

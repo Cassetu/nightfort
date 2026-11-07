@@ -131,7 +131,8 @@ func _begin_night() -> void:
 
 func _end_night() -> void:
 	if is_instance_valid(core):
-		core.heal(core.night_heal)
+		var amount = core.get("night_heal")
+		core.heal(int(amount) if amount != null else 5)
 	night_active = false
 	total = 0
 	spawned = 0
