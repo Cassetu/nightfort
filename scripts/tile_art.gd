@@ -100,7 +100,8 @@ static func texture(tile_name: String, fallback: Color) -> ImageTexture:
 static func icon(item_id: String, tile_name: String = "") -> Texture2D:
 	if _icons.has(item_id):
 		return _icons[item_id]
-	var img := _load_image(ITEM_DIR + item_id + ".png")
+	var file := str(Inventory.ITEMS.get(item_id, {}).get("icon", item_id))
+	var img := _load_image(ITEM_DIR + file + ".png")
 	if img == null and _is_cube(item_id):
 		var info: Dictionary = Inventory.ITEMS[item_id]
 		img = cube_image(tile_image(str(info.get("tile", "")), info.get("color", Color.WHITE)))

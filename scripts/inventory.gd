@@ -13,7 +13,7 @@ const MAX_STACK := 100
 const BLOCK_COST := 1
 const EQUIP_SLOTS := ["head", "chest", "legs", "feet", "bauble"]
 
-const BLOCK_TYPES := {
+var BLOCK_TYPES := {
 	"wood": {"name": "Wood Block", "resource": "wood", "tile": "wood", "weight": 1, "health": 3, "color": Color(0.58, 0.40, 0.22)},
 	"stone": {"name": "Stone Block", "resource": "stone", "tile": "stone", "health": 6, "color": Color(0.62, 0.62, 0.65)},
 	"dirt": {"name": "Dirt Block", "resource": "dirt", "tile": "dirt", "health": 2, "color": Color(0.42, 0.29, 0.18)},
@@ -35,12 +35,13 @@ const BLOCK_TYPES := {
 	"sand": {"name": "Sand Block", "resource": "sand", "tile": "sand", "falls": true, "weight": 2, "health": 2, "color": Color(0.76, 0.68, 0.45)},
 	"ruined_brick": {"name": "Ruined Bricks", "resource": "stone", "tile": "ruined_brick", "weight": 3, "health": 3, "color": Color(0.36, 0.38, 0.33)},
 	"stone_forge": {"name": "Stone Forge", "resource": "stone_forge", "tile": "stone_brick", "weight": 3, "health": 14, "color": Color(0.5, 0.5, 0.52), "scene": "res://scenes/forge.tscn", "height": 2, "wide": true},
+	"barricade": {"name": "Spiked Barricade", "resource": "barricade", "weight": 0, "structural": false, "health": 6, "color": Color(0.5, 0.36, 0.2), "scene": "res://scenes/barricade.tscn", "needs_support": true},
 	"scaffold": {"name": "Scaffold", "resource": "scaffold", "tile": "plank", "weight": 0, "max_load": 3, "health": 3, "color": Color(0.72, 0.55, 0.32), "scene": "res://scenes/scaffold.tscn"},
 	"ladder": {"name": "Ladder", "resource": "ladder", "tile": "plank", "weight": 0, "structural": false, "health": 2, "color": Color(0.72, 0.55, 0.32), "scene": "res://scenes/ladder.tscn"},
 	"torch": {"name": "Torch", "resource": "torch", "structural": false, "health": 1, "color": Color(0.9, 0.6, 0.25), "scene": "res://scenes/torch.tscn", "needs_support": true, "ghost": Vector3(0.25, 1.0, 0.25)},
 }
 
-const ITEMS := {
+var ITEMS := {
 	"sword": {"name": "Sword", "kind": "weapon", "max_stack": 1, "damage": 3, "cooldown": 0.45, "reach": 2.6, "color": Color(0.78, 0.84, 0.92)},
 	"wood": {"name": "Wood", "kind": "block", "tile": "wood", "color": Color(0.58, 0.40, 0.22)},
 	"stone": {"name": "Stone", "kind": "block", "tile": "stone", "color": Color(0.62, 0.62, 0.65)},
@@ -65,11 +66,19 @@ const ITEMS := {
 	"limestone": {"name": "Limestone", "kind": "block", "tile": "limestone", "color": Color(0.72, 0.68, 0.58)},
 	"limestone_brick": {"name": "Limestone Bricks", "kind": "block", "tile": "limestone_brick", "color": Color(0.72, 0.68, 0.58)},
 	"door": {"name": "Door", "kind": "block", "color": Color(0.45, 0.3, 0.17)},
+	"barricade": {"name": "Spiked Barricade", "kind": "block", "color": Color(0.5, 0.36, 0.2)},
 	"scaffold": {"name": "Scaffold", "kind": "block", "tile": "plank", "color": Color(0.72, 0.55, 0.32)},
+	"bow": {"name": "Bow", "kind": "bow", "slot": "weapon", "max_stack": 1, "damage": 3, "cooldown": 1.1, "range": 24.0, "color": Color(0.5, 0.36, 0.2)},
+	"arrow": {"name": "Arrow", "kind": "material", "color": Color(0.7, 0.6, 0.45)},
 	"stick": {"name": "Stick", "kind": "material", "color": Color(0.58, 0.4, 0.22)},
 	"ladder": {"name": "Ladder", "kind": "block", "tile": "plank", "color": Color(0.72, 0.55, 0.32)},
 	"torch": {"name": "Torch", "kind": "block", "color": Color(0.9, 0.6, 0.25)},
 	"stone_forge": {"name": "Stone Forge", "kind": "block", "color": Color(0.5, 0.5, 0.52)},
+	"fiber": {"name": "Fiber", "kind": "material", "color": Color(0.5, 0.48, 0.26)},
+	"wooden_pickaxe": {"name": "Wooden Pickaxe", "kind": "tool", "tool": "pickaxe", "power": 1.5, "max_stack": 1, "color": Color(0.6, 0.45, 0.28)},
+	"wooden_axe": {"name": "Wooden Axe", "kind": "tool", "tool": "axe", "power": 1.5, "max_stack": 1, "color": Color(0.6, 0.45, 0.28)},
+	"wooden_shovel": {"name": "Wooden Shovel", "kind": "tool", "tool": "shovel", "power": 1.5, "max_stack": 1, "color": Color(0.6, 0.45, 0.28)},
+	"wooden_sword": {"name": "Wooden Sword", "kind": "weapon", "max_stack": 1, "damage": 2, "cooldown": 0.5, "reach": 2.6, "color": Color(0.6, 0.45, 0.28)},
 	"stone_pickaxe": {"name": "Stone Pickaxe", "kind": "tool", "tool": "pickaxe", "power": 2.0, "max_stack": 1, "color": Color(0.55, 0.57, 0.52)},
 	"stone_axe": {"name": "Stone Axe", "kind": "tool", "tool": "axe", "power": 2.0, "max_stack": 1, "color": Color(0.55, 0.57, 0.52)},
 	"stone_shovel": {"name": "Stone Shovel", "kind": "tool", "tool": "shovel", "power": 2.0, "max_stack": 1, "color": Color(0.55, 0.57, 0.52)},
@@ -111,6 +120,22 @@ func reset() -> void:
 	selected = 0
 	changed.emit()
 	selection_changed.emit(0)
+
+
+func register_banner(troop_id: int, troop_name: String) -> String:
+	var key := "banner_%d" % troop_id
+	var label := "%s's Banner" % troop_name
+	var color := Color(0.5, 0.17, 0.15)
+	ITEMS[key] = {"name": label, "kind": "block", "icon": "banner", "max_stack": 1, "color": color}
+	BLOCK_TYPES[key] = {"name": label, "resource": key, "weight": 0, "structural": false, "health": 2, "color": color, "scene": "res://scenes/banner.tscn", "height": 2, "needs_support": true, "ghost": Vector3(0.3, 1.0, 0.3), "territory": true}
+	return key
+
+
+func clear_banners() -> void:
+	for key in ITEMS.keys():
+		if str(key).begins_with("banner_"):
+			ITEMS.erase(key)
+			BLOCK_TYPES.erase(key)
 
 
 func export_state() -> Dictionary:
@@ -301,6 +326,16 @@ func held_weapon() -> Dictionary:
 		return {}
 	var info: Dictionary = ITEMS.get(s["id"], {})
 	if info.get("kind", "") == "weapon":
+		return info
+	return {}
+
+
+func held_bow() -> Dictionary:
+	var s: Dictionary = slots[selected]
+	if s.is_empty():
+		return {}
+	var info: Dictionary = ITEMS.get(s["id"], {})
+	if info.get("kind", "") == "bow":
 		return info
 	return {}
 

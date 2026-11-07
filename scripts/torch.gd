@@ -3,11 +3,13 @@ extends "res://scripts/block.gd"
 const WIND_SCALE := 1.1
 
 @export var base_energy: float = 1.8
+@export var fill_energy: float = 0.32
 
 var fixture: bool = false
 var time: float = 0.0
 
 @onready var light: OmniLight3D = %Light
+@onready var fill: OmniLight3D = %Fill
 @onready var particles: CPUParticles3D = %Particles
 @onready var base_mesh: MeshInstance3D = %Base
 
@@ -39,6 +41,7 @@ func _process(delta: float) -> void:
 	super(delta)
 	time += delta
 	light.light_energy = base_energy * (1.0 + 0.12 * sin(time * 9.0) + 0.08 * sin(time * 23.0))
+	fill.light_energy = fill_energy * (1.0 + 0.06 * sin(time * 9.0) + 0.04 * sin(time * 23.0))
 	var t := Time.get_ticks_msec() / 1000.0
 	var phase := global_position.x * 0.45 + global_position.z * 0.35
 	var gust := sin(t * 1.6 + phase) + 0.5 * sin(t * 3.68 + phase * 1.7)

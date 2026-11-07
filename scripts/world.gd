@@ -10,6 +10,12 @@ const RuinsScript = preload("res://scripts/ruins.gd")
 const StabilityScript = preload("res://scripts/stability.gd")
 const WildSpawnerScript = preload("res://scripts/wild_spawner.gd")
 const WeatherScript = preload("res://scripts/weather.gd")
+const TerritoryScript = preload("res://scripts/territory.gd")
+const TroopScene = preload("res://scenes/troop.tscn")
+const TroopScript = preload("res://scripts/troop.gd")
+const MinimapScene = preload("res://scenes/minimap.tscn")
+const WetSurfacesScript = preload("res://scripts/wet_surfaces.gd")
+const BirdsScript = preload("res://scripts/birds.gd")
 const AttackMarkerScene = preload("res://scenes/attack_marker.tscn")
 
 @onready var sun = $Sun
@@ -25,9 +31,13 @@ const AttackMarkerScene = preload("res://scenes/attack_marker.tscn")
 
 var intro_playing: bool = false
 var inventory_open: bool = false
+var territory
+var troops: Array = []
+var next_troop_id: int = 1
 
 
 func _ready() -> void:
+	Inventory.clear_banners()
 	terrain.pin(core.global_position, 4)
 	flow.setup(terrain, core)
 	spawner.setup(terrain, flow, core, player, sun, enemies)
@@ -42,14 +52,32 @@ func _ready() -> void:
 	wild_spawner.set_script(WildSpawnerScript)
 	add_child(wild_spawner)
 	wild_spawner.setup(terrain, core, player, sun, enemies)
+	territory = Node3D.new()
+	territory.name = "Territory"
+	territory.set_script(TerritoryScript)
+	add_child(territory)
+	territory.setup(terrain, core)
 	var attack_marker = AttackMarkerScene.instantiate()
 	add_child(attack_marker)
 	attack_marker.setup(spawner, core, terrain)
+	var minimap = MinimapScene.instantiate()
+	add_child(minimap)
+	minimap.setup(player, core, terrain)
 	var weather = Node.new()
 	weather.name = "Weather"
 	weather.set_script(WeatherScript)
 	add_child(weather)
 	weather.setup(sun, $WorldEnvironment.environment, player, terrain)
+	var wet_surfaces = Node.new()
+	wet_surfaces.name = "WetSurfaces"
+	wet_surfaces.set_script(WetSurfacesScript)
+	add_child(wet_surfaces)
+	wet_surfaces.setup(terrain)
+	var birds = Node3D.new()
+	birds.name = "Birds"
+	birds.set_script(BirdsScript)
+	add_child(birds)
+	birds.setup(player, sun, weather)
 	_place_torches()
 	player.notice.connect(ui.show_notice)
 	inv_ui.setup(player, ui, self)
@@ -59,6 +87,7 @@ func _ready() -> void:
 	add_child(forge_ui)
 	forge_ui.setup(player, self, inv_ui)
 	player.forge_used.connect(forge_ui.open_forge)
+	player.troop_used.connect(inv_ui.open_troop)
 	if Game.gamemode == "creative":
 		var creative_ui = CreativeUIScene.instantiate()
 		add_child(creative_ui)
@@ -88,7 +117,34 @@ func _ready() -> void:
 		intro.play()
 	else:
 		intro.queue_free()
+	if troops.is_empty():
+		spawn_troop({})
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+
+
+func spawn_troop(data: Dictionary) -> Node:
+	var used: Array = []
+	for t in troops:
+		if is_instance_valid(t):
+			used.append(t.display_name)
+	var info := data.duplicate()
+	if not info.has("id"):
+		info["id"] = next_troop_id
+		info["rest_index"] = troops.size()
+	if not info.has("name"):
+		var pool: Array = []
+		for n in TroopScript.NAMES:
+			if not used.has(n):
+				pool.append(n)
+		if pool.is_empty():
+			pool = TroopScript.NAMES
+		info["name"] = pool[randi() % pool.size()]
+	next_troop_id = maxi(next_troop_id, int(info["id"]) + 1)
+	var troop = TroopScene.instantiate()
+	add_child(troop)
+	troop.setup(self, terrain, core, info)
+	troops.append(troop)
+	return troop
 
 
 func _on_recipes_unlocked(ids: Array) -> void:
@@ -186,7 +242,13 @@ func collect_state() -> Dictionary:
 	if is_instance_valid(core):
 		core_hp = core.current_health
 
+	var troop_data: Array = []
+	for t in troops:
+		if is_instance_valid(t):
+			troop_data.append(t.export_state())
+
 	return {
+		"troops": troop_data,
 		"sun": {"quat": [q.x, q.y, q.z, q.w], "phase": sun.day_phase},
 		"player": player.export_state(),
 		"core": {"hp": core_hp},
@@ -212,6 +274,8 @@ func apply_state(d: Dictionary) -> void:
 	if c.has("hp") and is_instance_valid(core):
 		core.set_health(int(c["hp"]))
 
+	for td in d.get("troops", []):
+		spawn_troop(td)
 	Inventory.import_state(d.get("inventory", {}))
 	spawner.import_state(d.get("waves", {}))
 	for dd in d.get("drops", []):

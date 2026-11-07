@@ -1,18 +1,18 @@
 [gd_scene load_steps=18 format=3 uid="uid://c66ndex75uxn4"]
 
 [ext_resource type="PackedScene" uid="uid://dudcni17usbht" path="res://scenes/player.tscn" id="1_nnsk1"]
-[ext_resource type="Script" uid="uid://bpm6x2hnclkp8" path="res://scripts/sun.gd" id="1_rwgxs"]
+[ext_resource type="Script" uid="uid://cdgex2rftoyya" path="res://scripts/sun.gd" id="1_rwgxs"]
 [ext_resource type="PackedScene" uid="uid://cx7k8iaq34851" path="res://scenes/hud.tscn" id="3_4wyf3"]
 [ext_resource type="PackedScene" uid="uid://dub2ibctw8foy" path="res://scenes/core.tscn" id="4_k0juu"]
-[ext_resource type="Script" uid="uid://b0yh1lflhaqv2" path="res://scripts/terrain.gd" id="5_terra"]
-[ext_resource type="Script" path="res://scripts/world.gd" id="6_world"]
-[ext_resource type="PackedScene" path="res://scenes/game_ui.tscn" id="7_ui"]
-[ext_resource type="Script" path="res://scripts/flow_field.gd" id="8_flow"]
-[ext_resource type="Script" path="res://scripts/wave_spawner.gd" id="9_waves"]
-[ext_resource type="PackedScene" path="res://scenes/gloom.tscn" id="10_gloom"]
+[ext_resource type="Script" uid="uid://1w53ymvekl5g" path="res://scripts/terrain.gd" id="5_terra"]
+[ext_resource type="Script" uid="uid://c2hmhkeywxx46" path="res://scripts/world.gd" id="6_world"]
+[ext_resource type="PackedScene" uid="uid://cbsouelol0coa" path="res://scenes/game_ui.tscn" id="7_ui"]
+[ext_resource type="Script" uid="uid://kgpr645xbsjp" path="res://scripts/flow_field.gd" id="8_flow"]
+[ext_resource type="Script" uid="uid://bhg34p6owcff4" path="res://scripts/wave_spawner.gd" id="9_waves"]
+[ext_resource type="PackedScene" uid="uid://5fcol8uiw01l" path="res://scenes/gloom.tscn" id="10_gloom"]
 [ext_resource type="PackedScene" path="res://scenes/intro.tscn" id="11_intro"]
 [ext_resource type="PackedScene" path="res://scenes/inventory_ui.tscn" id="12_inv"]
-[ext_resource type="Shader" path="res://resources/post.gdshader" id="13_post"]
+[ext_resource type="Shader" uid="uid://bm1k2kcxxt0g5" path="res://resources/post.gdshader" id="13_post"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_4wyf3"]
 sky_top_color = Color(0.22, 0.45, 0.85, 1)
@@ -21,9 +21,6 @@ ground_horizon_color = Color(0.62, 0.76, 0.92, 1)
 
 [sub_resource type="Sky" id="Sky_k0juu"]
 sky_material = SubResource("ProceduralSkyMaterial_4wyf3")
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_post"]
-shader = ExtResource("13_post")
 
 [sub_resource type="Environment" id="Environment_71j4m"]
 background_mode = 2
@@ -43,6 +40,16 @@ fog_sky_affect = 0.6
 adjustment_enabled = true
 adjustment_contrast = 1.08
 adjustment_saturation = 0.85
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_post"]
+shader = ExtResource("13_post")
+shader_parameter/target_height = 270.0
+shader_parameter/color_levels = 28.0
+shader_parameter/dither_strength = 0.9
+shader_parameter/desaturate = 0.12
+shader_parameter/vignette_strength = 0.6
+shader_parameter/vignette_inner = 0.3
+shader_parameter/vignette_outer = 0.95
 
 [node name="World" type="Node3D"]
 script = ExtResource("6_world")
@@ -78,8 +85,6 @@ enemy_scene = ExtResource("10_gloom")
 
 [node name="GameUI" parent="." instance=ExtResource("7_ui")]
 
-[node name="InventoryUI" parent="." instance=ExtResource("12_inv")]
-
 [node name="Intro" parent="." instance=ExtResource("11_intro")]
 
 [node name="PostFX" type="CanvasLayer" parent="."]
@@ -93,3 +98,5 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+
+[node name="InventoryUI" parent="." instance=ExtResource("12_inv")]

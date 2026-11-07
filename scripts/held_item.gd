@@ -10,7 +10,9 @@ const TILT_X := -8.0
 const TILT_Y := -25.0
 const DIAGONAL_Z := 45.0
 const UPRIGHT_Z := 12.0
-const UPRIGHT := ["torch"]
+const UPRIGHT := ["torch", "bow"]
+const DRAW_MOVE := Vector3(-0.04, 0.02, 0.2)
+const DRAW_ROT := Vector3(6.0, 14.0, 0.0)
 const SWING_ROT := Vector3(-62.0, 10.0, 0.0)
 const SWING_MOVE := Vector3(-0.1, -0.07, -0.16)
 const SWING_IN := 0.09
@@ -30,6 +32,7 @@ static var _material: StandardMaterial3D
 var item_id: String = ""
 var suppressed: bool = false
 var swing: float = 0.0
+var draw: float = 0.0
 var swing_tween: Tween
 var bob_phase: float = 0.0
 var bob_amount: float = 0.0
@@ -65,6 +68,10 @@ func set_motion(amount: float) -> void:
 	bob_target = clampf(amount, 0.0, 1.0)
 
 
+func set_draw(amount: float) -> void:
+	draw = clampf(amount, 0.0, 1.0)
+
+
 func play_swing() -> void:
 	if swing_tween:
 		swing_tween.kill()
@@ -81,8 +88,9 @@ func _process(delta: float) -> void:
 	bob_phase += delta * BOB_RATE * bob_amount
 	var bob := Vector3(sin(bob_phase) * BOB_SIDE, -absf(sin(bob_phase)) * BOB_DEPTH, 0.0) * bob_amount
 	var idle := Vector3(0.0, sin(t * 1.6) * 0.004, 0.0)
-	position = BASE_POS + bob + idle + SWING_MOVE * swing
-	rotation_degrees = SWING_ROT * swing
+	var shake := Vector3(sin(t * 38.0), cos(t * 31.0), 0.0) * 0.002 * smoothstep(0.8, 1.0, draw)
+	position = BASE_POS + bob + idle + SWING_MOVE * swing + DRAW_MOVE * draw + shake
+	rotation_degrees = SWING_ROT * swing + DRAW_ROT * draw
 	if light.visible:
 		light.light_energy = TORCH_ENERGY * (1.0 + 0.1 * sin(t * 9.0) + 0.06 * sin(t * 23.0))
 

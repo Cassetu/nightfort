@@ -6,6 +6,10 @@ const SUPPORT_INTERVAL := 0.25
 const REINFORCE_HP := 2.5
 const DARKEN := 0.55
 const DECAL_TILE := "reinforced_decal"
+const WET_ROUGHNESS := 0.2
+const WET_DARKEN := 0.22
+const WET_COAT := 0.8
+const WET_COAT_ROUGHNESS := 0.08
 
 var block_type: String = "wood"
 var needs_support: bool = false
@@ -18,6 +22,7 @@ var max_load: int = 99
 var collapsing: bool = false
 var falling_now: bool = false
 var reinforced: bool = false
+var wet: bool = false
 var base_health: int = 0
 var body_mesh: MeshInstance3D
 var decal_mesh: MeshInstance3D
@@ -25,6 +30,9 @@ var decal_mesh: MeshInstance3D
 static var _materials: Dictionary = {}
 static var _dark_materials: Dictionary = {}
 static var _decal_material: StandardMaterial3D
+static var _wet_materials: Dictionary = {}
+static var _wet_bases: Dictionary = {}
+static var wet_level: float = 0.0
 
 
 func _configure() -> void:
@@ -81,7 +89,7 @@ func _supported() -> bool:
 
 
 func cells() -> Array:
-	var base: Vector3i = Vector3i(floori(global_position.x), floori(global_position.y), floori(global_position.z))
+	var base := Vector3i(floori(global_position.x), floori(global_position.y), floori(global_position.z))
 	var height := int(Inventory.BLOCK_TYPES[block_type].get("height", 1))
 	var out: Array = []
 	for i in height:
@@ -107,16 +115,58 @@ func set_reinforced(value: bool) -> void:
 	max_health = roundi(base_health * REINFORCE_HP) if value else base_health
 	current_health = clampi(roundi(ratio * max_health), 1, max_health)
 	if value:
-		body_mesh.material_override = _dark_material_for(block_type)
 		decal_mesh = MeshInstance3D.new()
 		decal_mesh.mesh = TileArt.box_mesh(Vector3.ONE * 1.004, _get_decal_material())
 		decal_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		visual.add_child(decal_mesh)
+	elif decal_mesh != null:
+		decal_mesh.queue_free()
+		decal_mesh = null
+	_apply_material()
+
+
+func set_wet(value: bool) -> void:
+	if value == wet or body_mesh == null:
+		return
+	wet = value
+	_apply_material()
+
+
+func _apply_material() -> void:
+	if wet:
+		body_mesh.material_override = _wet_material_for(block_type, reinforced)
+	elif reinforced:
+		body_mesh.material_override = _dark_material_for(block_type)
 	else:
 		body_mesh.material_override = null
-		if decal_mesh != null:
-			decal_mesh.queue_free()
-			decal_mesh = null
+
+
+static func _wet_material_for(type: String, dark: bool) -> StandardMaterial3D:
+	var key := type + ("_dark" if dark else "")
+	if not _wet_materials.has(key):
+		var base: StandardMaterial3D = _dark_material_for(type) if dark else _material_for(type)
+		var mat: StandardMaterial3D = base.duplicate()
+		mat.clearcoat_enabled = true
+		_wet_bases[key] = base
+		_wet_materials[key] = mat
+		_tune_wet(mat, base)
+	return _wet_materials[key]
+
+
+static func _tune_wet(mat: StandardMaterial3D, base: StandardMaterial3D) -> void:
+	var k := 1.0 - WET_DARKEN * wet_level
+	mat.albedo_color = Color(base.albedo_color.r * k, base.albedo_color.g * k, base.albedo_color.b * k, base.albedo_color.a)
+	mat.roughness = lerpf(base.roughness, WET_ROUGHNESS, wet_level)
+	mat.clearcoat = WET_COAT * wet_level
+	mat.clearcoat_roughness = WET_COAT_ROUGHNESS
+
+
+static func apply_wetness(level: float) -> void:
+	if absf(level - wet_level) < 0.004:
+		return
+	wet_level = level
+	for key in _wet_materials:
+		_tune_wet(_wet_materials[key], _wet_bases[key])
 
 
 static func _dark_material_for(type: String) -> StandardMaterial3D:

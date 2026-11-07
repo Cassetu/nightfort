@@ -17,6 +17,9 @@ const Y_MAX := 160
 const Y_BASE := Y_MIN - 1
 const Y_LAYERS := Y_MAX - Y_BASE + 1
 const FAR := 1 << 20
+const PLANT_KINDS := ["tuft", "flower", "bush", "shrub"]
+const PLANT_FIBER := {"tuft": 0.28, "flower": 0.4, "bush": 0.55, "shrub": 0.25}
+const PLANT_CHIPS := {"tuft": Color(0.3, 0.42, 0.2), "flower": Color(0.62, 0.42, 0.48), "bush": Color(0.2, 0.34, 0.15), "shrub": Color(0.5, 0.42, 0.25)}
 
 const B_AIR := 0
 const B_GRASS := 1
@@ -188,6 +191,7 @@ var mouth_y: int = 0
 
 var material: ShaderMaterial
 var plant_meshes: Dictionary = {}
+var broken_plants: Dictionary = {}
 var player = null
 var core_node: Node3D = null
 var chunks: Dictionary = {}
@@ -252,7 +256,12 @@ func export_state() -> Dictionary:
 	var gone: Array = []
 	for key: Vector3i in depleted:
 		gone.append([key.x, key.y, key.z])
-	return {"edits": edits, "depleted": gone}
+	var plants_gone: Array = []
+	for cc in broken_plants:
+		var pd: Dictionary = broken_plants[cc]
+		for pk: Vector3i in pd:
+			plants_gone.append([pk.x, pk.y, pk.z])
+	return {"edits": edits, "depleted": gone, "plants_gone": plants_gone}
 
 
 func _import_state(d: Dictionary) -> void:
@@ -263,6 +272,13 @@ func _import_state(d: Dictionary) -> void:
 			edit_chunks[cc] = {}
 		var edits: Dictionary = edit_chunks[cc]
 		edits[cell] = int(e[3])
+	for pg in d.get("plants_gone", []):
+		var pk := Vector3i(int(pg[0]), int(pg[1]), int(pg[2]))
+		var pcc := _chunk_key(floori(float(pk.x) / 50.0), floori(float(pk.z) / 50.0))
+		if not broken_plants.has(pcc):
+			broken_plants[pcc] = {}
+		var pd: Dictionary = broken_plants[pcc]
+		pd[pk] = true
 	for g in d.get("depleted", []):
 		depleted[Vector3i(int(g[0]), int(g[1]), int(g[2]))] = true
 
@@ -1141,7 +1157,9 @@ func _filter_plants(chunk: Chunk, drop: Callable) -> void:
 		var i := 0
 		while i < buf.size():
 			var key := Vector3i(chunk.coord.x * CHUNK + floori(buf[i + 3]), floori(buf[i + 7]), chunk.coord.y * CHUNK + floori(buf[i + 11]))
-			if not drop.call(key):
+			var wx: float = chunk.coord.x * CHUNK + buf[i + 3]
+			var wz: float = chunk.coord.y * CHUNK + buf[i + 11]
+			if not drop.call(key, kind, wx, wz):
 				out.append_array(buf.slice(i, i + 16))
 			i += 16
 		if out.size() == buf.size():
@@ -1159,14 +1177,75 @@ func _filter_plants(chunk: Chunk, drop: Callable) -> void:
 
 
 func _prune_plants(chunk: Chunk) -> void:
-	if not edit_chunks.has(chunk.coord):
+	var edits: Dictionary = edit_chunks.get(chunk.coord, {})
+	var gone: Dictionary = broken_plants.get(chunk.coord, {})
+	if edits.is_empty() and gone.is_empty():
 		return
-	var edits: Dictionary = edit_chunks[chunk.coord]
-	_filter_plants(chunk, func(key: Vector3i) -> bool: return edits.has(key))
+	_filter_plants(chunk, func(key: Vector3i, kind: String, wx: float, wz: float) -> bool: return edits.has(key) or gone.has(_plant_key(kind, wx, wz)))
 
 
 func _remove_plants(chunk: Chunk, cell: Vector3i) -> void:
-	_filter_plants(chunk, func(key: Vector3i) -> bool: return key == cell)
+	_filter_plants(chunk, func(key: Vector3i, _kind: String, _wx: float, _wz: float) -> bool: return key == cell)
+
+
+func _plant_key(kind: String, wx: float, wz: float) -> Vector3i:
+	return Vector3i(roundi(wx * 50.0), PLANT_KINDS.find(kind), roundi(wz * 50.0))
+
+
+func _plant_shape(kind: String, sx: float, sy: float) -> Vector2:
+	if kind == "bush":
+		return Vector2(0.3 * sy, 0.55 * sx)
+	return Vector2(0.4 * sy, maxf(0.3, 0.4 * sx))
+
+
+func pick_plant(origin: Vector3, dir: Vector3, reach: float, limit: float) -> Dictionary:
+	if not plants_enabled:
+		return {}
+	var cells: Dictionary = {}
+	var steps := int(ceilf(reach))
+	for s in range(steps + 1):
+		var p := origin + dir * (reach * float(s) / float(steps))
+		for off: Vector2 in [Vector2(-0.6, -0.6), Vector2(0.6, -0.6), Vector2(-0.6, 0.6), Vector2(0.6, 0.6)]:
+			cells[_chunk_key(floori(p.x + off.x), floori(p.z + off.y))] = true
+	var best := {}
+	var best_t := minf(reach, limit)
+	for cc: Vector2i in cells:
+		if not chunks.has(cc):
+			continue
+		var chunk: Chunk = chunks[cc]
+		var base := Vector3(cc.x * CHUNK, 0.0, cc.y * CHUNK)
+		for kind: String in chunk.plants:
+			var buf: PackedFloat32Array = chunk.plants[kind]
+			var i := 0
+			while i < buf.size():
+				var sx := Vector2(buf[i], buf[i + 2]).length()
+				var sy: float = buf[i + 5]
+				var shape := _plant_shape(kind, sx, sy)
+				var pos := base + Vector3(buf[i + 3], buf[i + 7], buf[i + 11])
+				var c := pos + Vector3(0.0, shape.x, 0.0)
+				var t := clampf((c - origin).dot(dir), 0.0, reach)
+				if t < best_t and (origin + dir * t).distance_to(c) <= shape.y:
+					best_t = t
+					best = {"kind": kind, "pos": pos, "center": c, "coord": cc}
+				i += 16
+	return best
+
+
+func break_plant(info: Dictionary) -> Dictionary:
+	var cc: Vector2i = info["coord"]
+	var kind: String = info["kind"]
+	var pos: Vector3 = info["pos"]
+	var key := _plant_key(kind, pos.x, pos.z)
+	if not broken_plants.has(cc):
+		broken_plants[cc] = {}
+	var gone: Dictionary = broken_plants[cc]
+	gone[key] = true
+	_spawn_chips(info["center"], PLANT_CHIPS.get(kind, Color(0.3, 0.45, 0.2)))
+	if chunks.has(cc):
+		_filter_plants(chunks[cc], func(_k: Vector3i, k: String, wx: float, wz: float) -> bool: return _plant_key(k, wx, wz) == key)
+	if randf() < float(PLANT_FIBER.get(kind, 0.0)):
+		return {"item": "fiber", "amount": randi_range(1, 2) if kind == "bush" else 1}
+	return {}
 
 
 func _on_depleted(_resource_type, _amount, key) -> void:

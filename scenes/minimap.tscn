@@ -1,0 +1,37 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/minimap.gd" id="1_mm"]
+[ext_resource type="Theme" uid="uid://gr2kk87lccmd" path="res://resources/main-theme.tres" id="2_theme"]
+
+[node name="Minimap" type="CanvasLayer"]
+layer = 6
+script = ExtResource("1_mm")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme = ExtResource("2_theme")
+
+[node name="Frame" type="PanelContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -196.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = 196.0
+grow_horizontal = 0
+mouse_filter = 2
+
+[node name="Map" type="Control" parent="Root/Frame"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(164, 164)
+layout_mode = 2
+mouse_filter = 2
+clip_contents = true

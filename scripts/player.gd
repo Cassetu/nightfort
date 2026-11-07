@@ -6,6 +6,7 @@ signal died
 signal notice(text)
 signal workbench_used
 signal forge_used
+signal troop_used
 
 const OutlineMesh = preload("res://scripts/outline_mesh.gd")
 const SPEED = 5.0
@@ -15,10 +16,16 @@ const MINE_REACH = 3.5
 const PLACE_REACH = 5.0
 const MINE_DAMAGE = 1
 const TileArt = preload("res://scripts/tile_art.gd")
+const ArrowScript = preload("res://scripts/arrow.gd")
+const DRAW_TIME = 0.9
+const MIN_DRAW = 0.25
+const ARROW_MIN_SPEED = 0.45
+const ARROW_BASE_DAMAGE = 2
 const AXE_RESOURCES = ["wood", "plank", "cactus", "door", "workbench", "torch", "scaffold"]
 const SHOVEL_RESOURCES = ["dirt", "sand", "snow"]
 const SHOVEL_BLOCKS = [1, 2, 5, 6]
 const MINE_COOLDOWN = 0.35
+const PLANT_COOLDOWN = 0.18
 const CACTUS_PUNCH_DAMAGE = 3
 const AIR_ACCEL = 7.0
 const AIR_DRAG = 1.5
@@ -44,6 +51,8 @@ var dead: bool = false
 var since_damage: float = 0.0
 var was_on_floor: bool = true
 var shown_health: int = 100
+var draw: float = 0.0
+var bow_ready: bool = false
 
 @onready var head = $Head
 @onready var camera = $Head/Camera3D
@@ -141,6 +150,8 @@ func _physics_process(delta):
 		velocity.x = 0.0
 		velocity.z = 0.0
 		held.set_motion(0.0)
+		draw = 0.0
+		held.set_draw(0.0)
 		move_and_slide()
 		return
 
@@ -187,15 +198,54 @@ func _physics_process(delta):
 	held.set_item(held_visual_id())
 	held.set_motion(Vector2(velocity.x, velocity.z).length() / SPEED if is_on_floor() else 0.0)
 
+	var bow: Dictionary = Inventory.held_bow()
+	_bow_update(delta, bow)
+
 	if Input.is_action_pressed("mine") and attack_timer <= 0.0:
 		var weapon: Dictionary = Inventory.held_weapon()
 		if not weapon.is_empty():
 			swing(weapon)
 
-	if Input.is_action_pressed("mine") and mine_timer <= 0.0:
+	if Input.is_action_pressed("mine") and mine_timer <= 0.0 and bow.is_empty():
 		try_mine(hit)
 	if Input.is_action_just_pressed("place"):
 		try_place(hit)
+
+
+func has_arrows():
+	return Game.gamemode == "creative" or Inventory.get_count("arrow") > 0
+
+
+func _bow_update(delta, bow):
+	if bow.is_empty():
+		draw = 0.0
+		bow_ready = false
+		held.set_draw(0.0)
+		return
+	if Input.is_action_just_pressed("mine"):
+		bow_ready = has_arrows()
+		if not bow_ready:
+			notice.emit("No Arrows")
+	if Input.is_action_pressed("mine") and bow_ready:
+		draw = minf(draw + delta / DRAW_TIME, 1.0)
+	else:
+		if draw >= MIN_DRAW and bow_ready:
+			fire_bow(bow, draw)
+		draw = 0.0
+		bow_ready = false
+	held.set_draw(draw)
+
+
+func fire_bow(bow, charge):
+	if Game.gamemode != "creative" and not Inventory.take_item("arrow", 1):
+		return
+	var dir = -camera.global_transform.basis.z
+	var damage = maxi(1, roundi(float(ARROW_BASE_DAMAGE + int(bow.get("damage", 3))) * charge))
+	var arrow = Node3D.new()
+	arrow.set_script(ArrowScript)
+	get_tree().current_scene.add_child(arrow)
+	arrow.ignore = [get_rid()]
+	arrow.launch(camera.global_position + dir * 0.7, dir, damage, ArrowScript.SPEED * (ARROW_MIN_SPEED + (1.0 - ARROW_MIN_SPEED) * charge))
 
 
 func take_damage(amount, _hit_position = Vector3.INF):
@@ -312,7 +362,16 @@ func has_support(cell):
 	return not probe_empty(cell - Vector3(0.0, 1.0, 0.0))
 
 
+func in_territory(cell):
+	var territory = get_tree().get_first_node_in_group("territory")
+	return territory == null or territory.contains(cell)
+
+
 func can_place(type, cell):
+	if Inventory.BLOCK_TYPES[type].get("territory", false):
+		for o in type_offsets(type):
+			if not in_territory(cell + o):
+				return false
 	if type == "ladder" and absf(aim_normal.y) > 0.5:
 		return false
 	var offsets = type_offsets(type)
@@ -364,7 +423,27 @@ func update_ghost(hit):
 	ghost_block.show()
 
 
+func try_break_plant(hit):
+	var terrain = get_tree().get_first_node_in_group("terrain")
+	if terrain == null:
+		return false
+	var limit = INF if hit.is_empty() else hit.position.distance_to(camera.global_position)
+	var plant = terrain.pick_plant(camera.global_position, -camera.global_transform.basis.z, MINE_REACH, limit)
+	if plant.is_empty():
+		return false
+	mine_timer = PLANT_COOLDOWN
+	var drop: Dictionary = terrain.break_plant(plant)
+	if not drop.is_empty():
+		var leftover: int = Inventory.add_item(drop["item"], int(drop["amount"]))
+		if leftover > 0:
+			get_tree().current_scene.spawn_drop(drop["item"], leftover, plant["center"])
+	_tool_swing()
+	return true
+
+
 func try_mine(hit):
+	if try_break_plant(hit):
+		return
 	if hit.is_empty():
 		return
 	var target = hit.collider
@@ -415,7 +494,7 @@ func held_visual_id():
 	if item.is_empty():
 		return ""
 	var kind = str(Inventory.ITEMS.get(item["id"], {}).get("kind", ""))
-	if kind == "tool" or kind == "weapon" or item["id"] == "torch":
+	if kind == "tool" or kind == "weapon" or kind == "bow" or item["id"] == "torch":
 		return item["id"]
 	return ""
 
@@ -467,6 +546,9 @@ func try_place(hit):
 	if not hit.is_empty() and hit.collider.is_in_group("block") and hit.collider.block_type == "ruined_brick":
 		repair_ruined(hit.collider)
 		return
+	if not hit.is_empty() and hit.collider.is_in_group("troop"):
+		troop_used.emit(hit.collider)
+		return
 	if not hit.is_empty() and hit.collider.is_in_group("forge"):
 		forge_used.emit(hit.collider)
 		return
@@ -482,6 +564,9 @@ func try_place(hit):
 		if in_core_zone(cell + o):
 			notice.emit("You can't build this close to the Core")
 			return
+	if Inventory.BLOCK_TYPES[type].get("territory", false) and not in_territory(cell):
+		notice.emit("Outside Territory")
+		return
 	if not can_place(type, cell):
 		return
 	Inventory.consume_selected(Inventory.BLOCK_COST)

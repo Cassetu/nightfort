@@ -3,6 +3,7 @@ extends Node
 enum State { CLEAR, CLOUDY, RAIN, FOG, STORM }
 
 const CloudShader = preload("res://resources/cloud.gdshader")
+const BlockScript = preload("res://scripts/block.gd")
 
 const TARGETS := {
 	State.CLEAR: {"cover": 0.3, "rain": 0.0, "fog": 0.0, "dark": 0.0, "wind": 1.0},
@@ -40,6 +41,7 @@ var dark: float = 0.0
 var wind: float = 1.0
 var wind_offset: Vector2 = Vector2.ZERO
 var rain_shown: float = 0.0
+var wet: float = 0.0
 
 var clouds: MeshInstance3D
 var cloud_material: ShaderMaterial
@@ -180,7 +182,18 @@ func _process(delta: float) -> void:
 	_update_lightning(delta, ppos)
 	_apply_clouds(ppos)
 	_apply_rain(delta, ppos)
+	_apply_wetness(delta)
 	_apply_environment()
+
+
+func _apply_wetness(delta: float) -> void:
+	if rain > 0.05:
+		wet = move_toward(wet, 1.0, rain * 0.25 * delta)
+	else:
+		wet = move_toward(wet, 0.0, 0.012 * delta)
+	BlockScript.apply_wetness(wet)
+	if terrain != null and terrain.material != null:
+		terrain.material.set_shader_parameter("wetness", wet)
 
 
 func _apply_clouds(ppos: Vector3) -> void:

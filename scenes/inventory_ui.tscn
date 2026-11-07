@@ -56,6 +56,76 @@ layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 36
 
+[node name="TroopPanel" type="VBoxContainer" parent="Root/Center/Panel/Content/Body"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="TroopRole" type="Label" parent="Root/Center/Panel/Content/Body/TroopPanel"]
+layout_mode = 2
+theme_type_variation = &"DimLabel"
+text = "Archer"
+
+[node name="MoodRow" type="HBoxContainer" parent="Root/Center/Panel/Content/Body/TroopPanel"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 10
+
+[node name="MoodTitle" type="Label" parent="Root/Center/Panel/Content/Body/TroopPanel/MoodRow"]
+layout_mode = 2
+theme_type_variation = &"DimLabel"
+text = "Mood"
+
+[node name="MoodLabel" type="Label" parent="Root/Center/Panel/Content/Body/TroopPanel/MoodRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"AccentLabel"
+
+[node name="MoodBar" type="ProgressBar" parent="Root/Center/Panel/Content/Body/TroopPanel"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 14)
+layout_mode = 2
+show_percentage = false
+
+[node name="EquipTitle" type="Label" parent="Root/Center/Panel/Content/Body/TroopPanel"]
+layout_mode = 2
+theme_type_variation = &"DimLabel"
+text = "Equipment"
+
+[node name="TroopEquip" type="VBoxContainer" parent="Root/Center/Panel/Content/Body/TroopPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="TWeapon" parent="Root/Center/Panel/Content/Body/TroopPanel/TroopEquip" groups=["troop_slot"] instance=ExtResource("3_slot")]
+layout_mode = 2
+equip = "weapon"
+
+[node name="THead" parent="Root/Center/Panel/Content/Body/TroopPanel/TroopEquip" groups=["troop_slot"] instance=ExtResource("3_slot")]
+layout_mode = 2
+equip = "head"
+
+[node name="TChest" parent="Root/Center/Panel/Content/Body/TroopPanel/TroopEquip" groups=["troop_slot"] instance=ExtResource("3_slot")]
+layout_mode = 2
+equip = "chest"
+
+[node name="TLegs" parent="Root/Center/Panel/Content/Body/TroopPanel/TroopEquip" groups=["troop_slot"] instance=ExtResource("3_slot")]
+layout_mode = 2
+equip = "legs"
+
+[node name="TFeet" parent="Root/Center/Panel/Content/Body/TroopPanel/TroopEquip" groups=["troop_slot"] instance=ExtResource("3_slot")]
+layout_mode = 2
+equip = "feet"
+
+[node name="StationButton" type="Button" parent="Root/Center/Panel/Content/Body/TroopPanel"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+text = "Station"
+
 [node name="Equip" type="VBoxContainer" parent="Root/Center/Panel/Content/Body"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -197,6 +267,7 @@ index = 5
 number = 6
 
 [node name="Craft" type="VBoxContainer" parent="Root/Center/Panel/Content/Body"]
+unique_name_in_owner = true
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 8
