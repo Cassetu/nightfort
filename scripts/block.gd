@@ -6,10 +6,10 @@ const SUPPORT_INTERVAL := 0.25
 const REINFORCE_HP := 2.5
 const DARKEN := 0.55
 const DECAL_TILE := "reinforced_decal"
-const WET_ROUGHNESS := 0.14
+const WET_ROUGHNESS := 0.32
 const WET_DARKEN := 0.26
-const WET_COAT := 0.55
-const WET_COAT_ROUGHNESS := 0.03
+const WET_COAT := 0.3
+const WET_COAT_ROUGHNESS := 0.3
 
 var block_type: String = "wood"
 var needs_support: bool = false

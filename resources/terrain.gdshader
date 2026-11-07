@@ -64,8 +64,15 @@ void fragment() {
 	vec3 base = t.rgb * to_linear(COLOR.rgb);
 	base *= 1.0 - 0.2 * damp - 0.5 * puddle;
 	ALBEDO = base;
-	ROUGHNESS = mix(mix(1.0, 0.38, wet), 0.03, puddle);
-	SPECULAR = mix(0.5, 0.85, puddle);
-	CLEARCOAT = 0.35 * damp;
-	CLEARCOAT_ROUGHNESS = 0.1;
+	float grain = noise(wpos.xz * 2.3 + vec2(TIME * 0.04, -TIME * 0.03));
+	float ripple = noise(wpos.xz * 5.5 + vec2(-TIME * 0.12, TIME * 0.09));
+	float puddle_rough = 0.16 + 0.22 * grain + 0.08 * ripple;
+	ROUGHNESS = mix(mix(1.0, 0.5, wet), puddle_rough, puddle);
+	SPECULAR = mix(0.5, 0.7, puddle);
+	CLEARCOAT = 0.2 * damp;
+	CLEARCOAT_ROUGHNESS = 0.32;
+	if (puddle > 0.01 && flat_up > 0.9) {
+		vec3 wn = normalize(vec3((grain - 0.5) * 0.22 * puddle, 1.0, (ripple - 0.5) * 0.22 * puddle));
+		NORMAL = normalize((VIEW_MATRIX * vec4(wn, 0.0)).xyz);
+	}
 }

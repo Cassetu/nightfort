@@ -1,6 +1,7 @@
 extends CharacterBody3D
 
 const Sfx = preload("res://scripts/sfx.gd")
+const GloomParts = preload("res://scripts/gloom_parts.gd")
 
 signal died(enemy)
 
@@ -49,6 +50,7 @@ var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 
 
 func _ready() -> void:
+	GloomParts.dress(self)
 	if wild:
 		add_to_group("wild_gloom")
 		_wild_look()
@@ -216,20 +218,29 @@ func _wild_look() -> void:
 	eye_mat.emission_enabled = true
 	eye_mat.emission = Color(0.4, 0.9, 1.0)
 	eye_mat.emission_energy_multiplier = 3.0
-	var body_mat: StandardMaterial3D = null
+	var flesh_mat: StandardMaterial3D = null
+	var detail_mat: StandardMaterial3D = null
 	for node in find_children("*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
-		var base := mi.mesh.material as StandardMaterial3D if mi.mesh != null else null
-		if base == null:
+		if mi.mesh == null:
 			continue
-		if base.emission_energy_multiplier > 2.0:
-			mi.material_override = eye_mat
-			continue
-		if body_mat == null:
-			body_mat = base.duplicate() as StandardMaterial3D
-			body_mat.albedo_color = Color(0.2, 0.34, 0.37)
-			body_mat.emission = Color(0.04, 0.12, 0.13)
-		mi.material_override = body_mat
+		for surface in mi.mesh.get_surface_count():
+			var base := mi.mesh.surface_get_material(surface) as StandardMaterial3D
+			if base == null:
+				continue
+			if base.emission_energy_multiplier > 2.0:
+				mi.set_surface_override_material(surface, eye_mat)
+			elif base.vertex_color_use_as_albedo:
+				if detail_mat == null:
+					detail_mat = base.duplicate() as StandardMaterial3D
+					detail_mat.albedo_color = Color(0.55, 0.85, 0.9)
+				mi.set_surface_override_material(surface, detail_mat)
+			else:
+				if flesh_mat == null:
+					flesh_mat = base.duplicate() as StandardMaterial3D
+					flesh_mat.albedo_color = Color(0.45, 0.8, 0.85)
+					flesh_mat.emission = Color(0.04, 0.12, 0.13)
+				mi.set_surface_override_material(surface, flesh_mat)
 
 
 func _animate(delta: float, facing: Vector3) -> void:
@@ -274,6 +285,7 @@ func _die() -> void:
 	remove_from_group("enemy")
 	remove_from_group("wild_gloom")
 	collision_layer = 0
+	Sfx.play(self, "gloom_death", global_position, 0.0)
 	_chips()
 	died.emit(self)
 	_shrink(0.3)
