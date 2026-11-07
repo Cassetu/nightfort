@@ -21,6 +21,7 @@ var weight: int = 2
 var max_load: int = 99
 var collapsing: bool = false
 var falling_now: bool = false
+var zone_break: bool = false
 var reinforced: bool = false
 var wet: bool = false
 var base_health: int = 0
@@ -243,6 +244,13 @@ func fall_to(target_cell: Vector3i) -> void:
 	if falling_now or dying:
 		return
 	falling_now = true
+	var core = get_tree().get_first_node_in_group("Core")
+	if core != null:
+		var shift = target_cell - cells()[0]
+		for c: Vector3i in cells():
+			if core.blocks_building(Vector3(c + shift) + Vector3(0.5, 0.5, 0.5)):
+				zone_break = true
+				break
 	var target_y := float(target_cell.y) + 0.5
 	var drop := maxf(global_position.y - target_y, 0.0)
 	var time := maxf(sqrt(2.0 * drop / 22.0), 0.12)
@@ -253,6 +261,10 @@ func fall_to(target_cell: Vector3i) -> void:
 
 func _landed() -> void:
 	falling_now = false
+	if zone_break:
+		zone_break = false
+		take_damage(max_health + 1, global_position)
+		return
 	_mark_stability()
 
 

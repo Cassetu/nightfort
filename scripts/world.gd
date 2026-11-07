@@ -305,10 +305,10 @@ func apply_state(d: Dictionary) -> void:
 		player.import_state(d["player"])
 
 	var c: Dictionary = d.get("core", {})
+	if is_instance_valid(core):
+		core.set_level(int(c.get("level", 1)))
 	if c.has("hp") and is_instance_valid(core):
 		core.set_health(int(c["hp"]))
-	if is_instance_valid(core):
-		core.level = maxi(int(c.get("level", 1)), 1)
 
 	for td in d.get("troops", []):
 		spawn_troop(td)

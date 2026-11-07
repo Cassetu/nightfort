@@ -1,5 +1,8 @@
 extends StaticBody3D
 
+const HEALTH_PER_LEVEL := 25
+const UPGRADE_FLOOR := 0.75
+
 signal health_changed(current, maximum)
 signal destroyed
 
@@ -18,6 +21,8 @@ var dying: bool = false
 var sun
 var last_text: String = ""
 var level: int = 1
+var base_max_health: int = 100
+var base_night_heal: int = 5
 var overview: bool = false
 
 @onready var glow: MeshInstance3D = $Glow
@@ -28,6 +33,8 @@ var overview: bool = false
 
 func _ready():
 	add_to_group("Core")
+	base_max_health = max_health
+	base_night_heal = night_heal
 	current_health = max_health
 	sun = get_node_or_null("../Sun")
 
@@ -80,6 +87,22 @@ func take_damage(amount: int, _hit_position = Vector3.INF):
 	_pulse()
 	if current_health <= 0:
 		die()
+
+
+func set_level(value: int) -> void:
+	level = maxi(value, 1)
+	max_health = base_max_health + (level - 1) * HEALTH_PER_LEVEL
+	night_heal = base_night_heal + (level - 1)
+	current_health = mini(current_health, max_health)
+	health_changed.emit(current_health, max_health)
+
+
+func upgrade() -> void:
+	set_level(level + 1)
+	var floor_hp := roundi(float(max_health) * UPGRADE_FLOOR)
+	if current_health < floor_hp:
+		current_health = floor_hp
+	health_changed.emit(current_health, max_health)
 
 
 func heal(amount: int) -> void:

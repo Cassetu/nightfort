@@ -147,7 +147,7 @@ func _on_upgrade() -> void:
 	var cost := upgrade_cost()
 	if not Inventory.take_item(GEM_ITEM, cost):
 		return
-	core.level += 1
+	core.upgrade()
 	Sfx.play(self, "core_upgrade")
 	var troop = world_ref().spawn_troop({})
 	if troop != null and player != null and player.has_signal("notice"):
