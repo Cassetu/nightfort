@@ -7,6 +7,9 @@ const Recipes = preload("res://scripts/recipes.gd")
 const ForgeUIScene = preload("res://scenes/forge_ui.tscn")
 const CreativeUIScene = preload("res://scenes/creative_ui.tscn")
 const RuinsScript = preload("res://scripts/ruins.gd")
+const RoofMapScript = preload("res://scripts/roof_map.gd")
+const AudioScript = preload("res://scripts/audio_manager.gd")
+const OutpostsScript = preload("res://scripts/outposts.gd")
 const StabilityScript = preload("res://scripts/stability.gd")
 const WildSpawnerScript = preload("res://scripts/wild_spawner.gd")
 const WeatherScript = preload("res://scripts/weather.gd")
@@ -77,7 +80,18 @@ func _ready() -> void:
 	weather.name = "Weather"
 	weather.set_script(WeatherScript)
 	add_child(weather)
+	var roof_map = Node.new()
+	roof_map.name = "RoofMap"
+	roof_map.set_script(RoofMapScript)
+	add_child(roof_map)
+	roof_map.setup(terrain, player)
+	weather.roof_map = roof_map
 	weather.setup(sun, $WorldEnvironment.environment, player, terrain)
+	var audio = Node.new()
+	audio.name = "Audio"
+	audio.set_script(AudioScript)
+	add_child(audio)
+	audio.setup(player, terrain, weather, roof_map, sun)
 	var wet_surfaces = Node.new()
 	wet_surfaces.name = "WetSurfaces"
 	wet_surfaces.set_script(WetSurfacesScript)
@@ -98,6 +112,7 @@ func _ready() -> void:
 	forge_ui.setup(player, self, inv_ui)
 	player.forge_used.connect(forge_ui.open_forge)
 	player.troop_used.connect(inv_ui.open_troop)
+	player.chest_used.connect(inv_ui.open_chest)
 	var core_ui = CoreUIScene.instantiate()
 	add_child(core_ui)
 	core_ui.setup(player, core, terrain, inv_ui)
@@ -123,6 +138,7 @@ func _ready() -> void:
 	var state := Game.take_pending()
 	if state.is_empty():
 		RuinsScript.generate(self, terrain, terrain.world_seed)
+		OutpostsScript.generate(self, terrain, terrain.world_seed)
 	if not state.is_empty():
 		apply_state(state)
 		intro.queue_free()
@@ -246,7 +262,7 @@ func collect_state() -> Dictionary:
 		if node.dying:
 			continue
 		var p: Vector3 = node.global_position
-		blocks.append({"type": node.block_type, "pos": [p.x, p.y, p.z], "hp": node.current_health, "yaw": node.rotation.y, "open": node.get("is_open") == true})
+		blocks.append({"type": node.block_type, "pos": [p.x, p.y, p.z], "hp": node.current_health, "yaw": node.rotation.y, "open": node.get("is_open") == true, "items": node.get("items")})
 
 	var drops: Array = []
 	for node in get_tree().get_nodes_in_group("item_drop"):
@@ -255,8 +271,10 @@ func collect_state() -> Dictionary:
 
 	var q: Quaternion = sun.basis.get_rotation_quaternion()
 	var core_hp := 0
+	var core_level := 1
 	if is_instance_valid(core):
 		core_hp = core.current_health
+		core_level = core.level
 
 	var troop_data: Array = []
 	for t in troops:
@@ -267,7 +285,7 @@ func collect_state() -> Dictionary:
 		"troops": troop_data,
 		"sun": {"quat": [q.x, q.y, q.z, q.w], "phase": sun.day_phase},
 		"player": player.export_state(),
-		"core": {"hp": core_hp},
+		"core": {"hp": core_hp, "level": core_level},
 		"inventory": Inventory.export_state(),
 		"terrain": terrain.export_state(),
 		"blocks": blocks,
@@ -289,6 +307,8 @@ func apply_state(d: Dictionary) -> void:
 	var c: Dictionary = d.get("core", {})
 	if c.has("hp") and is_instance_valid(core):
 		core.set_health(int(c["hp"]))
+	if is_instance_valid(core):
+		core.level = maxi(int(c.get("level", 1)), 1)
 
 	for td in d.get("troops", []):
 		spawn_troop(td)
@@ -312,3 +332,7 @@ func apply_state(d: Dictionary) -> void:
 		block.current_health = int(b["hp"])
 		if block.has_method("set_open"):
 			block.set_open(bool(b.get("open", false)), true)
+		var saved_items = b.get("items")
+		if block.get("items") != null and typeof(saved_items) == TYPE_ARRAY:
+			for i in mini(saved_items.size(), block.items.size()):
+				block.items[i] = Inventory._clean(saved_items[i])

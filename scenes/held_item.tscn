@@ -1,6 +1,6 @@
-[gd_scene format=3]
+[gd_scene load_steps=2 format=3 uid="uid://dt16nnmxx35ts"]
 
-[ext_resource type="Script" path="res://scripts/held_item.gd" id="1_held"]
+[ext_resource type="Script" uid="uid://bay6c7uoohpiu" path="res://scripts/held_item.gd" id="1_held"]
 
 [node name="HeldItem" type="Node3D"]
 script = ExtResource("1_held")
@@ -14,5 +14,4 @@ light_color = Color(1, 0.72, 0.4, 1)
 light_energy = 1.8
 shadow_enabled = true
 shadow_bias = 0.04
-shadow_normal_bias = 1.0
 omni_range = 10.0

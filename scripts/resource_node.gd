@@ -1,5 +1,8 @@
 extends StaticBody3D
 
+const Sfx = preload("res://scripts/sfx.gd")
+const CHOP_TYPES := ["wood", "plank", "scaffold", "door", "ladder", "chest", "workbench", "barricade"]
+
 signal harvested(resource_type: String, amount: int)
 
 @export var max_health: int = 5
@@ -35,6 +38,8 @@ func take_damage(amount: int, hit_position: Vector3 = Vector3.INF) -> void:
 	if dying:
 		return
 	current_health -= amount
+	if CHOP_TYPES.has(resource_type):
+		Sfx.play(self, "chop", global_position, -2.0)
 	_spawn_chips(hit_position)
 	if current_health <= 0:
 		_die()

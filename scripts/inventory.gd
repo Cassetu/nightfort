@@ -1,5 +1,7 @@
 extends Node
 
+const Sfx = preload("res://scripts/sfx.gd")
+
 signal changed
 signal selection_changed(index: int)
 signal recipes_unlocked(ids: Array)
@@ -38,6 +40,9 @@ var BLOCK_TYPES := {
 	"barricade": {"name": "Spiked Barricade", "resource": "barricade", "weight": 0, "structural": false, "health": 6, "color": Color(0.5, 0.36, 0.2), "scene": "res://scenes/barricade.tscn", "needs_support": true},
 	"scaffold": {"name": "Scaffold", "resource": "scaffold", "tile": "plank", "weight": 0, "max_load": 3, "health": 3, "color": Color(0.72, 0.55, 0.32), "scene": "res://scenes/scaffold.tscn"},
 	"ladder": {"name": "Ladder", "resource": "ladder", "tile": "plank", "weight": 0, "structural": false, "health": 2, "color": Color(0.72, 0.55, 0.32), "scene": "res://scenes/ladder.tscn"},
+	"soul_block": {"name": "Soul Block", "resource": "soul_gem", "tile": "soul_block", "weight": 3, "health": 8, "color": Color(0.3, 0.12, 0.45)},
+	"chest": {"name": "Chest", "resource": "chest", "tile": "chest_side", "weight": 1, "health": 6, "color": Color(0.55, 0.38, 0.2), "scene": "res://scenes/chest.tscn"},
+	"lantern": {"name": "Lantern", "resource": "lantern", "structural": false, "health": 2, "color": Color(0.85, 0.7, 0.35), "scene": "res://scenes/lantern.tscn", "needs_support": true, "ghost": Vector3(0.3, 1.0, 0.3)},
 	"torch": {"name": "Torch", "resource": "torch", "structural": false, "health": 1, "color": Color(0.9, 0.6, 0.25), "scene": "res://scenes/torch.tscn", "needs_support": true, "ghost": Vector3(0.25, 1.0, 0.25)},
 }
 
@@ -95,6 +100,9 @@ var ITEMS := {
 	"iron_chestplate": {"name": "Iron Chestplate", "kind": "armor", "slot": "chest", "defense": 4, "max_stack": 1, "color": Color(0.72, 0.78, 0.84)},
 	"iron_leggings": {"name": "Iron Leggings", "kind": "armor", "slot": "legs", "defense": 3, "max_stack": 1, "color": Color(0.72, 0.78, 0.84)},
 	"iron_boots": {"name": "Iron Boots", "kind": "armor", "slot": "feet", "defense": 2, "max_stack": 1, "color": Color(0.72, 0.78, 0.84)},
+	"soul_gem": {"name": "Soul Gem", "kind": "material", "color": Color(0.66, 0.3, 0.95)},
+	"chest": {"name": "Chest", "kind": "block", "tile": "chest_side", "color": Color(0.55, 0.38, 0.2)},
+	"lantern": {"name": "Lantern", "kind": "block", "slot": "bauble", "color": Color(0.85, 0.7, 0.35)},
 }
 
 var slots: Array = []
@@ -191,6 +199,8 @@ func set_slot(index: int, item: Dictionary) -> void:
 
 func set_equip(slot_name: String, item: Dictionary) -> void:
 	equipment[slot_name] = item
+	if not item.is_empty() and ["head", "chest", "legs", "feet"].has(slot_name):
+		Sfx.play(self, "equip_armor")
 	changed.emit()
 
 

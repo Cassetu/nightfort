@@ -1,5 +1,6 @@
 extends CanvasLayer
 
+const Sfx = preload("res://scripts/sfx.gd")
 const TerritoryScript = preload("res://scripts/territory.gd")
 
 const ORBIT_RADIUS := 24.0
@@ -8,6 +9,8 @@ const ORBIT_SPEED := 0.1
 const BOB := 1.5
 const BLEND_TIME := 0.9
 const MIN_CLEARANCE := 6.0
+const MAX_LEVEL := 5
+const GEM_ITEM := "soul_gem"
 
 @onready var root: Control = $Root
 @onready var level_label: Label = %LevelLabel
@@ -15,6 +18,7 @@ const MIN_CLEARANCE := 6.0
 @onready var health_bar: ProgressBar = %HealthBar
 @onready var heal_label: Label = %HealLabel
 @onready var upgrade_button: Button = %UpgradeButton
+@onready var cost_label: Label = %CostLabel
 @onready var close_button: Button = %CloseButton
 
 var player
@@ -32,6 +36,8 @@ var from_xform := Transform3D.IDENTITY
 func _ready() -> void:
 	root.visible = false
 	close_button.pressed.connect(close)
+	upgrade_button.pressed.connect(_on_upgrade)
+	Inventory.changed.connect(_on_inventory_changed)
 
 
 func setup(p, c, t, inventory_ui) -> void:
@@ -131,6 +137,33 @@ func _blend(a: Transform3D, b: Transform3D, t: float) -> Transform3D:
 	return Transform3D(Basis(q), a.origin.lerp(b.origin, t))
 
 
+func upgrade_cost() -> int:
+	return core.level
+
+
+func _on_upgrade() -> void:
+	if not open or core.level >= MAX_LEVEL:
+		return
+	var cost := upgrade_cost()
+	if not Inventory.take_item(GEM_ITEM, cost):
+		return
+	core.level += 1
+	Sfx.play(self, "core_upgrade")
+	var troop = world_ref().spawn_troop({})
+	if troop != null and player != null and player.has_signal("notice"):
+		player.notice.emit(troop.display_name)
+	_refresh()
+
+
+func world_ref():
+	return get_tree().current_scene
+
+
+func _on_inventory_changed() -> void:
+	if open:
+		_refresh()
+
+
 func _on_core_health(_current, _maximum) -> void:
 	if open:
 		_refresh()
@@ -142,6 +175,16 @@ func _refresh() -> void:
 	health_bar.max_value = core.max_health
 	health_bar.value = core.current_health
 	var amount = core.get("night_heal")
+	if core.level >= MAX_LEVEL:
+		cost_label.text = "-"
+		upgrade_button.text = "Max Level"
+		upgrade_button.disabled = true
+	else:
+		var have := Inventory.get_count(GEM_ITEM)
+		var cost := upgrade_cost()
+		cost_label.text = "%d/%d" % [have, cost]
+		upgrade_button.text = "Upgrade"
+		upgrade_button.disabled = have < cost
 	heal_label.text = "+%d" % (int(amount) if amount != null else 5)
 
 

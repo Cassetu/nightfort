@@ -1,6 +1,7 @@
 extends RigidBody3D
 
 const TileArt = preload("res://scripts/tile_art.gd")
+const Sfx = preload("res://scripts/sfx.gd")
 
 const PICKUP_RADIUS := 0.9
 const MAGNET_RADIUS := 2.8
@@ -59,6 +60,8 @@ func _physics_process(delta: float) -> void:
 	var dist := global_position.distance_to(target)
 	if dist < PICKUP_RADIUS:
 		var left := Inventory.add_item(id, count)
+		if left < count:
+			Sfx.play(self, "pickup_gem" if id == "soul_gem" else "pickup", global_position, -2.0)
 		if left <= 0:
 			queue_free()
 		else:

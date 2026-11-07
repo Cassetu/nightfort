@@ -21,11 +21,13 @@ const CRAFT_CELLS := 9
 @onready var mood_label: Label = %MoodLabel
 @onready var mood_bar: ProgressBar = %MoodBar
 @onready var station_button: Button = %StationButton
+@onready var chest_panel: VBoxContainer = %ChestPanel
 
 var slot_nodes: Array = []
 var open: bool = false
 var table_mode: bool = false
 var troop = null
+var chest_node = null
 var craft_size: int = 2
 var craft_items: Array = []
 var current_recipe: Dictionary = {}
@@ -50,13 +52,14 @@ func _ready() -> void:
 	recipe_panel.visible = false
 	for i in CRAFT_CELLS:
 		craft_items.append({})
-	for group: Node in [%Hotbar, %Backpack, %Equip, %CraftGrid, %ResultBox, %TroopEquip]:
+	for group: Node in [%Hotbar, %Backpack, %Equip, %CraftGrid, %ResultBox, %TroopEquip, %ChestGrid]:
 		for child in group.get_children():
 			if child.has_method("show_item"):
 				slot_nodes.append(child)
 	recipe_button.pressed.connect(_toggle_recipes)
 	station_button.pressed.connect(_on_station)
 	troop_panel.visible = false
+	chest_panel.visible = false
 	Inventory.changed.connect(_on_inventory_changed)
 	Inventory.selection_changed.connect(_refresh)
 	_refresh()
@@ -95,11 +98,28 @@ func open_troop(t) -> void:
 	if open or not can_open():
 		return
 	troop = t
+	chest_node = null
+	chest_panel.visible = false
 	table_mode = false
 	equip_col.visible = false
 	craft_col.visible = false
 	troop_panel.visible = true
 	title.text = t.display_name
+	current_recipe = {}
+	_enter()
+
+
+func open_chest(c) -> void:
+	if open or not can_open():
+		return
+	troop = null
+	chest_node = c
+	table_mode = false
+	equip_col.visible = false
+	craft_col.visible = false
+	troop_panel.visible = false
+	chest_panel.visible = true
+	title.text = "Chest"
 	current_recipe = {}
 	_enter()
 
@@ -124,6 +144,8 @@ func _on_station() -> void:
 
 func open_ui(table: bool = false) -> void:
 	troop = null
+	chest_node = null
+	chest_panel.visible = false
 	equip_col.visible = true
 	craft_col.visible = true
 	troop_panel.visible = false
@@ -155,6 +177,8 @@ func close() -> void:
 	preview.clear()
 	open = false
 	troop = null
+	chest_node = null
+	chest_panel.visible = false
 	root.visible = false
 	recipe_panel.visible = false
 	player.frozen = false
@@ -186,7 +210,7 @@ func _return_craft_items() -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if Game.gamemode == "creative" and open and not table_mode and troop == null:
+	if Game.gamemode == "creative" and open and not table_mode and troop == null and chest_node == null:
 		if event.is_action_pressed("inventory") or event.is_action_pressed("ui_cancel"):
 			return
 	if event.is_action_pressed("inventory") and not event.is_echo():
@@ -229,6 +253,9 @@ func _process(delta: float) -> void:
 		return
 	var mouse := get_viewport().get_mouse_position()
 	cursor_slot.position = mouse - cursor_slot.size * 0.5
+	if chest_node != null and not is_instance_valid(chest_node):
+		close()
+		return
 	if troop != null:
 		if not is_instance_valid(troop):
 			close()
@@ -272,6 +299,10 @@ func _get(s) -> Dictionary:
 		if troop == null or not is_instance_valid(troop):
 			return {}
 		return troop.equipment[s.equip]
+	if s.chest >= 0:
+		if chest_node == null or not is_instance_valid(chest_node):
+			return {}
+		return chest_node.items[s.chest]
 	if s.index >= 0:
 		return Inventory.slots[s.index]
 	if s.craft >= 0:
@@ -288,7 +319,10 @@ func _set_slot(s, item: Dictionary) -> void:
 		if troop != null and is_instance_valid(troop):
 			troop.set_equip(s.equip, item)
 		return
-	if s.index >= 0:
+	if s.chest >= 0:
+		if chest_node != null and is_instance_valid(chest_node):
+			chest_node.items[s.chest] = item
+	elif s.index >= 0:
 		Inventory.set_slot(s.index, item)
 	elif s.craft >= 0:
 		craft_items[s.craft] = item
@@ -307,7 +341,7 @@ func _accepts(s, item: Dictionary) -> bool:
 
 
 func _is_spreadable(s) -> bool:
-	return s.index >= 0 or s.craft >= 0
+	return s.index >= 0 or s.craft >= 0 or s.chest >= 0
 
 
 func _left_press(s) -> void:

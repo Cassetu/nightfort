@@ -1,5 +1,7 @@
 extends CharacterBody3D
 
+const Sfx = preload("res://scripts/sfx.gd")
+
 signal died(enemy)
 
 const SPEED := 3.4
@@ -301,6 +303,7 @@ func _punch() -> void:
 
 
 func _lunge() -> void:
+	Sfx.play(self, "gloom_attack", global_position, 0.0)
 	anim.speed_scale = 1.0
 	anim.play("attack", 0.05)
 

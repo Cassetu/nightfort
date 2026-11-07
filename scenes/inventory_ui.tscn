@@ -126,6 +126,98 @@ custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 text = "Station"
 
+[node name="ChestPanel" type="VBoxContainer" parent="Root/Center/Panel/Content/Body"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="ChestTitle" type="Label" parent="Root/Center/Panel/Content/Body/ChestPanel"]
+layout_mode = 2
+theme_type_variation = &"DimLabel"
+text = "Chest"
+
+[node name="ChestGrid" type="GridContainer" parent="Root/Center/Panel/Content/Body/ChestPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+columns = 6
+
+[node name="K0" parent="Root/Center/Panel/Content/Body/ChestPanel/ChestGrid" instance=ExtResource("3_slot")]
+layout_mode = 2
+chest = 0
+
+[node name="K1" parent="Root/Center/Panel/Content/Body/ChestPanel/ChestGrid" instance=ExtResource("3_slot")]
+layout_mode = 2
+chest = 1
+
+[node name="K2" parent="Root/Center/Panel/Content/Body/ChestPanel/ChestGrid" instance=ExtResource("3_slot")]
+layout_mode = 2
+chest = 2
+
+[node name="K3" parent="Root/Center/Panel/Content/Body/ChestPanel/ChestGrid" instance=ExtResource("3_slot")]
+layout_mode = 2
+chest = 3
+
+[node name="K4" parent="Root/Center/Panel/Content/Body/ChestPanel/ChestGrid" instance=ExtResource("3_slot")]
+layout_mode = 2
+chest = 4
+
+[node name="K5" parent="Root/Center/Panel/Content/Body/ChestPanel/ChestGrid" instance=ExtResource("3_slot")]
+layout_mode = 2
+chest = 5
+
+[node name="K6" parent="Root/Center/Panel/Content/Body/ChestPanel/ChestGrid" instance=ExtResource("3_slot")]
+layout_mode = 2
+chest = 6
+
+[node name="K7" parent="Root/Center/Panel/Content/Body/ChestPanel/ChestGrid" instance=ExtResource("3_slot")]
+layout_mode = 2
+chest = 7
+
+[node name="K8" parent="Root/Center/Panel/Content/Body/ChestPanel/ChestGrid" instance=ExtResource("3_slot")]
+layout_mode = 2
+chest = 8
+
+[node name="K9" parent="Root/Center/Panel/Content/Body/ChestPanel/ChestGrid" instance=ExtResource("3_slot")]
+layout_mode = 2
+chest = 9
+
+[node name="K10" parent="Root/Center/Panel/Content/Body/ChestPanel/ChestGrid" instance=ExtResource("3_slot")]
+layout_mode = 2
+chest = 10
+
+[node name="K11" parent="Root/Center/Panel/Content/Body/ChestPanel/ChestGrid" instance=ExtResource("3_slot")]
+layout_mode = 2
+chest = 11
+
+[node name="K12" parent="Root/Center/Panel/Content/Body/ChestPanel/ChestGrid" instance=ExtResource("3_slot")]
+layout_mode = 2
+chest = 12
+
+[node name="K13" parent="Root/Center/Panel/Content/Body/ChestPanel/ChestGrid" instance=ExtResource("3_slot")]
+layout_mode = 2
+chest = 13
+
+[node name="K14" parent="Root/Center/Panel/Content/Body/ChestPanel/ChestGrid" instance=ExtResource("3_slot")]
+layout_mode = 2
+chest = 14
+
+[node name="K15" parent="Root/Center/Panel/Content/Body/ChestPanel/ChestGrid" instance=ExtResource("3_slot")]
+layout_mode = 2
+chest = 15
+
+[node name="K16" parent="Root/Center/Panel/Content/Body/ChestPanel/ChestGrid" instance=ExtResource("3_slot")]
+layout_mode = 2
+chest = 16
+
+[node name="K17" parent="Root/Center/Panel/Content/Body/ChestPanel/ChestGrid" instance=ExtResource("3_slot")]
+layout_mode = 2
+chest = 17
+
 [node name="Equip" type="VBoxContainer" parent="Root/Center/Panel/Content/Body"]
 unique_name_in_owner = true
 layout_mode = 2

@@ -84,8 +84,24 @@ size_flags_horizontal = 3
 horizontal_alignment = 2
 text = "+5"
 
+[node name="CostRow" type="HBoxContainer" parent="Root/Panel/Content"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="CostTitle" type="Label" parent="Root/Panel/Content/CostRow"]
+layout_mode = 2
+theme_type_variation = &"DimLabel"
+text = "Soul Gems"
+
+[node name="CostLabel" type="Label" parent="Root/Panel/Content/CostRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_alignment = 2
+text = "0/1"
+
 [node name="Spacer" type="Control" parent="Root/Panel/Content"]
-custom_minimum_size = Vector2(0, 150)
+custom_minimum_size = Vector2(0, 110)
 layout_mode = 2
 size_flags_vertical = 3
 
@@ -93,7 +109,6 @@ size_flags_vertical = 3
 unique_name_in_owner = true
 layout_mode = 2
 focus_mode = 0
-disabled = true
 text = "Upgrade"
 
 [node name="CloseButton" type="Button" parent="Root/Panel/Content"]

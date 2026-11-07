@@ -2,6 +2,7 @@ extends CharacterBody3D
 
 const PathScript = preload("res://scripts/troop_path.gd")
 const ArrowScript = preload("res://scripts/arrow.gd")
+const Sfx = preload("res://scripts/sfx.gd")
 
 const NAMES := ["Garrick", "Mina", "Torvald", "Edda", "Bram", "Isolde", "Corwin", "Hesper", "Dunstan", "Wren", "Alaric", "Odette", "Rurik", "Nessa", "Osric", "Tamsin", "Leofric", "Maren", "Cael", "Brigid", "Ansel", "Verity", "Hollis", "Sabine"]
 const EQUIP_SLOTS := ["weapon", "head", "chest", "legs", "feet"]
@@ -56,6 +57,10 @@ func _ready() -> void:
 	add_to_group("troop")
 	collision_layer = 4
 	collision_mask = 1
+	var player_node := get_tree().get_first_node_in_group("player") as PhysicsBody3D
+	if player_node != null:
+		add_collision_exception_with(player_node)
+		player_node.add_collision_exception_with(self)
 	for slot_name in EQUIP_SLOTS:
 		equipment[slot_name] = {}
 	var shape := CapsuleShape3D.new()
@@ -131,6 +136,8 @@ func _go_down() -> void:
 
 func set_equip(slot_name: String, item: Dictionary) -> void:
 	equipment[slot_name] = item
+	if not item.is_empty():
+		Sfx.play(self, "equip_armor", global_position)
 
 
 func mood_name() -> String:
@@ -341,6 +348,10 @@ func _move(delta: float) -> void:
 			if absf(float(target_cell.y) - global_position.y) < 0.15:
 				path_i += 1
 				stuck_timer = 0.0
+		elif (ladder_cells.has(prev_cell) or ladder_cells.has(feet_cell())) and float(target_cell.y) > global_position.y + 0.08:
+			on_ladder = true
+			climb = CLIMB_SPEED
+			stuck_timer = maxf(stuck_timer - delta, 0.0)
 		else:
 			if flat.length() > 0.05:
 				want = Vector3(flat.x, 0.0, flat.y).normalized()
@@ -436,5 +447,6 @@ func _shoot(delta: float) -> void:
 	arrow.set_script(ArrowScript)
 	get_tree().current_scene.add_child(arrow)
 	arrow.launch(eye + dir.normalized() * 0.6, dir, damage)
+	Sfx.play(self, "arrow_release", global_position, -3.0)
 	recoil = 1.0
 	fire_timer = cooldown

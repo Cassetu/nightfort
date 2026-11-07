@@ -46,6 +46,7 @@ func covers(p: Vector3) -> bool:
 
 
 func toggle() -> void:
+	Sfx.play(self, "door_close" if is_open else "door_open", global_position)
 	_apply(not is_open, false)
 
 

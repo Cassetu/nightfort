@@ -8,6 +8,7 @@ signal workbench_used
 signal forge_used
 signal troop_used
 signal core_used
+signal chest_used
 
 const OutlineMesh = preload("res://scripts/outline_mesh.gd")
 const SPEED = 5.0
@@ -19,6 +20,8 @@ const PLACE_REACH = 5.0
 const MINE_DAMAGE = 1
 const TileArt = preload("res://scripts/tile_art.gd")
 const ArrowScript = preload("res://scripts/arrow.gd")
+const Sfx = preload("res://scripts/sfx.gd")
+const STRIDE := 2.1
 const DRAW_TIME = 0.9
 const MIN_DRAW = 0.25
 const ARROW_MIN_SPEED = 0.45
@@ -43,6 +46,8 @@ var mine_timer = 0.0
 var attack_timer = 0.0
 var frozen = false
 var slow: float = 1.0
+var bauble_light: OmniLight3D
+var step_dist: float = 0.0
 var ghost_valid_mat
 var ghost_blocked_mat
 var ghost_warn_mat
@@ -92,6 +97,37 @@ func _ready():
 	shown_health = max_health
 	Game.settings_changed.connect(_apply_settings)
 	_apply_settings()
+	bauble_light = OmniLight3D.new()
+	bauble_light.light_color = Color(1.0, 0.72, 0.4)
+	bauble_light.light_energy = 1.5
+	bauble_light.omni_range = 10.0
+	bauble_light.omni_attenuation = 1.4
+	bauble_light.shadow_enabled = false
+	bauble_light.visible = false
+	head.add_child(bauble_light)
+	Inventory.changed.connect(_update_bauble)
+	_update_bauble()
+
+
+func _footsteps(delta: float) -> void:
+	if not is_on_floor():
+		step_dist = 0.0
+		return
+	var speed := Vector2(velocity.x, velocity.z).length()
+	if speed < 0.6:
+		step_dist = STRIDE * 0.6
+		return
+	step_dist += speed * delta
+	if step_dist >= STRIDE:
+		step_dist = 0.0
+		var manager = get_tree().get_first_node_in_group("audio_manager")
+		if manager != null:
+			manager.footstep(global_position)
+
+
+func _update_bauble() -> void:
+	var item: Dictionary = Inventory.equipment.get("bauble", {})
+	bauble_light.visible = not item.is_empty() and item["id"] == "lantern"
 
 
 func _apply_settings():
@@ -198,6 +234,9 @@ func _physics_process(delta):
 	move_and_slide()
 	if is_on_floor() and not was_on_floor and impact < -FALL_SAFE_SPEED:
 		take_damage(roundi((-impact - FALL_SAFE_SPEED) * FALL_DAMAGE))
+	if is_on_floor() and not was_on_floor and impact < -3.5:
+		Sfx.play(self, "land", global_position, clampf(-impact * 0.5 - 8.0, -8.0, 0.0))
+	_footsteps(delta)
 	was_on_floor = is_on_floor()
 
 	since_damage += delta
@@ -251,6 +290,7 @@ func _bow_update(delta, bow):
 
 
 func fire_bow(bow, charge):
+	Sfx.play(self, "arrow_release", global_position, -2.0)
 	if Game.gamemode != "creative" and not Inventory.take_item("arrow", 1):
 		return
 	var dir = -camera.global_transform.basis.z
@@ -534,6 +574,7 @@ func mine_terrain(hit):
 
 func swing(weapon):
 	attack_timer = weapon["cooldown"]
+	Sfx.play(self, "sword_swing", global_position, -2.0)
 
 	held.play_swing()
 
@@ -556,6 +597,9 @@ func swing(weapon):
 func try_place(hit):
 	if not hit.is_empty() and hit.collider.is_in_group("Core"):
 		core_used.emit(hit.collider)
+		return
+	if not hit.is_empty() and hit.collider.is_in_group("chest"):
+		chest_used.emit(hit.collider)
 		return
 	if not hit.is_empty() and hit.collider.is_in_group("workbench"):
 		workbench_used.emit()
@@ -595,6 +639,7 @@ func try_place(hit):
 	block.block_type = type
 	get_tree().current_scene.add_child(block)
 	block.global_position = cell
+	Sfx.play(self, "block_place", cell, -2.0)
 	if block_height(type) > 1:
 		block.rotation.y = place_yaw()
 	if type == "ladder":

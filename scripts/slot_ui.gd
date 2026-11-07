@@ -6,6 +6,7 @@ const TileArt = preload("res://scripts/tile_art.gd")
 @export var equip: String = ""
 @export var number: int = 0
 @export var craft: int = -1
+@export var chest: int = -1
 @export var is_result: bool = false
 
 @onready var icon: ColorRect = %Icon
