@@ -246,6 +246,14 @@ func _on_field_input(event: InputEvent) -> void:
 			if meter_value >= 1.0:
 				_end("won")
 			return
+	for c: Dictionary in circles:
+		if c["pop"] < 0.0 or c["pop"] > 0.5:
+			continue
+		var pos: Vector2 = c["pop_pos"] if c.has("pop_pos") else c["pos"]
+		var sp := _screen_point(pos)
+		if sp.distance_to(event.position) <= _screen_radius(pos, float(c["r_hit"])) * 1.5 + HIT_PAD:
+			return
+	_miss()
 
 
 func _miss() -> void:

@@ -3,7 +3,10 @@ extends CanvasLayer
 const RADIUS := 20
 const SIZE := RADIUS * 2 + 1
 const CELL := 4.0
-const UPDATE := 0.35
+const UPDATE := 0.4
+const CELLS_PER_FRAME := 140
+const CACHE_LIMIT := 6000
+const EVICT_INTERVAL := 3.0
 const EDGE := 6.0
 const BACKDROP := Color(0.04, 0.04, 0.05, 1.0)
 const GLOOM_COLOR := Color(0.68, 0.3, 0.95, 1.0)
@@ -22,6 +25,10 @@ var texture: ImageTexture
 var origin := Vector2i.ZERO
 var timer: float = 0.0
 var heights := PackedInt32Array()
+var cache_h: Dictionary = {}
+var cache_c: Dictionary = {}
+var incomplete: bool = false
+var evict_timer: float = 0.0
 
 
 func setup(p, c, t) -> void:
@@ -33,6 +40,7 @@ func setup(p, c, t) -> void:
 	heights.resize(SIZE * SIZE)
 	map.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	map.draw.connect(_on_draw)
+	terrain.block_broken.connect(_on_terrain_changed)
 	_rebuild()
 
 
@@ -40,10 +48,30 @@ func _process(delta: float) -> void:
 	if player == null:
 		return
 	timer += delta
-	if timer >= UPDATE:
+	if timer >= UPDATE or incomplete:
 		timer = 0.0
 		_rebuild()
+	evict_timer += delta
+	if evict_timer >= EVICT_INTERVAL:
+		evict_timer = 0.0
+		_evict()
 	map.queue_redraw()
+
+
+func _on_terrain_changed(cell: Vector3i) -> void:
+	var key := Vector2i(cell.x, cell.z)
+	cache_h.erase(key)
+	cache_c.erase(key)
+
+
+func _evict() -> void:
+	if cache_h.size() <= CACHE_LIMIT:
+		return
+	var pc := Vector2i(floori(player.global_position.x), floori(player.global_position.z))
+	for key: Vector2i in cache_h.keys():
+		if absi(key.x - pc.x) > RADIUS + 12 or absi(key.y - pc.y) > RADIUS + 12:
+			cache_h.erase(key)
+			cache_c.erase(key)
 
 
 func _terrain_color(id: int) -> Color:
@@ -74,17 +102,41 @@ func _shade(c: Color, rise: int) -> Color:
 func _rebuild() -> void:
 	var pc := Vector2i(floori(player.global_position.x), floori(player.global_position.z))
 	origin = pc - Vector2i(RADIUS, RADIUS)
-	var ph: int = terrain.surface_y(pc.x, pc.y)
+	var pkey := Vector2i(pc.x, pc.y)
+	var ph: int
+	if cache_h.has(pkey):
+		ph = cache_h[pkey]
+	else:
+		ph = terrain.surface_y(pc.x, pc.y)
+	var budget := CELLS_PER_FRAME
+	incomplete = false
 	for j in SIZE:
 		for i in SIZE:
-			var x := origin.x + i
-			var z := origin.y + j
-			var h: int = terrain.surface_y(x, z)
-			var id: int = terrain.block_at(x, h - 1, z)
-			heights[j * SIZE + i] = h
-			image.set_pixel(i, j, _shade(_terrain_color(id), h - ph))
+			var key := Vector2i(origin.x + i, origin.y + j)
+			var idx := j * SIZE + i
+			if cache_h.has(key):
+				var h: int = cache_h[key]
+				heights[idx] = h
+				image.set_pixel(i, j, _shade(cache_c[key], h - ph))
+			elif budget > 0:
+				budget -= 1
+				var h: int = terrain.surface_y(key.x, key.y)
+				var id: int = terrain.block_at(key.x, h - 1, key.y)
+				var col := _terrain_color(id)
+				cache_h[key] = h
+				cache_c[key] = col
+				heights[idx] = h
+				image.set_pixel(i, j, _shade(col, h - ph))
+			else:
+				incomplete = true
+				heights[idx] = ph
+				image.set_pixel(i, j, BACKDROP)
+	var px := float(pc.x)
+	var pz := float(pc.y)
 	for n in get_tree().get_nodes_in_group("block"):
 		if n.dying:
+			continue
+		if absf(n.global_position.x - px) > RADIUS + 3.0 or absf(n.global_position.z - pz) > RADIUS + 3.0:
 			continue
 		var info: Dictionary = Inventory.BLOCK_TYPES.get(n.block_type, {})
 		var base: Color = info.get("color", Color(0.6, 0.6, 0.6))

@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/banner.gd" id="1_banner"]
+
+[node name="Banner" type="StaticBody3D"]
+script = ExtResource("1_banner")

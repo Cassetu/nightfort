@@ -10,6 +10,13 @@ const LEAF_COLORS := [
 	Color(0.10, 0.33, 0.24),
 ]
 
+const SPRUCE_COLORS := [
+	Color(0.52, 0.72, 0.68),
+	Color(0.46, 0.66, 0.66),
+	Color(0.58, 0.74, 0.64),
+]
+const SNOW_TINT := Color(0.93, 0.95, 0.98)
+
 const TRUNK_COLOR := Color(0.30, 0.20, 0.12)
 const TRUNK_HEIGHT := 2.4
 const TRUNK_RADIUS := 0.28
@@ -20,6 +27,7 @@ var variant: int = 0
 static var _meshes: Array = []
 static var _material: StandardMaterial3D
 static var _trunk_material: StandardMaterial3D
+static var _snow_material: StandardMaterial3D
 
 
 func _configure() -> void:
@@ -62,8 +70,63 @@ static func _ensure_meshes() -> void:
 
 	_trunk_material = TileArt.uv_material("wood", TRUNK_COLOR, Vector3(2.0, 2.0, 1.0))
 
+	_snow_material = TileArt.uv_material("snow", SNOW_TINT, Vector3(2.0, 2.0, 1.0), true)
+
 	for leaf: Color in LEAF_COLORS:
 		_meshes.append(_make_mesh(leaf))
+	for i in SPRUCE_COLORS.size():
+		_meshes.append(_make_spruce(SPRUCE_COLORS[i], i))
+
+
+static func _make_spruce(leaf: Color, index: int) -> ArrayMesh:
+	var verts := PackedVector3Array()
+	var norms := PackedVector3Array()
+	var cols := PackedColorArray()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+	var s_verts := PackedVector3Array()
+	var s_norms := PackedVector3Array()
+	var s_cols := PackedColorArray()
+	var s_uvs := PackedVector2Array()
+	var s_indices := PackedInt32Array()
+
+	var tiers := 5 + index % 2
+	var base := 0.9
+	var step := 0.95
+	for t in tiers:
+		var k := float(t) / float(tiers - 1)
+		var radius := lerpf(1.55, 0.45, k)
+		var height := 1.9
+		var cy := base + height * 0.5 + float(t) * step
+		var shade := leaf.lightened(0.05 * k)
+		_append_part(verts, norms, cols, uvs, indices, 0.0, radius, height, cy, shade)
+		var cap_h := height * 0.55
+		_append_part(s_verts, s_norms, s_cols, s_uvs, s_indices, 0.0, radius * 0.55 * 1.08, cap_h, cy + height * 0.5 - cap_h * 0.5 + 0.02, SNOW_TINT)
+
+	var needle_arrays := []
+	needle_arrays.resize(Mesh.ARRAY_MAX)
+	needle_arrays[Mesh.ARRAY_VERTEX] = verts
+	needle_arrays[Mesh.ARRAY_NORMAL] = norms
+	needle_arrays[Mesh.ARRAY_COLOR] = cols
+	needle_arrays[Mesh.ARRAY_TEX_UV] = uvs
+	needle_arrays[Mesh.ARRAY_INDEX] = indices
+
+	var snow_arrays := []
+	snow_arrays.resize(Mesh.ARRAY_MAX)
+	snow_arrays[Mesh.ARRAY_VERTEX] = s_verts
+	snow_arrays[Mesh.ARRAY_NORMAL] = s_norms
+	snow_arrays[Mesh.ARRAY_COLOR] = s_cols
+	snow_arrays[Mesh.ARRAY_TEX_UV] = s_uvs
+	snow_arrays[Mesh.ARRAY_INDEX] = s_indices
+
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, _trunk_arrays())
+	mesh.surface_set_material(0, _trunk_material)
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, needle_arrays)
+	mesh.surface_set_material(1, _material)
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, snow_arrays)
+	mesh.surface_set_material(2, _snow_material)
+	return mesh
 
 
 static func _make_mesh(leaf: Color) -> ArrayMesh:

@@ -7,10 +7,12 @@ signal notice(text)
 signal workbench_used
 signal forge_used
 signal troop_used
+signal core_used
 
 const OutlineMesh = preload("res://scripts/outline_mesh.gd")
 const SPEED = 5.0
 const CLIMB_SPEED = 3.0
+const LADDER_TURN = 0.35
 const JUMP_VELOCITY = 4.5
 const MINE_REACH = 3.5
 const PLACE_REACH = 5.0
@@ -136,12 +138,23 @@ func touching_ladder():
 	ladder_query.transform = Transform3D(Basis.IDENTITY, global_position + Vector3(0.0, 0.05, 0.0))
 	for r in get_world_3d().direct_space_state.intersect_shape(ladder_query, 4):
 		if r["collider"].is_in_group("ladder"):
-			return true
-	return false
+			return r["collider"]
+	return null
+
+
+func climb_sign(ladder):
+	var outward = ladder.global_transform.basis.z
+	var forward = -global_transform.basis.z
+	if forward.dot(outward) > LADDER_TURN:
+		return -1.0
+	return 1.0
 
 
 func _physics_process(delta):
-	var on_ladder = not dead and not frozen and touching_ladder()
+	var ladder = null
+	if not dead and not frozen:
+		ladder = touching_ladder()
+	var on_ladder = ladder != null
 	if not is_on_floor() and not on_ladder:
 		velocity.y -= gravity * delta
 
@@ -162,7 +175,7 @@ func _physics_process(delta):
 
 	var input_dir = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 	if on_ladder and not jumped:
-		velocity.y = -input_dir.y * CLIMB_SPEED
+		velocity.y = -input_dir.y * CLIMB_SPEED * climb_sign(ladder)
 	var direction = (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
 
 	if not is_on_floor():
@@ -540,6 +553,9 @@ func swing(weapon):
 
 
 func try_place(hit):
+	if not hit.is_empty() and hit.collider.is_in_group("Core"):
+		core_used.emit(hit.collider)
+		return
 	if not hit.is_empty() and hit.collider.is_in_group("workbench"):
 		workbench_used.emit()
 		return

@@ -17,6 +17,11 @@ const Y_MAX := 160
 const Y_BASE := Y_MIN - 1
 const Y_LAYERS := Y_MAX - Y_BASE + 1
 const FAR := 1 << 20
+const GRASS_NEAR_FRACTION := 0.55
+const GRASS_FADE_MARGIN := 4.0
+const FAR_SCALE_XZ := 1.3
+const FAR_SCALE_Y := 1.15
+const HIDE_SLOTS := [0, 1, 2, 4, 5, 6, 8, 9, 10]
 const PLANT_KINDS := ["tuft", "flower", "bush", "shrub"]
 const PLANT_FIBER := {"tuft": 0.28, "flower": 0.4, "bush": 0.55, "shrub": 0.25}
 const PLANT_CHIPS := {"tuft": Color(0.3, 0.42, 0.2), "flower": Color(0.62, 0.42, 0.48), "bush": Color(0.2, 0.34, 0.15), "shrub": Color(0.5, 0.42, 0.25)}
@@ -134,6 +139,13 @@ const FACE_DCOL := [1, -1, 0, 0, PAD, -PAD]
 @export var grass_view_range: float = 36.0
 @export var bush_view_range: float = 70.0
 
+@export_group("Snowy Forest")
+@export var snowy_enabled: bool = true
+@export var snowy_threshold: float = 0.22
+@export var snowy_clear_radius: float = 60.0
+@export var spruce_spacing: float = 2.4
+@export var spruce_density: float = 0.85
+
 @export_group("Desert")
 @export var desert_enabled: bool = true
 @export var desert_threshold: float = 0.2
@@ -186,12 +198,14 @@ var n_cavern: FastNoiseLite
 var n_stone_a: FastNoiseLite
 var n_stone_b: FastNoiseLite
 var n_biome: FastNoiseLite
+var n_snowy: FastNoiseLite
 var mount_dir: Vector2 = Vector2.RIGHT
 var mouth_y: int = 0
 
 var material: ShaderMaterial
 var plant_meshes: Dictionary = {}
 var broken_plants: Dictionary = {}
+var plant_chip_meshes: Dictionary = {}
 var player = null
 var core_node: Node3D = null
 var chunks: Dictionary = {}
@@ -462,6 +476,7 @@ func _setup_noise() -> void:
 	n_stone_a = _make_noise(14, 0.028, 1)
 	n_stone_b = _make_noise(15, 0.024, 1)
 	n_biome = _make_noise(16, 0.0032, 2)
+	n_snowy = _make_noise(17, 0.0032, 2)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = world_seed ^ 0x5EED
 	mount_dir = Vector2.RIGHT.rotated(rng.randf() * TAU)
@@ -1122,58 +1137,94 @@ func _gen_plants(coord: Vector2i, heights: PackedInt32Array, surf: PackedByteArr
 		var v := rng.randf_range(0.8, 1.1)
 		_push_plant(bush, px, h - 0.05, pz, rng.randf() * TAU, sc, sc * rng.randf_range(0.8, 1.0), Color(v, v, v))
 
-	return {"tuft": PackedFloat32Array(tuft), "flower": PackedFloat32Array(flower), "bush": PackedFloat32Array(bush), "shrub": PackedFloat32Array(shrub)}
+	return {
+		"tuft": PackedFloat32Array(tuft),
+		"flower": PackedFloat32Array(flower),
+		"bush": PackedFloat32Array(bush),
+		"shrub": PackedFloat32Array(shrub),
+		"tuft_far": _thin_plants(tuft),
+		"flower_far": _thin_plants(flower),
+		"shrub_far": _thin_plants(shrub),
+	}
 
 
 func _spawn_plants(chunk: Chunk) -> void:
 	if not plants_enabled:
 		return
-	for kind: String in chunk.plants.keys():
-		var buf: PackedFloat32Array = chunk.plants[kind]
-		if buf.is_empty():
-			continue
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.use_colors = true
-		mm.mesh = plant_meshes[kind]
-		mm.instance_count = buf.size() / 16
-		mm.buffer = buf
-		var mmi := MultiMeshInstance3D.new()
-		mmi.name = "Plants_" + kind
-		mmi.multimesh = mm
-		if kind == "bush":
-			mmi.visibility_range_end = bush_view_range
-		else:
+	for key: String in chunk.plants.keys():
+		_make_plant_node(chunk, key)
+
+
+func _make_plant_node(chunk: Chunk, key: String) -> void:
+	var buf: PackedFloat32Array = chunk.plants[key]
+	if buf.is_empty():
+		return
+	var kind := key.trim_suffix("_far")
+	var near_end := grass_view_range * GRASS_NEAR_FRACTION
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.mesh = plant_meshes[kind]
+	mm.instance_count = buf.size() / 16
+	mm.buffer = buf
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = "Plants_" + key
+	mmi.multimesh = mm
+	mmi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+	if kind == "bush":
+		mmi.visibility_range_end = bush_view_range
+		mmi.visibility_range_end_margin = 6.0
+	else:
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mmi.visibility_range_end_margin = GRASS_FADE_MARGIN
+		if key.ends_with("_far"):
+			mmi.visibility_range_begin = near_end
+			mmi.visibility_range_begin_margin = GRASS_FADE_MARGIN
 			mmi.visibility_range_end = grass_view_range
-			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		chunk.root.add_child(mmi)
-		chunk.plant_nodes[kind] = mmi
+		else:
+			mmi.visibility_range_end = near_end
+	chunk.root.add_child(mmi)
+	chunk.plant_nodes[key] = mmi
+
+
+static func _thin_plants(arr: Array) -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	var i := 0
+	while i + 16 <= arr.size():
+		if (i / 16) % 2 == 0:
+			for k in 16:
+				var v: float = arr[i + k]
+				if k == 0 or k == 1 or k == 2 or k == 8 or k == 9 or k == 10:
+					v *= FAR_SCALE_XZ
+				elif k == 4 or k == 5 or k == 6:
+					v *= FAR_SCALE_Y
+				out.push_back(v)
+		i += 16
+	return out
 
 
 func _filter_plants(chunk: Chunk, drop: Callable) -> void:
-	for kind: String in chunk.plants.keys():
-		var buf: PackedFloat32Array = chunk.plants[kind]
+	for key: String in chunk.plants.keys():
+		var kind := key.trim_suffix("_far")
+		var buf: PackedFloat32Array = chunk.plants[key]
 		var out := PackedFloat32Array()
 		var i := 0
 		while i < buf.size():
-			var key := Vector3i(chunk.coord.x * CHUNK + floori(buf[i + 3]), floori(buf[i + 7]), chunk.coord.y * CHUNK + floori(buf[i + 11]))
+			var cell := Vector3i(chunk.coord.x * CHUNK + floori(buf[i + 3]), floori(buf[i + 7]), chunk.coord.y * CHUNK + floori(buf[i + 11]))
 			var wx: float = chunk.coord.x * CHUNK + buf[i + 3]
 			var wz: float = chunk.coord.y * CHUNK + buf[i + 11]
-			if not drop.call(key, kind, wx, wz):
+			if not drop.call(cell, kind, wx, wz):
 				out.append_array(buf.slice(i, i + 16))
 			i += 16
 		if out.size() == buf.size():
 			continue
-		chunk.plants[kind] = out
-		if not chunk.plant_nodes.has(kind):
+		chunk.plants[key] = out
+		if not chunk.plant_nodes.has(key):
 			continue
-		var node: MultiMeshInstance3D = chunk.plant_nodes[kind]
-		if out.is_empty():
-			node.queue_free()
-			chunk.plant_nodes.erase(kind)
-		else:
-			node.multimesh.instance_count = out.size() / 16
-			node.multimesh.buffer = out
+		var node: MultiMeshInstance3D = chunk.plant_nodes[key]
+		node.queue_free()
+		chunk.plant_nodes.erase(key)
+		_make_plant_node(chunk, key)
 
 
 func _prune_plants(chunk: Chunk) -> void:
@@ -1215,10 +1266,15 @@ func pick_plant(origin: Vector3, dir: Vector3, reach: float, limit: float) -> Di
 		var chunk: Chunk = chunks[cc]
 		var base := Vector3(cc.x * CHUNK, 0.0, cc.y * CHUNK)
 		for kind: String in chunk.plants:
+			if kind.ends_with("_far"):
+				continue
 			var buf: PackedFloat32Array = chunk.plants[kind]
 			var i := 0
 			while i < buf.size():
 				var sx := Vector2(buf[i], buf[i + 2]).length()
+				if sx < 0.01:
+					i += 16
+					continue
 				var sy: float = buf[i + 5]
 				var shape := _plant_shape(kind, sx, sy)
 				var pos := base + Vector3(buf[i + 3], buf[i + 7], buf[i + 11])
@@ -1226,7 +1282,7 @@ func pick_plant(origin: Vector3, dir: Vector3, reach: float, limit: float) -> Di
 				var t := clampf((c - origin).dot(dir), 0.0, reach)
 				if t < best_t and (origin + dir * t).distance_to(c) <= shape.y:
 					best_t = t
-					best = {"kind": kind, "pos": pos, "center": c, "coord": cc}
+					best = {"kind": kind, "pos": pos, "center": c, "coord": cc, "index": i / 16}
 				i += 16
 	return best
 
@@ -1240,12 +1296,68 @@ func break_plant(info: Dictionary) -> Dictionary:
 		broken_plants[cc] = {}
 	var gone: Dictionary = broken_plants[cc]
 	gone[key] = true
-	_spawn_chips(info["center"], PLANT_CHIPS.get(kind, Color(0.3, 0.45, 0.2)))
+	_spawn_plant_chips(info["center"], PLANT_CHIPS.get(kind, Color(0.3, 0.45, 0.2)))
 	if chunks.has(cc):
-		_filter_plants(chunks[cc], func(_k: Vector3i, k: String, wx: float, wz: float) -> bool: return _plant_key(k, wx, wz) == key)
+		var chunk: Chunk = chunks[cc]
+		var origin_x: float = pos.x - cc.x * CHUNK
+		var origin_z: float = pos.z - cc.y * CHUNK
+		_hide_plant(chunk, kind, int(info["index"]), -1.0, -1.0)
+		_hide_plant(chunk, kind + "_far", -1, origin_x, origin_z)
 	if randf() < float(PLANT_FIBER.get(kind, 0.0)):
 		return {"item": "fiber", "amount": randi_range(1, 2) if kind == "bush" else 1}
 	return {}
+
+
+func _hide_plant(chunk: Chunk, key: String, index: int, local_x: float, local_z: float) -> void:
+	if not chunk.plants.has(key):
+		return
+	var buf: PackedFloat32Array = chunk.plants[key]
+	var idx := index
+	if idx < 0:
+		var i := 0
+		while i < buf.size():
+			if is_equal_approx(buf[i + 3], local_x) and is_equal_approx(buf[i + 11], local_z):
+				idx = i / 16
+				break
+			i += 16
+	if idx < 0 or idx * 16 + 16 > buf.size():
+		return
+	var base := idx * 16
+	var origin := Vector3(buf[base + 3], buf[base + 7], buf[base + 11])
+	for slot: int in HIDE_SLOTS:
+		buf[base + slot] = 0.0
+	chunk.plants[key] = buf
+	if chunk.plant_nodes.has(key):
+		var node: MultiMeshInstance3D = chunk.plant_nodes[key]
+		node.multimesh.set_instance_transform(idx, Transform3D(Basis.from_scale(Vector3.ZERO), origin))
+
+
+func _spawn_plant_chips(origin: Vector3, color: Color) -> void:
+	var key := color.to_html()
+	if not plant_chip_meshes.has(key):
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = color
+		mat.roughness = 1.0
+		var chip := BoxMesh.new()
+		chip.size = Vector3(0.08, 0.08, 0.08)
+		chip.material = mat
+		plant_chip_meshes[key] = chip
+	var burst := CPUParticles3D.new()
+	burst.mesh = plant_chip_meshes[key]
+	burst.amount = 5
+	burst.lifetime = 0.45
+	burst.one_shot = true
+	burst.explosiveness = 1.0
+	burst.direction = Vector3.UP
+	burst.spread = 60.0
+	burst.gravity = Vector3(0.0, -10.0, 0.0)
+	burst.initial_velocity_min = 1.5
+	burst.initial_velocity_max = 3.0
+	burst.emitting = false
+	add_child(burst)
+	burst.global_position = origin
+	burst.emitting = true
+	get_tree().create_timer(0.9).timeout.connect(burst.queue_free)
 
 
 func _on_depleted(_resource_type, _amount, key) -> void:
@@ -1318,17 +1430,28 @@ func _desert(x: float, z: float) -> float:
 	return base * away
 
 
+func _snowy(x: float, z: float) -> float:
+	if not snowy_enabled:
+		return 0.0
+	var n := n_snowy.get_noise_2d(x, z)
+	var base := smoothstep(snowy_threshold, snowy_threshold + 0.14, n)
+	var away := smoothstep(snowy_clear_radius, snowy_clear_radius + 50.0, Vector2(x, z).length())
+	var dry := _desert(x, z)
+	return base * away * (1.0 - clampf(dry * 4.0, 0.0, 1.0))
+
+
 func _moisture(x: float, z: float) -> float:
 	var m := n_moist.get_noise_2d(x, z) * 0.5 + 0.5
 	return clampf((m - 0.5) * 1.8 + 0.5, 0.0, 1.0)
 
 
-func _top_color(h: int, moist: float, desert: float) -> Color:
+func _top_color(h: int, moist: float, desert: float, snowy: float) -> Color:
 	var hf := float(h)
 	var c := COL_DRY.lerp(COL_LUSH, moist)
 	var sand_t := (1.0 - smoothstep(0.05, 0.22, moist)) * (1.0 - smoothstep(2.0, rock_line - 4.0, hf))
 	c = c.lerp(COL_SAND, maxf(sand_t, desert))
 	c = c.lerp(COL_ROCK, smoothstep(rock_line, rock_line + 5.0, hf))
+	c = c.lerp(COL_SNOW, snowy)
 	return c.lerp(COL_SNOW, smoothstep(snow_line, snow_line + 3.0, hf))
 
 
@@ -1341,6 +1464,8 @@ func _surface_id(h: int, moist: float, desert: float, x: int, z: int) -> int:
 		return B_DIRT
 	var hf := float(h)
 	if hf >= snow_line + 2.0:
+		return B_SNOW
+	if _snowy(x + 0.5, z + 0.5) > 0.5:
 		return B_SNOW
 	if hf >= rock_line + 3.0:
 		return B_STONE
@@ -1402,6 +1527,8 @@ func _gen_block(x: int, iy: int, z: int, h: int, surf: int, in_desert: bool) -> 
 	if caves_enabled and depth >= cave_cover and iy > Y_MIN + 1 and Vector2(x + 0.5, z + 0.5).length() > core_protect_radius + 3.0 and _is_cave(x, iy, z):
 		return B_AIR
 	if surf == B_GRASS and depth <= 3:
+		return B_DIRT
+	if surf == B_SNOW and depth <= 3 and float(h) < snow_line + 2.0:
 		return B_DIRT
 	if surf == B_SAND and in_desert:
 		if depth < desert_sand_depth:
@@ -1496,6 +1623,8 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 		for x in PAD:
 			dcol[z * PAD + x] = _desert(ox + x + 0.5, oz + z + 0.5)
 
+	var snowy := PackedFloat32Array()
+	snowy.resize(CHUNK * CHUNK)
 	var moist := PackedFloat32Array()
 	moist.resize(CHUNK * CHUNK)
 	var desert := PackedFloat32Array()
@@ -1514,7 +1643,9 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 			desert[ci] = dv
 			var wx0: int = coord.x * CHUNK + lx
 			var wz0: int = coord.y * CHUNK + lz
-			top_cols[ci] = COL_DIRT if in_ruins(wx0, wz0) else _top_color(h, m, dv)
+			var sv := _snowy(wx0 + 0.5, wz0 + 0.5)
+			snowy[ci] = sv
+			top_cols[ci] = COL_DIRT if in_ruins(wx0, wz0) else _top_color(h, m, dv, sv)
 			surf[ci] = _surface_id(h, m, dv, wx0, wz0)
 
 	var vol := PackedByteArray()
@@ -1650,24 +1781,33 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 			var world := origin2 + Vector2(px, pz)
 			if world.length() < tree_clear_radius:
 				continue
+			var spruce := snowy[lz * CHUNK + lx] > 0.5
 			var density := smoothstep(-0.7, 0.2, n_forest.get_noise_2d(world.x, world.y)) * (0.55 + 0.45 * moist[lz * CHUNK + lx])
+			if spruce:
+				density = spruce_density * (0.55 + 0.45 * smoothstep(-0.9, 0.1, n_forest.get_noise_2d(world.x, world.y)))
 			if rng.randf() > density:
 				continue
 			var pos := Vector2(lx + 0.5 + rng.randf_range(-0.15, 0.15), lz + 0.5 + rng.randf_range(-0.15, 0.15))
+			var gap := tree_spacing
+			if spruce:
+				gap = spruce_spacing
 			var blocked := false
 			for other: Vector2 in placed:
-				if other.distance_squared_to(pos) < tree_spacing * tree_spacing:
+				if other.distance_squared_to(pos) < gap * gap:
 					blocked = true
 					break
 			if blocked:
 				continue
 			placed.append(pos)
+			var variant := rng.randi_range(0, 4)
+			if spruce:
+				variant = 5 + rng.randi_range(0, 2)
 			trees.append({
 				"x": pos.x,
 				"y": float(h),
 				"z": pos.y,
 				"size": rng.randf_range(0.8, 1.4),
-				"variant": rng.randi_range(0, 4),
+				"variant": variant,
 				"rot": rng.randf() * TAU,
 			})
 

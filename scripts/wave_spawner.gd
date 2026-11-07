@@ -10,7 +10,11 @@ signal status_changed(text: String)
 @export var count_growth: int = 3
 @export var max_count: int = 60
 @export var max_alive: int = 20
-@export var spread_fraction: float = 0.45
+@export_range(0.0, 1.0) var swarm_share: float = 0.65
+@export_range(0.02, 0.3) var swarm_width: float = 0.07
+@export var swarm_max_alive: int = 45
+@export var swarm_interval: float = 0.12
+@export var night_fraction: float = 0.4888
 @export var first_delay: float = 3.0
 @export var warn_elevation: float = 0.12
 @export_range(0.0, 1.0) var focus_share: float = 0.8
@@ -89,14 +93,21 @@ func _process(delta: float) -> void:
 	if night_active and spawned < total:
 		night_time += delta
 		spawn_timer -= delta
-		var spread: float = maxf(sun.day_length_seconds * spread_fraction, 1.0)
-		var target := ceili(total * clampf(night_time / spread, 0.0, 1.0))
+		var p := clampf(night_time / maxf(sun.day_length_seconds * night_fraction, 1.0), 0.0, 1.0)
+		var swarming := absf(p - 0.5) <= swarm_width
+		var target := ceili(total * _spawn_curve(p))
 		if spawn_timer <= 0.0 and spawned < target:
-			spawn_timer = retry_interval
-			if get_tree().get_nodes_in_group("enemy").size() < max_alive and _spawn_one():
+			spawn_timer = swarm_interval if swarming else retry_interval
+			var cap := swarm_max_alive if swarming else max_alive
+			if get_tree().get_nodes_in_group("enemy").size() < cap and _spawn_one():
 				spawned += 1
 
 	_update_status()
+
+
+func _spawn_curve(p: float) -> float:
+	var burst := smoothstep(0.5 - swarm_width, 0.5 + swarm_width, p)
+	return (1.0 - swarm_share) * p + swarm_share * burst
 
 
 func _choose_directions(for_night: int) -> void:
@@ -119,6 +130,8 @@ func _begin_night() -> void:
 
 
 func _end_night() -> void:
+	if is_instance_valid(core):
+		core.heal(core.night_heal)
 	night_active = false
 	total = 0
 	spawned = 0
@@ -157,7 +170,7 @@ func _update_status() -> void:
 	if night_active and night <= calm_nights:
 		text = "NIGHT %d  -  Calm" % night
 	elif night_active:
-		text = "Gloom attacking: %d/%d" % [get_tree().get_nodes_in_group("enemy").size(), total]
+		text = "Gloom attacking: %d/%d" % [get_tree().get_nodes_in_group("enemy").size(), maxi(total - spawned, 0)]
 	else:
 		text = "Day  -  Night %d approaches" % (night + 1)
 	if text != last_status:

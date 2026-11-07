@@ -7,6 +7,7 @@ signal destroyed
 @export var marker_min_distance: float = 20.0
 @export var build_exclusion_radius: float = 3.0
 @export var hide_distance: float = 1.25
+@export var night_heal: int = 5
 
 const GLOW_ALPHA := 0.5
 const CORE_HALF := 1.0
@@ -16,6 +17,8 @@ var current_health: int
 var dying: bool = false
 var sun
 var last_text: String = ""
+var level: int = 1
+var overview: bool = false
 
 @onready var glow: MeshInstance3D = $Glow
 @onready var body_mesh: MeshInstance3D = $MeshInstance3D
@@ -56,7 +59,7 @@ func _process(_delta: float) -> void:
 		mat.albedo_color = Color(0.4, 1.0, 1.0, GLOW_ALPHA * night)
 
 	var anchor := global_position + Vector3(0.0, 1.6, 0.0)
-	var show_marker := dist >= marker_min_distance and not cam.is_position_behind(anchor)
+	var show_marker := not overview and dist >= marker_min_distance and not cam.is_position_behind(anchor)
 	marker_label.visible = show_marker
 	if not show_marker:
 		return
@@ -77,6 +80,12 @@ func take_damage(amount: int, _hit_position = Vector3.INF):
 	_pulse()
 	if current_health <= 0:
 		die()
+
+
+func heal(amount: int) -> void:
+	if dying or amount <= 0:
+		return
+	set_health(current_health + amount)
 
 
 func set_health(value: int):

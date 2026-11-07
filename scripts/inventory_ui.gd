@@ -208,10 +208,9 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if event.button_index >= MOUSE_BUTTON_WHEEL_UP and event.button_index <= MOUSE_BUTTON_WHEEL_RIGHT:
 			return
-		if event.pressed:
-			var over := get_viewport().gui_get_hovered_control()
-			if over is BaseButton:
-				return
+		var over := get_viewport().gui_get_hovered_control()
+		if over is BaseButton:
+			return
 		get_viewport().set_input_as_handled()
 		var s = _slot_at(event.position)
 		if event.button_index == MOUSE_BUTTON_LEFT:

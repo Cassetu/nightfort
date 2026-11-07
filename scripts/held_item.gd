@@ -4,10 +4,11 @@ const TileArt = preload("res://scripts/tile_art.gd")
 
 const ITEM_SIZE := 0.62
 const THICKNESS := 0.05
-const BASE_POS := Vector3(0.38, -0.5, -0.72)
+const BASE_POS := Vector3(0.5, -0.5, -0.74)
+const BASE_ROT := Vector3(0.0, 14.0, 0.0)
 const MODEL_OFFSET := Vector3(0.0, 0.14, 0.0)
 const TILT_X := -8.0
-const TILT_Y := -25.0
+const TILT_Y := -42.0
 const DIAGONAL_Z := 45.0
 const UPRIGHT_Z := 12.0
 const UPRIGHT := ["torch", "bow"]
@@ -90,7 +91,7 @@ func _process(delta: float) -> void:
 	var idle := Vector3(0.0, sin(t * 1.6) * 0.004, 0.0)
 	var shake := Vector3(sin(t * 38.0), cos(t * 31.0), 0.0) * 0.002 * smoothstep(0.8, 1.0, draw)
 	position = BASE_POS + bob + idle + SWING_MOVE * swing + DRAW_MOVE * draw + shake
-	rotation_degrees = SWING_ROT * swing + DRAW_ROT * draw
+	rotation_degrees = BASE_ROT + SWING_ROT * swing + DRAW_ROT * draw
 	if light.visible:
 		light.light_energy = TORCH_ENERGY * (1.0 + 0.1 * sin(t * 9.0) + 0.06 * sin(t * 23.0))
 
