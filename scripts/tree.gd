@@ -25,9 +25,10 @@ var size_factor: float = 1.0
 var variant: int = 0
 
 static var _meshes: Array = []
-static var _material: StandardMaterial3D
+static var _material: ShaderMaterial
 static var _trunk_material: StandardMaterial3D
-static var _snow_material: StandardMaterial3D
+static var _snow_material: ShaderMaterial
+static var _leaf_shader: Shader
 
 
 func _configure() -> void:
@@ -66,16 +67,26 @@ static func _ensure_meshes() -> void:
 	if not _meshes.is_empty():
 		return
 
-	_material = TileArt.uv_material("leaves", LEAF_COLORS[0], Vector3(4.0, 3.0, 1.0), true)
+	_leaf_shader = load("res://resources/leaves.gdshader")
+	_material = _shader_material("leaves", LEAF_COLORS[0], Vector2(4.0, 3.0), true)
 
 	_trunk_material = TileArt.uv_material("wood", TRUNK_COLOR, Vector3(2.0, 2.0, 1.0))
 
-	_snow_material = TileArt.uv_material("snow", SNOW_TINT, Vector3(2.0, 2.0, 1.0), true)
+	_snow_material = _shader_material("snow", SNOW_TINT, Vector2(2.0, 2.0), false)
 
 	for leaf: Color in LEAF_COLORS:
 		_meshes.append(_make_mesh(leaf))
 	for i in SPRUCE_COLORS.size():
 		_meshes.append(_make_spruce(SPRUCE_COLORS[i], i))
+
+
+static func _shader_material(tile_name: String, fallback: Color, uv_scale: Vector2, leafy: bool) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = _leaf_shader
+	m.set_shader_parameter("albedo_tex", TileArt.uv_material(tile_name, fallback, Vector3(1.0, 1.0, 1.0), true).albedo_texture)
+	m.set_shader_parameter("uv_scale", uv_scale)
+	m.set_shader_parameter("ragged", 1.0 if leafy else 0.0)
+	return m
 
 
 static func _make_spruce(leaf: Color, index: int) -> ArrayMesh:
@@ -180,8 +191,8 @@ static func _append_part(verts: PackedVector3Array, norms: PackedVector3Array, c
 	cylinder.top_radius = top_radius
 	cylinder.bottom_radius = bottom_radius
 	cylinder.height = height
-	cylinder.radial_segments = 8
-	cylinder.rings = 1
+	cylinder.radial_segments = 12
+	cylinder.rings = 3
 	cylinder.cap_top = false
 	cylinder.cap_bottom = false
 

@@ -23,6 +23,12 @@ const WIND_DIR := Vector2(0.8, 0.35)
 const NIGHT_TINT := Color(0.05, 0.06, 0.11)
 const RAIN_AMOUNT := 2600
 const RAIN_HEIGHT := 14.0
+const Sfx = preload("res://scripts/sfx.gd")
+const DROP_AMOUNT := 260
+const DROP_LIFE := 1.3
+const DROP_RATE := 34.0
+const DROP_RADIUS := 12.0
+const DROP_MIN_FACE := 0.9
 const SPLASH_AMOUNT := 360
 const SPLASH_RATE := 240.0
 const SPLASH_RADIUS := 16.0
@@ -54,6 +60,8 @@ var rain_particles: GPUParticles3D
 var splash_particles: GPUParticles3D
 var roof_map
 var splash_budget: float = 0.0
+var wall_drops: GPUParticles3D
+var drop_budget: float = 0.0
 var roof_field: GPUParticlesCollisionHeightField3D
 var bolt: MeshInstance3D
 var bolt_material: StandardMaterial3D
@@ -124,6 +132,7 @@ func _build_rain() -> void:
 	rain_particles.top_level = true
 	add_child(rain_particles)
 	_build_splashes()
+	_build_drops()
 
 	roof_field = GPUParticlesCollisionHeightField3D.new()
 	roof_field.name = "RoofField"
@@ -209,6 +218,80 @@ func _emit_ripples(delta: float, ppos: Vector3) -> void:
 			continue
 		var xform := Transform3D(Basis.IDENTITY, Vector3(x, h + 0.04, z))
 		splash_particles.emit_particle(xform, Vector3.ZERO, Color(1, 1, 1, 1), Color(0, 0, 0, 0), GPUParticles3D.EMIT_FLAG_POSITION)
+
+
+func _build_drops() -> void:
+	wall_drops = GPUParticles3D.new()
+	wall_drops.name = "WallDrops"
+	wall_drops.amount = DROP_AMOUNT
+	wall_drops.lifetime = DROP_LIFE
+	wall_drops.local_coords = false
+	wall_drops.emitting = false
+	wall_drops.explosiveness = 0.0
+	wall_drops.visibility_aabb = AABB(Vector3(-24, -26, -24), Vector3(48, 40, 48))
+	wall_drops.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	wall_drops.top_level = true
+
+	var drop_mat := ParticleProcessMaterial.new()
+	drop_mat.gravity = Vector3(0.0, -0.9, 0.0)
+	drop_mat.initial_velocity_min = 0.0
+	drop_mat.initial_velocity_max = 0.0
+	var fade := Gradient.new()
+	fade.set_color(0, Color(1.0, 1.0, 1.0, 0.0))
+	fade.add_point(0.12, Color(1.0, 1.0, 1.0, 0.85))
+	fade.add_point(0.8, Color(1.0, 1.0, 1.0, 0.7))
+	fade.set_color(1, Color(1.0, 1.0, 1.0, 0.0))
+	var fade_tex := GradientTexture1D.new()
+	fade_tex.gradient = fade
+	drop_mat.color_ramp = fade_tex
+	wall_drops.process_material = drop_mat
+
+	var blob := Gradient.new()
+	blob.offsets = PackedFloat32Array([0.0, 0.55, 1.0])
+	blob.colors = PackedColorArray([Color(0.85, 0.93, 1.0, 0.95), Color(0.7, 0.82, 0.95, 0.55), Color(0.7, 0.82, 0.95, 0.0)])
+	var blob_tex := GradientTexture2D.new()
+	blob_tex.gradient = blob
+	blob_tex.fill = GradientTexture2D.FILL_RADIAL
+	blob_tex.fill_from = Vector2(0.5, 0.5)
+	blob_tex.fill_to = Vector2(1.0, 0.5)
+	blob_tex.width = 32
+	blob_tex.height = 32
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.05, 0.17)
+	var quad_mat := StandardMaterial3D.new()
+	quad_mat.albedo_texture = blob_tex
+	quad_mat.vertex_color_use_as_albedo = true
+	quad_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	quad_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	quad_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	quad.material = quad_mat
+	wall_drops.draw_pass_1 = quad
+	add_child(wall_drops)
+
+
+func _emit_drops(delta: float, ppos: Vector3) -> void:
+	if roof_map == null or rain_shown < 0.15:
+		return
+	drop_budget += DROP_RATE * rain_shown * delta
+	var count := mini(int(drop_budget), 24)
+	drop_budget -= float(int(drop_budget))
+	var dirs := [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]
+	for i in count:
+		var cx := floorf(ppos.x + randf_range(-DROP_RADIUS, DROP_RADIUS)) + 0.5
+		var cz := floorf(ppos.z + randf_range(-DROP_RADIUS, DROP_RADIUS)) + 0.5
+		var h: float = roof_map.height_at(cx, cz)
+		if h <= roof_map.UNKNOWN + 1.0:
+			continue
+		var d: Vector2 = dirs[randi() % 4]
+		var nh: float = roof_map.height_at(cx + d.x, cz + d.y)
+		if nh <= roof_map.UNKNOWN + 1.0 or h - nh < DROP_MIN_FACE:
+			continue
+		var y := randf_range(nh + 0.3, h - 0.15)
+		var normal := Vector3(d.x, 0.0, d.y)
+		var pos := Vector3(cx, y, cz) + normal * 0.53
+		var basis := Basis.looking_at(-normal, Vector3.UP)
+		var vel := Vector3(0.0, -randf_range(0.35, 0.9), 0.0)
+		wall_drops.emit_particle(Transform3D(basis, pos), vel, Color(1, 1, 1, 1), Color(0, 0, 0, 0), GPUParticles3D.EMIT_FLAG_POSITION | GPUParticles3D.EMIT_FLAG_ROTATION_SCALE | GPUParticles3D.EMIT_FLAG_VELOCITY)
 
 
 func _build_bolt() -> void:
@@ -302,6 +385,7 @@ func _apply_rain(delta: float, ppos: Vector3) -> void:
 	rain_particles.amount_ratio = clampf(rain_shown, 0.0, 1.0)
 	rain_particles.emitting = rain_shown > 0.01
 	_emit_ripples(delta, ppos)
+	_emit_drops(delta, ppos)
 	rain_particles.global_position = ppos + Vector3(0.0, RAIN_HEIGHT, 0.0)
 	roof_field.global_position = ppos + Vector3(0.0, 6.0, 0.0)
 	var mat := rain_particles.process_material as ParticleProcessMaterial
@@ -364,6 +448,9 @@ func _strike(ppos: Vector3) -> void:
 	bolt.visible = true
 	bolt_age = 0.0
 	flash = 1.0
+	var delay := clampf(dist / 120.0, 0.25, 1.6)
+	var thunder_db := -2.0 - dist / 45.0
+	get_tree().create_timer(delay).timeout.connect(func() -> void: Sfx.play(self, "lightning", Vector3.INF, thunder_db))
 
 
 func _bolt_mesh(top: Vector3, bottom: Vector3) -> ArrayMesh:

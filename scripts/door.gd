@@ -2,8 +2,8 @@ extends "res://scripts/block.gd"
 
 const CLOSED_LAYER := 1
 const OPEN_LAYER := 8
-const HINGE := Vector3(0.5, -0.5, -0.5)
-const LEAF_CENTER := Vector3(-0.5, 1.0, 0.1)
+const HINGE := Vector3(0.4, -0.5, -0.4)
+const LEAF_CENTER := Vector3(-0.4, 1.0, 0.0)
 const SWING_TIME := 0.18
 
 var is_open: bool = false
@@ -36,7 +36,7 @@ func _build() -> void:
 func _half(tile: String, y: float) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	mi.mesh = TileArt.box_mesh(Vector3(1.0, 1.0, 0.2), TileArt.uv_material(tile, Color(0.45, 0.3, 0.17), Vector3.ONE))
-	mi.position = Vector3(-0.5, y, 0.1)
+	mi.position = Vector3(-0.4, y, 0.0)
 	return mi
 
 

@@ -14,6 +14,10 @@ const MAX_AGE := 45.0
 const MIN_SUN := 0.12
 const MAX_RAIN := 0.1
 const BIRD_SCALE := 1.7
+const CHIRP_MAX := 3
+const CHIRP_RANGE := 58.0
+const CHIRP_DB := -11.0
+const Sfx = preload("res://scripts/sfx.gd")
 
 var player
 var sun
@@ -79,7 +83,8 @@ func _spawn_flock() -> void:
 		var side := 0.0 if i == 0 else (1.0 if i % 2 == 1 else -1.0)
 		bird["node"].position = Vector3(side * rank * 1.7 + randf_range(-0.3, 0.3), randf_range(-0.4, 0.4), rank * 1.5 + randf_range(-0.3, 0.3))
 		members.append(bird)
-	flocks.append({"root": root, "dir": dir, "speed": randf_range(SPEED_MIN, SPEED_MAX), "age": 0.0, "birds": members})
+	var chirps := clampi(int(ceil(float(count) / 2.0)), 1, CHIRP_MAX)
+	flocks.append({"root": root, "dir": dir, "speed": randf_range(SPEED_MIN, SPEED_MAX), "age": 0.0, "birds": members, "chirps": chirps, "chirp_at": randf_range(0.5, 3.0), "size": count})
 
 
 func _make_bird() -> Dictionary:
@@ -116,6 +121,13 @@ func _update_flocks(delta: float) -> void:
 			root.queue_free()
 			flocks.remove_at(i)
 			continue
+		if int(flock["chirps"]) > 0:
+			flock["chirp_at"] = float(flock["chirp_at"]) - delta
+			if float(flock["chirp_at"]) <= 0.0 and away < CHIRP_RANGE:
+				flock["chirps"] = int(flock["chirps"]) - 1
+				flock["chirp_at"] = randf_range(3.0, 8.0)
+				var size_db := float(int(flock["size"]) - 1) * 0.6
+				Sfx.play(self, "bird_chirp", root.global_position, CHIRP_DB + size_db + randf_range(-2.0, 1.0))
 		for bird in flock["birds"]:
 			var phase: float = bird["phase"]
 			var glide := smoothstep(-0.2, 0.4, sin(t * 0.4 + phase))

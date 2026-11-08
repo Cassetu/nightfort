@@ -1,6 +1,7 @@
 extends StaticBody3D
 
 const Sfx = preload("res://scripts/sfx.gd")
+const STONE_TYPES := ["stone", "basalt", "diorite", "granite", "limestone", "sandstone", "stone_brick", "basalt_brick", "diorite_brick", "granite_brick", "limestone_brick", "fortified_brick", "ruined_brick", "stone_forge", "iron_block"]
 const CHOP_TYPES := ["wood", "plank", "scaffold", "door", "ladder", "chest", "workbench", "barricade"]
 
 signal harvested(resource_type: String, amount: int)
@@ -40,6 +41,8 @@ func take_damage(amount: int, hit_position: Vector3 = Vector3.INF) -> void:
 	current_health -= amount
 	if CHOP_TYPES.has(resource_type):
 		Sfx.play(self, "chop", global_position, -2.0)
+	elif STONE_TYPES.has(resource_type):
+		Sfx.play(self, "stone_break" if current_health <= 0 else "stone_hit", global_position, -2.0)
 	_spawn_chips(hit_position)
 	if current_health <= 0:
 		_die()

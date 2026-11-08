@@ -2,6 +2,7 @@ extends CanvasLayer
 
 signal finished(result: String)
 
+const Sfx = preload("res://scripts/sfx.gd")
 const HeldItem = preload("res://scripts/held_item.gd")
 const TileArt = preload("res://scripts/tile_art.gd")
 
@@ -242,6 +243,7 @@ func _on_field_input(event: InputEvent) -> void:
 		if sp.distance_to(event.position) <= maxf(_screen_radius(pos, r_now), HIT_PAD):
 			c["pop"] = 0.0
 			c["r_hit"] = r_now
+			Sfx.play(self, "anvil_hit", Vector3.INF, -3.0)
 			meter_value = minf(meter_value + gain, 1.0)
 			if meter_value >= 1.0:
 				_end("won")

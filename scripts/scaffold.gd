@@ -3,6 +3,8 @@ extends "res://scripts/block.gd"
 const DECK := 0.125
 const POST := 0.125
 const POLL := 0.3
+const WALK_LAYER := 1
+const PICK_LAYER := 512
 
 var deck: MeshInstance3D
 var deck_col: CollisionShape3D
@@ -11,11 +13,15 @@ var short_mesh: ArrayMesh
 var full_mesh: ArrayMesh
 var poll_timer: float = 0.0
 var deck_on: bool = true
+var post_cols: Array = []
+var legs_on: bool = true
+var terrain_ref
 
 
 func _build() -> void:
 	var deck_mat := TileArt.uv_material("plank", Color(0.72, 0.55, 0.32), Vector3.ONE)
 	var post_mat := TileArt.uv_material("wood", Color(0.58, 0.40, 0.22), Vector3.ONE)
+	terrain_ref = get_tree().get_first_node_in_group("terrain")
 
 	deck = MeshInstance3D.new()
 	deck.mesh = TileArt.box_mesh(Vector3(1.0, DECK, 1.0), deck_mat)
@@ -32,6 +38,14 @@ func _build() -> void:
 			post.position = Vector3(sx * offset, -DECK * 0.5, sz * offset)
 			visual.add_child(post)
 			posts.append(post)
+			var pc := CollisionShape3D.new()
+			var pshape := BoxShape3D.new()
+			pshape.size = Vector3(POST, 1.0, POST)
+			pc.shape = pshape
+			pc.position = Vector3(sx * offset, 0.0, sz * offset)
+			pc.disabled = true
+			add_child(pc)
+			post_cols.append(pc)
 
 	deck_col = CollisionShape3D.new()
 	var box := BoxShape3D.new()
@@ -53,6 +67,17 @@ func _process(delta: float) -> void:
 	_refresh_deck()
 
 
+func _has_beneath(stability) -> bool:
+	var base: Vector3i = cells()[0]
+	if terrain_ref != null and terrain_ref.block_at(base.x, base.y - 1, base.z) != 0:
+		return true
+	if stability != null:
+		var other = stability.cell_map.get(base + Vector3i.DOWN)
+		if other != null and other != self and not other.dying:
+			return true
+	return false
+
+
 func _refresh_deck() -> void:
 	var open := true
 	var stability := get_tree().get_first_node_in_group("stability")
@@ -60,11 +85,17 @@ func _refresh_deck() -> void:
 		var above = stability.cell_map.get(cells()[0] + Vector3i.UP)
 		if above != null and above != self and not above.dying and above.block_type == "scaffold":
 			open = false
-	if open == deck_on and deck_col != null and deck.visible == open:
+	var legs := (not open) or _has_beneath(stability)
+	if open == deck_on and legs == legs_on and deck_col != null and deck.visible == open:
 		return
 	deck_on = open
+	legs_on = legs
 	deck.visible = open
 	deck_col.set_deferred("disabled", not open)
-	for post in posts:
+	for pc: CollisionShape3D in post_cols:
+		pc.set_deferred("disabled", open)
+	collision_layer = WALK_LAYER if open else PICK_LAYER
+	for post: MeshInstance3D in posts:
+		post.visible = legs
 		post.mesh = short_mesh if open else full_mesh
 		post.position.y = -DECK * 0.5 if open else 0.0

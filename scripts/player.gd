@@ -12,6 +12,14 @@ signal chest_used
 
 const OutlineMesh = preload("res://scripts/outline_mesh.gd")
 const SPEED = 5.0
+const CROUCH_SPEED = 0.45
+const STAND_EYE = 0.6
+const CROUCH_EYE = 0.15
+const STAND_HEIGHT = 1.8
+const CROUCH_HEIGHT = 1.3
+const FEET_OFFSET = 0.85
+const LEDGE_LOOK = 0.15
+const LEDGE_DROP = 0.55
 const CLIMB_SPEED = 3.0
 const LADDER_TURN = 0.35
 const JUMP_VELOCITY = 4.5
@@ -45,6 +53,8 @@ var mine_timer = 0.0
 var attack_timer = 0.0
 var frozen = false
 var slow: float = 1.0
+var crouching: bool = false
+var crouch_t: float = 0.0
 var bauble_light: OmniLight3D
 var ghost_valid_mat
 var ghost_blocked_mat
@@ -88,6 +98,11 @@ func _ready():
 	probe_query = PhysicsShapeQueryParameters3D.new()
 	probe_query.shape = probe_shape
 
+	if not InputMap.has_action("crouch"):
+		InputMap.add_action("crouch")
+		var shift_key = InputEventKey.new()
+		shift_key.physical_keycode = KEY_SHIFT
+		InputMap.action_add_event("crouch", shift_key)
 	add_mouse_action("mine", MOUSE_BUTTON_LEFT)
 	add_mouse_action("place", MOUSE_BUTTON_RIGHT)
 
@@ -105,6 +120,47 @@ func _ready():
 	head.add_child(bauble_light)
 	Inventory.changed.connect(_update_bauble)
 	_update_bauble()
+
+
+func _update_crouch(delta: float, on_ladder: bool) -> void:
+	var want = Input.is_action_pressed("crouch") and not dead and not frozen and not on_ladder
+	if crouching and not want and _ceiling_blocked():
+		want = true
+	if want != crouching:
+		crouching = want
+		var capsule: CapsuleShape3D = $CollisionShape3D.shape
+		var h = CROUCH_HEIGHT if crouching else STAND_HEIGHT
+		capsule.height = h
+		$CollisionShape3D.position.y = -FEET_OFFSET + h * 0.5
+	crouch_t = move_toward(crouch_t, 1.0 if crouching else 0.0, delta * 7.0)
+	var eased = crouch_t * crouch_t * (3.0 - 2.0 * crouch_t)
+	head.position.y = lerpf(STAND_EYE, CROUCH_EYE, eased)
+
+
+func _ceiling_blocked() -> bool:
+	var from = global_position + Vector3(0.0, 0.4, 0.0)
+	var query = PhysicsRayQueryParameters3D.create(from, from + Vector3(0.0, 0.7, 0.0), 1)
+	query.exclude = [get_rid()]
+	return not get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+
+
+func _ground_at(point: Vector3) -> bool:
+	var from = point + Vector3(0.0, -FEET_OFFSET + 0.15, 0.0)
+	var query = PhysicsRayQueryParameters3D.create(from, from + Vector3(0.0, -(0.15 + LEDGE_DROP), 0.0), 1)
+	query.exclude = [get_rid()]
+	return not get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+
+
+func _ledge_guard(delta: float) -> void:
+	var step_x = Vector3(signf(velocity.x), 0.0, 0.0) * (absf(velocity.x) * delta + LEDGE_LOOK)
+	var step_z = Vector3(0.0, 0.0, signf(velocity.z)) * (absf(velocity.z) * delta + LEDGE_LOOK)
+	if absf(velocity.x) > 0.001 and not _ground_at(global_position + step_x):
+		velocity.x = 0.0
+	if absf(velocity.z) > 0.001 and not _ground_at(global_position + step_z):
+		velocity.z = 0.0
+	if absf(velocity.x) > 0.001 and absf(velocity.z) > 0.001 and not _ground_at(global_position + step_x + step_z):
+		velocity.x = 0.0
+		velocity.z = 0.0
 
 
 func _update_bauble() -> void:
@@ -174,6 +230,8 @@ func _physics_process(delta):
 	if not dead and not frozen:
 		ladder = touching_ladder()
 	var on_ladder = ladder != null
+	_update_crouch(delta, on_ladder)
+	var speed_now = SPEED * slow * (CROUCH_SPEED if crouching else 1.0)
 	if not is_on_floor() and not on_ladder:
 		velocity.y -= gravity * delta
 
@@ -200,17 +258,20 @@ func _physics_process(delta):
 	if not is_on_floor():
 		var flat := Vector2(velocity.x, velocity.z)
 		if direction:
-			flat = flat.move_toward(Vector2(direction.x, direction.z) * SPEED * slow, AIR_ACCEL * delta)
+			flat = flat.move_toward(Vector2(direction.x, direction.z) * speed_now, AIR_ACCEL * delta)
 		else:
 			flat = flat.move_toward(Vector2.ZERO, AIR_DRAG * delta)
 		velocity.x = flat.x
 		velocity.z = flat.y
 	elif direction:
-		velocity.x = direction.x * SPEED * slow
-		velocity.z = direction.z * SPEED * slow
+		velocity.x = direction.x * speed_now
+		velocity.z = direction.z * speed_now
 	else:
-		velocity.x = move_toward(velocity.x, 0, SPEED * slow)
-		velocity.z = move_toward(velocity.z, 0, SPEED * slow)
+		velocity.x = move_toward(velocity.x, 0, speed_now)
+		velocity.z = move_toward(velocity.z, 0, speed_now)
+
+	if crouching and is_on_floor() and not on_ladder and not jumped:
+		_ledge_guard(delta)
 
 	var impact = velocity.y
 	move_and_slide()

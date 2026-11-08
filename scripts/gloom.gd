@@ -25,6 +25,10 @@ const WILD_SPEED := 0.65
 const WILD_CORE_AVOID := 48.0
 const WILD_ANGER := 9.0
 const WILD_DAMAGE := 8
+const CORE_CLOSE := 9.0
+const ENGAGE_WIDTH := 1.1
+const ENGAGE_HEIGHT := 1.6
+const PLOW_RANGE := 3.2
 
 var wild: bool = false
 var surface: bool = false
@@ -43,6 +47,7 @@ var knock := Vector3.ZERO
 var speed_mult: float = 1.0
 var yaw: float = 0.0
 var dying: bool = false
+var plowing: bool = false
 var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 
 @onready var body: Node3D = $Body
@@ -134,11 +139,25 @@ func _hunt_ai() -> Array:
 		if is_instance_valid(core):
 			var from_core: Vector3 = player.global_position - core.global_position
 			player_alone = Vector2(from_core.x, from_core.z).length() > ALONE_DISTANCE
-		var in_the_way := false
-		if flow != null and flat_to_player.length() < BLOCK_RANGE:
-			var path_dir: Vector3 = flow.direction_at(global_position)
-			in_the_way = flat_to_player.length() < 0.5 or flat_to_player.normalized().dot(path_dir) > 0.5
-		chase_player = in_the_way or (player_alone and to_player.length() < AGGRO_RANGE)
+		var flat_len := flat_to_player.length()
+		var level := absf(to_player.y) < ENGAGE_HEIGHT
+		var path_dir := Vector3.ZERO
+		if flow != null:
+			path_dir = flow.direction_at(global_position)
+		var flat_dir := flat_to_player.normalized() if flat_len > 0.01 else Vector3.ZERO
+		var ahead := flat_dir.dot(path_dir) if path_dir != Vector3.ZERO else 0.0
+		var lateral := absf(flat_dir.cross(path_dir).y) * flat_len
+		var in_the_way := level and flat_len < BLOCK_RANGE and (flat_len < 0.6 or (ahead > 0.7 and lateral < ENGAGE_WIDTH))
+		var near_core := false
+		if is_instance_valid(core):
+			var to_core_flat: Vector3 = core.global_position - global_position
+			near_core = Vector2(to_core_flat.x, to_core_flat.z).length() < CORE_CLOSE
+		var close_fight := near_core and level and flat_len < PLAYER_REACH + 0.8
+		var behind := path_dir != Vector3.ZERO and ahead < 0.0
+		chase_player = in_the_way or close_fight or (player_alone and to_player.length() < AGGRO_RANGE and not behind)
+		_set_plowing(not chase_player and not near_core and flat_len < PLOW_RANGE)
+	else:
+		_set_plowing(false)
 
 	if chase_player:
 		var flat := Vector3(to_player.x, 0.0, to_player.z)
@@ -163,6 +182,16 @@ func _hunt_ai() -> Array:
 			_lunge()
 
 	return [desired, facing]
+
+
+func _set_plowing(value: bool) -> void:
+	if value == plowing or not is_instance_valid(player):
+		return
+	plowing = value
+	if plowing:
+		add_collision_exception_with(player)
+	else:
+		remove_collision_exception_with(player)
 
 
 func _wild_ai(delta: float) -> Array:

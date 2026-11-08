@@ -12,22 +12,24 @@ const SOUNDS := {
 	"pickup_gem": ["pickup_gem"],
 	"core_upgrade": ["core_upgrade"],
 	"equip_armor": ["equip_armor_1", "equip_armor_2"],
-	"land": ["item_drop"],
 	"sword_swing": ["sword_swing_1", "sword_swing_2"],
 	"gloom_attack": ["gloom_attack_1", "gloom_attack_2"],
 	"arrow_release": ["arrow_release"],
 	"chop": ["chop"],
+	"gloom_death": ["gloom_death"],
+	"lightning": ["lightning_1", "lightning_2"],
+	"bird_chirp": ["bird_chirp"],
+	"stone_hit": ["stone_hit"],
+	"anvil_hit": ["anvil_hit"],
+	"stone_break": ["stone_hit"],
 	"ambient_creak": ["ambient_creak"],
 	"door_open": ["door_open"],
 	"door_close": ["door_close"],
 	"block_place": ["block_place"],
-	"footstep_stone": ["footstep_stone"],
-	"footstep_soil": ["footstep_soil"],
-	"footstep_wood": ["footstep_wood"],
-	"footstep_organic": ["footstep_organic"],
 }
-const WOOD_RESOURCES := ["wood", "plank", "scaffold", "door", "ladder", "chest", "workbench", "barricade", "banner"]
-const SOIL_BLOCKS := [1, 2, 5, 6]
+const PITCH_BASE := {"stone_break": 0.74}
+const PITCH_VAR := {"stone_hit": 0.14, "stone_break": 0.1, "anvil_hit": 0.12}
+const VOL_JITTER := {"stone_hit": 2.0, "stone_break": 1.5, "anvil_hit": 1.8}
 const CREAK_MIN := 18.0
 const CREAK_MAX := 40.0
 const RAIN_BASE_DB := -24.0
@@ -36,6 +38,11 @@ const SHELTER_FADE := 10.0
 const RING_NEAR := 3.0
 const RING_FAR := 7.0
 const RAIN_UPDATE := 0.15
+const WIND_PATH := "res://audio/sfx/wind_leaves.mp3"
+const WIND_RADIUS := 16.0
+const WIND_TREES_FULL := 10
+const WIND_BASE_DB := -17.0
+const WIND_UPDATE := 0.4
 
 var player
 var terrain
@@ -57,6 +64,13 @@ var rain_timer: float = 0.0
 var shelter: float = 1.0
 var shelter_target: float = 1.0
 var rain_on: bool = false
+var wind_a: AudioStreamPlayer
+var wind_b: AudioStreamPlayer
+var wind_on: bool = false
+var wind_level: float = 0.0
+var wind_target: float = 0.0
+var wind_timer: float = 0.0
+var wind_clock: float = 0.0
 
 
 func setup(p, t, w, r, s) -> void:
@@ -89,6 +103,7 @@ func setup(p, t, w, r, s) -> void:
 		add_child(a3)
 		pool_3d.append(a3)
 	_build_rain()
+	_build_wind()
 	creak_timer = randf_range(CREAK_MIN, CREAK_MAX)
 	get_tree().node_added.connect(_on_node_added)
 	_scan_buttons.call_deferred()
@@ -125,10 +140,12 @@ func _on_button() -> void:
 func _load(file_name: String) -> AudioStream:
 	if cache.has(file_name):
 		return cache[file_name]
-	var path := SFX_DIR + file_name + ".ogg"
 	var stream: AudioStream = null
-	if ResourceLoader.exists(path):
-		stream = load(path)
+	for ext in [".ogg", ".mp3"]:
+		var path: String = SFX_DIR + file_name + ext
+		if ResourceLoader.exists(path):
+			stream = load(path)
+			break
 	cache[file_name] = stream
 	return stream
 
@@ -140,7 +157,11 @@ func play(key: String, pos: Vector3 = Vector3.INF, vol_db: float = 0.0, pitch_va
 	var stream := _load(variants[randi() % variants.size()])
 	if stream == null:
 		return
-	var pitch := 1.0 + randf_range(-pitch_var, pitch_var)
+	var spread: float = PITCH_VAR.get(key, pitch_var)
+	var pitch: float = float(PITCH_BASE.get(key, 1.0)) * (1.0 + randf_range(-spread, spread))
+	var jitter: float = VOL_JITTER.get(key, 0.0)
+	if jitter > 0.0:
+		vol_db += randf_range(-jitter, jitter * 0.4)
 	if pos.is_finite():
 		var a3: AudioStreamPlayer3D = pool_3d[next_3d]
 		for i in pool_3d.size():
@@ -168,24 +189,63 @@ func play(key: String, pos: Vector3 = Vector3.INF, vol_db: float = 0.0, pitch_va
 		a.play()
 
 
-func surface_at(pos: Vector3) -> String:
-	var cell := Vector3i(floori(pos.x), floori(pos.y - 0.15), floori(pos.z))
-	var stability = get_tree().get_first_node_in_group("stability")
-	if stability != null:
-		var n = stability.cell_map.get(cell)
-		if n != null and is_instance_valid(n):
-			var info: Dictionary = Inventory.BLOCK_TYPES.get(n.block_type, {})
-			if WOOD_RESOURCES.has(info.get("resource", "")):
-				return "wood"
-			return "stone"
-	var id: int = terrain.block_at(cell.x, cell.y, cell.z)
-	if SOIL_BLOCKS.has(id):
-		return "soil"
-	return "stone"
+func _build_wind() -> void:
+	var stream: AudioStream = load(WIND_PATH)
+	if stream == null:
+		return
+	if stream is AudioStreamMP3:
+		(stream as AudioStreamMP3).loop = true
+	wind_a = AudioStreamPlayer.new()
+	wind_a.bus = SFX_BUS
+	wind_a.stream = stream
+	wind_a.volume_db = -80.0
+	add_child(wind_a)
+	wind_b = AudioStreamPlayer.new()
+	wind_b.bus = SFX_BUS
+	wind_b.stream = stream
+	wind_b.volume_db = -80.0
+	add_child(wind_b)
 
 
-func footstep(pos: Vector3) -> void:
-	play("footstep_" + surface_at(pos), pos, -4.0, 0.08)
+func _forest_density() -> float:
+	var p: Vector3 = player.global_position
+	var count := 0
+	var limit := WIND_RADIUS * WIND_RADIUS
+	for t in get_tree().get_nodes_in_group("tree"):
+		if not is_instance_valid(t):
+			continue
+		var d: Vector3 = t.global_position - p
+		if d.x * d.x + d.z * d.z < limit:
+			count += 1
+	return clampf(float(count - 1) / float(WIND_TREES_FULL), 0.0, 1.0)
+
+
+func _wind(delta: float) -> void:
+	if wind_a == null:
+		return
+	wind_clock += delta
+	wind_timer -= delta
+	if wind_timer <= 0.0:
+		wind_timer = WIND_UPDATE
+		wind_target = _forest_density() * clampf(_shelter() * 1.8, 0.0, 1.0)
+	wind_level = lerpf(wind_level, wind_target, clampf(delta * 0.8, 0.0, 1.0))
+	if wind_level < 0.01:
+		if wind_on:
+			wind_on = false
+			wind_a.stop()
+			wind_b.stop()
+		return
+	if not wind_on:
+		wind_on = true
+		var length := wind_a.stream.get_length()
+		wind_a.play(randf() * length * 0.4)
+		wind_b.play(fmod(length * 0.5 + randf() * length * 0.3, length))
+	var base := WIND_BASE_DB + linear_to_db(clampf(wind_level, 0.005, 1.0))
+	var gust := 0.5 + 0.5 * sin(wind_clock * 0.21) * sin(wind_clock * 0.083 + 1.0)
+	wind_a.volume_db = base - 3.0 + gust * 4.0 + sin(wind_clock * 0.31) * 1.2
+	wind_b.volume_db = base - 3.0 + (1.0 - gust) * 4.0 + sin(wind_clock * 0.27 + 2.0) * 1.2
+	wind_a.pitch_scale = 1.0 + 0.015 * sin(wind_clock * 0.13)
+	wind_b.pitch_scale = 1.0 + 0.015 * sin(wind_clock * 0.11 + 1.0)
 
 
 func _build_rain() -> void:
@@ -211,6 +271,7 @@ func _process(delta: float) -> void:
 		return
 	_creak(delta)
 	_rain(delta)
+	_wind(delta)
 
 
 func _creak(delta: float) -> void:
