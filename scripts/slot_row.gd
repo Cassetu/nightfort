@@ -1,9 +1,10 @@
 extends HBoxContainer
 
-signal action_pressed(slot)
-signal delete_pressed(slot)
+signal action_pressed(slot, backup)
+signal delete_pressed(slot, backup)
 
 @export var slot: int = 0
+@export var backup: bool = false
 
 @onready var info_label = $Info
 @onready var action_button = $Action
@@ -16,18 +17,20 @@ func _ready() -> void:
 
 
 func show_info(info: Dictionary, mode: String) -> void:
-	info_label.text = "Slot %d     %s" % [slot + 1, _describe(info)]
+	var prefix := "Backup" if backup else "Slot"
+	if not info["exists"]:
+		info_label.text = "%s %d     Empty" % [prefix, slot + 1]
+	else:
+		info_label.text = "%s %d     %s\n%s" % [prefix, slot + 1, str(info["name"]), _describe(info)]
 	action_button.text = "Save" if mode == "save" else "Load"
 	action_button.disabled = mode == "load" and not info["exists"]
 	delete_button.disabled = not info["exists"]
 
 
 func _describe(info: Dictionary) -> String:
-	if not info["exists"]:
-		return "Empty"
 	var stamp: String = info["saved_at"]
 	var mode: String = str(info.get("mode", "survival")).capitalize()
-	return "%s  -  Seed %d  -  %s played  -  %s" % [mode, info["seed"], _format_time(info["play_time"]), stamp.substr(0, 16)]
+	return "%s  -  Seed %d  -  %s  -  %s" % [mode, info["seed"], _format_time(info["play_time"]), stamp.substr(0, 16)]
 
 
 func _format_time(seconds: float) -> String:
@@ -40,8 +43,8 @@ func _format_time(seconds: float) -> String:
 
 
 func _on_action() -> void:
-	action_pressed.emit(slot)
+	action_pressed.emit(slot, backup)
 
 
 func _on_delete() -> void:
-	delete_pressed.emit(slot)
+	delete_pressed.emit(slot, backup)

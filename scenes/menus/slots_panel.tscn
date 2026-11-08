@@ -3,6 +3,8 @@
 [ext_resource type="Script" path="res://scripts/slots_panel.gd" id="1_panel"]
 [ext_resource type="PackedScene" path="res://scenes/menus/slot_row.tscn" id="2_row"]
 
+[sub_resource type="ButtonGroup" id="ButtonGroup_tabs"]
+
 [node name="SlotsPanel" type="PanelContainer"]
 custom_minimum_size = Vector2(760, 0)
 script = ExtResource("1_panel")
@@ -17,6 +19,30 @@ layout_mode = 2
 theme_type_variation = &"HeadingLabel"
 text = "Load Game"
 horizontal_alignment = 1
+
+[node name="Tabs" type="HBoxContainer" parent="Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="SavesTab" type="Button" parent="Box/Tabs"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+button_pressed = true
+button_group = SubResource("ButtonGroup_tabs")
+text = "Saves"
+
+[node name="BackupsTab" type="Button" parent="Box/Tabs"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+button_group = SubResource("ButtonGroup_tabs")
+text = "Autosaves"
 
 [node name="Rows" type="VBoxContainer" parent="Box"]
 unique_name_in_owner = true
@@ -35,11 +61,77 @@ slot = 1
 layout_mode = 2
 slot = 2
 
+[node name="BackupRows" type="VBoxContainer" parent="Box"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Backup1" parent="Box/BackupRows" instance=ExtResource("2_row")]
+layout_mode = 2
+slot = 0
+backup = true
+
+[node name="Backup2" parent="Box/BackupRows" instance=ExtResource("2_row")]
+layout_mode = 2
+slot = 1
+backup = true
+
+[node name="Backup3" parent="Box/BackupRows" instance=ExtResource("2_row")]
+layout_mode = 2
+slot = 2
+backup = true
+
+[node name="Backup4" parent="Box/BackupRows" instance=ExtResource("2_row")]
+layout_mode = 2
+slot = 3
+backup = true
+
+[node name="Backup5" parent="Box/BackupRows" instance=ExtResource("2_row")]
+layout_mode = 2
+slot = 4
+backup = true
+
 [node name="Status" type="Label" parent="Box"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"AccentLabel"
 horizontal_alignment = 1
+
+[node name="Confirm" type="VBoxContainer" parent="Box"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="ConfirmTitle" type="Label" parent="Box/Confirm"]
+layout_mode = 2
+theme_type_variation = &"PageTitle"
+text = "Are you sure?"
+horizontal_alignment = 1
+
+[node name="ConfirmDetail" type="Label" parent="Box/Confirm"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BodyLabel"
+horizontal_alignment = 1
+
+[node name="Choices" type="HBoxContainer" parent="Box/Confirm"]
+layout_mode = 2
+theme_override_constants/separation = 14
+alignment = 1
+
+[node name="Yes" type="Button" parent="Box/Confirm/Choices"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 46)
+layout_mode = 2
+text = "Yes"
+
+[node name="No" type="Button" parent="Box/Confirm/Choices"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 46)
+layout_mode = 2
+text = "No"
 
 [node name="Back" type="Button" parent="Box"]
 unique_name_in_owner = true
