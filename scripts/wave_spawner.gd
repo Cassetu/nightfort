@@ -102,7 +102,13 @@ func _process(delta: float) -> void:
 			if get_tree().get_nodes_in_group("enemy").size() < cap and _spawn_one():
 				spawned += 1
 
+	if _is_calmed() and not attack_dirs.is_empty():
+		attack_dirs.clear()
 	_update_status()
+
+
+func _is_calmed() -> bool:
+	return night_active and total > 0 and spawned >= total and get_tree().get_nodes_in_group("enemy").is_empty()
 
 
 func _spawn_curve(p: float) -> float:
@@ -170,6 +176,8 @@ func _update_status() -> void:
 	var text: String
 	if night_active and night <= calm_nights:
 		text = "NIGHT %d  -  Calm" % night
+	elif _is_calmed():
+		text = "The night has calmed."
 	elif night_active:
 		text = "Gloom attacking: %d/%d" % [get_tree().get_nodes_in_group("enemy").size(), maxi(total - spawned, 0)]
 	else:

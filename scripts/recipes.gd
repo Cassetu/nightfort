@@ -25,6 +25,7 @@ const LIST := [
 	{"id": "stone_axe", "out": "stone_axe", "count": 1, "shape": [["stone", "stone"], ["stone", "stick"], ["fiber", "stick"]]},
 	{"id": "stone_shovel", "out": "stone_shovel", "count": 1, "shape": [["fiber", "stone"], ["", "stick"], ["", "stick"]]},
 	{"id": "stone_sword", "out": "stone_sword", "count": 1, "shape": [["", "stone"], ["", "stone"], ["fiber", "stick"]]},
+	{"id": "scythe", "out": "scythe", "count": 1, "shape": [["stone", "stone", "fiber"], ["", "stick", ""], ["", "stick", ""]]},
 	{"id": "stone_helmet", "out": "stone_helmet", "count": 1, "shape": [["stone", "stone", "stone"], ["stone", "fiber", "stone"]]},
 	{"id": "stone_chestplate", "out": "stone_chestplate", "count": 1, "shape": [["stone", "fiber", "stone"], ["stone", "stone", "stone"], ["stone", "stone", "stone"]]},
 	{"id": "stone_leggings", "out": "stone_leggings", "count": 1, "shape": [["stone", "stone", "stone"], ["stone", "fiber", "stone"], ["stone", "", "stone"]]},

@@ -1,11 +1,16 @@
 extends "res://scripts/block.gd"
 
 const WIND_SCALE := 1.1
+const TILT := 0.38
+const WALL_OFFSET := 0.28
+const HEIGHT := 0.875
 
 @export var base_energy: float = 1.8
 @export var fill_energy: float = 0.32
 
 var fixture: bool = false
+var wall_normal: Vector3 = Vector3.ZERO
+var mount: Node3D
 var time: float = 0.0
 
 @onready var light: OmniLight3D = %Light
@@ -30,7 +35,37 @@ func _build() -> void:
 	if fixture:
 		remove_from_group("resource")
 	time = randf() * 10.0
-	base_mesh.mesh = TileArt.box_mesh(Vector3(0.125, 1.0, 0.125), TileArt.uv_material("torch_base", Color(0.2, 0.18, 0.17), Vector3.ONE))
+	base_mesh.mesh = TileArt.box_mesh(Vector3(0.125, HEIGHT, 0.125), TileArt.uv_material("torch_base", Color(0.2, 0.18, 0.17), Vector3.ONE))
+	if wall_normal != Vector3.ZERO:
+		_build_mount()
+
+
+func _build_mount() -> void:
+	mount = Node3D.new()
+	mount.name = "Mount"
+	add_child(mount)
+	mount.transform = Transform3D(mount_basis(wall_normal), -wall_normal * WALL_OFFSET)
+	for child in [base_mesh, $Flame, particles, $CollisionShape3D, light, fill]:
+		child.reparent(mount, false)
+
+
+static func mount_basis(normal: Vector3) -> Basis:
+	if normal == Vector3.ZERO:
+		return Basis.IDENTITY
+	var axis := Vector3.UP.cross(normal).normalized()
+	return Basis(axis, TILT)
+
+
+func _supported() -> bool:
+	if wall_normal == Vector3.ZERO:
+		return super()
+	var w := global_position - wall_normal
+	if terrain != null and terrain.block_at(floori(w.x), floori(w.y), floori(w.z)) != 0:
+		return true
+	for n in get_tree().get_nodes_in_group("block"):
+		if n != self and not n.dying and n.block_type != "torch" and n.covers(w):
+			return true
+	return false
 
 
 func _play_death() -> void:

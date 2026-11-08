@@ -41,8 +41,9 @@ const PLANT_COOLDOWN = 0.18
 const CACTUS_PUNCH_DAMAGE = 3
 const AIR_ACCEL = 7.0
 const AIR_DRAG = 1.5
-const FALL_SAFE_SPEED = 13.0
-const FALL_DAMAGE = 5.0
+const FALL_TRIGGER_DROP = 2.9
+const FALL_FREE_DROP = 2.5
+const FALL_DAMAGE = 12.0
 const REGEN_DELAY = 6.0
 const REGEN_RATE = 3.0
 
@@ -60,6 +61,9 @@ var ghost_valid_mat
 var ghost_blocked_mat
 var ghost_warn_mat
 var aim_normal: Vector3 = Vector3.UP
+const TorchScript = preload("res://scripts/torch.gd")
+const SWEEP_ARC = 1.3
+const SWEEP_ARC_COS = 0.267
 var ladder_query: PhysicsShapeQueryParameters3D
 var probe_query
 var health: float = 100.0
@@ -82,6 +86,7 @@ func _ready():
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	ghost_block.top_level = true
 	ghost_block.layers = 2
+	ghost_block.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var ladder_shape := BoxShape3D.new()
 	ladder_shape.size = Vector3(0.9, 1.2, 0.9)
 	ladder_query = PhysicsShapeQueryParameters3D.new()
@@ -112,8 +117,8 @@ func _ready():
 	_apply_settings()
 	bauble_light = OmniLight3D.new()
 	bauble_light.light_color = Color(1.0, 0.72, 0.4)
-	bauble_light.light_energy = 1.5
-	bauble_light.omni_range = 10.0
+	bauble_light.light_energy = 3.2
+	bauble_light.omni_range = 14.0
 	bauble_light.omni_attenuation = 1.4
 	bauble_light.shadow_enabled = false
 	bauble_light.visible = false
@@ -275,8 +280,10 @@ func _physics_process(delta):
 
 	var impact = velocity.y
 	move_and_slide()
-	if is_on_floor() and not was_on_floor and impact < -FALL_SAFE_SPEED:
-		take_damage(roundi((-impact - FALL_SAFE_SPEED) * FALL_DAMAGE))
+	if is_on_floor() and not was_on_floor and impact < 0.0:
+		var drop = impact * impact / (2.0 * gravity)
+		if drop >= FALL_TRIGGER_DROP:
+			take_damage(roundi((drop - FALL_FREE_DROP) * FALL_DAMAGE))
 	was_on_floor = is_on_floor()
 
 	since_damage += delta
@@ -339,6 +346,7 @@ func fire_bow(bow, charge):
 	arrow.set_script(ArrowScript)
 	get_tree().current_scene.add_child(arrow)
 	arrow.ignore = [get_rid()]
+	arrow.pickable = true
 	arrow.launch(camera.global_position + dir * 0.7, dir, damage, ArrowScript.SPEED * (ARROW_MIN_SPEED + (1.0 - ARROW_MIN_SPEED) * charge))
 
 
@@ -477,11 +485,36 @@ func can_place(type, cell):
 	for o in offsets:
 		if not probe_empty(cell + o):
 			return false
-	if Inventory.BLOCK_TYPES[type].get("needs_support", false) and not has_support(cell):
-		return false
+	if Inventory.BLOCK_TYPES[type].get("needs_support", false):
+		if wall_aim(type):
+			if not wall_support(cell):
+				return false
+		elif not has_support(cell):
+			return false
 	if stability_of(type, cell) < 0:
 		return false
 	return true
+
+
+func wall_aim(type) -> bool:
+	return type == "torch" and absf(aim_normal.y) < 0.5
+
+
+func wall_normal_of() -> Vector3:
+	return Vector3(roundf(aim_normal.x), 0.0, roundf(aim_normal.z))
+
+
+func wall_support(cell) -> bool:
+	var w: Vector3 = cell - wall_normal_of()
+	var terrain = get_tree().get_first_node_in_group("terrain")
+	if terrain != null and terrain.block_at(floori(w.x), floori(w.y), floori(w.z)) != 0:
+		return true
+	probe_query.transform = Transform3D(Basis.IDENTITY, w)
+	for r in get_world_3d().direct_space_state.intersect_shape(probe_query, 8):
+		var body = r["collider"]
+		if body.is_in_group("block") and body.block_type != "torch":
+			return true
+	return false
 
 
 func stability_of(type, cell):
@@ -496,6 +529,7 @@ func update_ghost(hit):
 	if type == "" or hit.is_empty():
 		ghost_block.hide()
 		return
+	aim_normal = hit.normal
 	var cell = cell_center(hit)
 	var height = block_height(type)
 	var gs: Vector3 = Inventory.BLOCK_TYPES[type].get("ghost", Vector3.ONE)
@@ -503,8 +537,14 @@ func update_ghost(hit):
 	if Inventory.BLOCK_TYPES[type].get("wide", false):
 		var yaw = place_yaw()
 		span = Vector3(roundf(cos(yaw)), 0.0, roundf(-sin(yaw)))
+	ghost_block.global_position = cell + span * 0.5 + Vector3(0.0, (height - 1) * 0.5 - (1.0 - gs.y) * 0.5, 0.0)
+	if wall_aim(type):
+		var wn = wall_normal_of()
+		ghost_block.global_position = cell - wn * TorchScript.WALL_OFFSET + Vector3(0.0, -(1.0 - gs.y) * 0.5, 0.0)
+		ghost_block.basis = TorchScript.mount_basis(wn)
+	else:
+		ghost_block.basis = Basis.IDENTITY
 	ghost_block.scale = Vector3(1.002 * gs.x * (1.0 + absf(span.x)), 1.002 * height * gs.y, 1.002 * gs.z * (1.0 + absf(span.z)))
-	ghost_block.global_position = cell + span * 0.5 + Vector3(0.0, (height - 1) * 0.5, 0.0)
 	if can_place(type, cell):
 		var stability = get_tree().get_first_node_in_group("stability")
 		var reach = 0 if stability == null else stability.reach_for_type(type)
@@ -612,7 +652,48 @@ func mine_terrain(hit):
 		get_tree().current_scene.spawn_drop(result["item"], result["amount"], Vector3(cell) + Vector3(0.5, 0.5, 0.5))
 
 
+func sweep(weapon):
+	attack_timer = weapon["cooldown"]
+	Sfx.play(self, "sword_swing", global_position, -2.0)
+	held.play_swing()
+	var forward = -camera.global_transform.basis.z
+	var flat = Vector3(forward.x, 0.0, forward.z)
+	if flat.length() < 0.01:
+		flat = Vector3(0.0, 0.0, -1.0)
+	flat = flat.normalized()
+	var radius = float(weapon["reach"])
+	var shape = SphereShape3D.new()
+	shape.radius = radius
+	var query = PhysicsShapeQueryParameters3D.new()
+	query.shape = shape
+	query.collision_mask = 2
+	query.transform = Transform3D(Basis.IDENTITY, global_position + Vector3(0.0, 0.4, 0.0))
+	var struck = {}
+	for entry in get_world_3d().direct_space_state.intersect_shape(query, 24):
+		var target = entry["collider"]
+		if struck.has(target) or not (target.is_in_group("enemy") or target.is_in_group("wild_gloom")):
+			continue
+		var off = target.global_position - global_position
+		off.y = 0.0
+		if off.length() > 1.0 and off.normalized().dot(flat) < SWEEP_ARC_COS:
+			continue
+		struck[target] = true
+		target.take_damage(weapon["damage"], global_position)
+	var terrain = get_tree().get_first_node_in_group("terrain")
+	if terrain == null:
+		return
+	var result: Dictionary = terrain.sweep_plants(camera.global_position, forward, radius, SWEEP_ARC)
+	var fiber = int(result["fiber"])
+	if fiber > 0:
+		var leftover: int = Inventory.add_item("fiber", fiber)
+		if leftover > 0:
+			get_tree().current_scene.spawn_drop("fiber", leftover, global_position + flat)
+
+
 func swing(weapon):
+	if weapon.get("sweep", false):
+		sweep(weapon)
+		return
 	attack_timer = weapon["cooldown"]
 	Sfx.play(self, "sword_swing", global_position, -2.0)
 
@@ -677,9 +758,15 @@ func try_place(hit):
 		scene = load(scene_path)
 	var block = scene.instantiate()
 	block.block_type = type
+	if wall_aim(type):
+		block.wall_normal = wall_normal_of()
 	get_tree().current_scene.add_child(block)
 	block.global_position = cell
 	Sfx.play(self, "block_place", cell, -2.0)
+	if not wall_aim(type):
+		var terrain_node = get_tree().get_first_node_in_group("terrain")
+		if terrain_node != null:
+			terrain_node.cover_ground(Vector3i(floori(cell.x), floori(cell.y), floori(cell.z)))
 	if block_height(type) > 1:
 		block.rotation.y = place_yaw()
 	if type == "ladder":

@@ -2,6 +2,7 @@ extends CharacterBody3D
 
 const Sfx = preload("res://scripts/sfx.gd")
 const GloomParts = preload("res://scripts/gloom_parts.gd")
+const GloomAnims = preload("res://scripts/gloom_anims.gd")
 
 signal died(enemy)
 
@@ -19,16 +20,21 @@ const BLOCK_DAMAGE := 1
 const ATTACK_INTERVAL := 1.1
 const KNOCKBACK := 6.0
 const BASE_HEALTH := 8.0
-const SIGHT_RANGE := 11.0
+const SIGHT_RANGE := 16.0
+const RALLY_RANGE := 20.0
+const SMELL_RANGE := 22.0
+const WILD_INTERVAL := 0.85
 const SIGHT_HEIGHT := 1.4
 const WILD_SPEED := 0.65
 const WILD_CORE_AVOID := 48.0
-const WILD_ANGER := 9.0
+const WILD_ANGER := 14.0
 const WILD_DAMAGE := 8
 const CORE_CLOSE := 9.0
 const ENGAGE_WIDTH := 1.1
 const ENGAGE_HEIGHT := 1.6
 const PLOW_RANGE := 3.2
+const STEP_HEIGHT := 1.0
+const PROBE_AHEAD := 0.95
 
 var wild: bool = false
 var surface: bool = false
@@ -48,6 +54,8 @@ var speed_mult: float = 1.0
 var yaw: float = 0.0
 var dying: bool = false
 var plowing: bool = false
+var last_swing: String = ""
+var smell_timer: float = 0.0
 var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 
 @onready var body: Node3D = $Body
@@ -108,7 +116,7 @@ func _physics_process(delta: float) -> void:
 	velocity.x = move.x + knock.x
 	velocity.z = move.z + knock.z
 
-	if is_on_floor() and desired != Vector3.ZERO and is_on_wall() and stun <= 0.0:
+	if is_on_floor() and desired != Vector3.ZERO and is_on_wall() and stun <= 0.0 and _can_hop(desired):
 		velocity.y = JUMP_VELOCITY
 
 	move_and_slide()
@@ -118,12 +126,36 @@ func _physics_process(delta: float) -> void:
 			var hit := get_slide_collision(i)
 			var other = hit.get_collider()
 			if other != null and other.is_in_group("block"):
+				if other.current_health <= BLOCK_DAMAGE:
+					other.resource_amount = 0
 				other.take_damage(BLOCK_DAMAGE, hit.get_position())
 				attack_timer = ATTACK_INTERVAL * 0.7
 				_smash()
 				break
 
 	_animate(delta, facing)
+
+
+func _ray_hits(from: Vector3, dir: Vector3) -> bool:
+	var query := PhysicsRayQueryParameters3D.create(from, from + dir * PROBE_AHEAD, 1)
+	query.exclude = [get_rid()]
+	return not get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+
+
+func _can_hop(desired: Vector3) -> bool:
+	var dir := Vector3(desired.x, 0.0, desired.z)
+	if dir.length() < 0.01:
+		return false
+	dir = dir.normalized()
+	var feet := global_position.y - FEET_OFFSET
+	var origin := Vector3(global_position.x, 0.0, global_position.z)
+	if not _ray_hits(Vector3(origin.x, feet + 0.4, origin.z), dir):
+		return false
+	if _ray_hits(Vector3(origin.x, feet + STEP_HEIGHT + 0.45, origin.z), dir):
+		return false
+	if _ray_hits(Vector3(origin.x, feet + STEP_HEIGHT + 1.3, origin.z), dir):
+		return false
+	return true
 
 
 func _hunt_ai() -> Array:
@@ -194,13 +226,29 @@ func _set_plowing(value: bool) -> void:
 		remove_collision_exception_with(player)
 
 
+func _rally() -> void:
+	for other in get_tree().get_nodes_in_group("wild_gloom"):
+		if other == self or other.dying:
+			continue
+		if other.global_position.distance_to(global_position) < RALLY_RANGE:
+			other.anger = WILD_ANGER
+
+
 func _wild_ai(delta: float) -> Array:
 	anger = maxf(anger - delta, 0.0)
 	var desired := Vector3.ZERO
 	var facing := Vector3.ZERO
 
-	if is_instance_valid(player) and not player.dead and _sees_player():
-		anger = WILD_ANGER
+	if is_instance_valid(player) and not player.dead:
+		if _sees_player():
+			anger = WILD_ANGER
+		elif anger <= 0.0:
+			smell_timer -= delta
+			if smell_timer <= 0.0:
+				smell_timer = randf_range(3.0, 7.0)
+				var apart: Vector3 = player.global_position - global_position
+				if Vector2(apart.x, apart.z).length() < SMELL_RANGE and randf() < 0.5:
+					anger = WILD_ANGER * 0.6
 
 	if anger > 0.0 and is_instance_valid(player) and not player.dead:
 		var to_player: Vector3 = player.global_position - global_position
@@ -210,8 +258,9 @@ func _wild_ai(delta: float) -> Array:
 			desired = flat.normalized()
 		elif attack_timer <= 0.0 and absf(to_player.y) < 2.2:
 			player.take_damage(WILD_DAMAGE, global_position)
-			attack_timer = ATTACK_INTERVAL
+			attack_timer = WILD_INTERVAL
 			_lunge()
+			_rally()
 		return [desired, facing]
 
 	if is_instance_valid(core):
@@ -279,7 +328,7 @@ func _animate(delta: float, facing: Vector3) -> void:
 		body.rotation.y = yaw
 
 	var current := anim.current_animation
-	if anim.is_playing() and (current == "attack" or current == "break"):
+	if anim.is_playing() and GloomAnims.ONE_SHOTS.has(current):
 		return
 
 	var speed := Vector2(velocity.x, velocity.z).length()
@@ -295,6 +344,7 @@ func take_damage(amount, from_pos = Vector3.INF) -> void:
 	health -= float(amount)
 	if wild:
 		anger = WILD_ANGER
+		_rally()
 	if from_pos.is_finite():
 		var away: Vector3 = global_position - from_pos
 		away.y = 0.0
@@ -346,12 +396,20 @@ func _punch() -> void:
 func _lunge() -> void:
 	Sfx.play(self, "gloom_attack", global_position, 0.0)
 	anim.speed_scale = 1.0
-	anim.play("attack", 0.05)
+	anim.play(_pick_swing(GloomAnims.ATTACKS), 0.05)
+
+
+func _pick_swing(options: Array) -> String:
+	var choice: String = options[randi() % options.size()]
+	if choice == last_swing:
+		choice = options[randi() % options.size()]
+	last_swing = choice
+	return choice
 
 
 func _smash() -> void:
 	anim.speed_scale = 1.0
-	anim.play("break", 0.05)
+	anim.play(_pick_swing(GloomAnims.BREAKS), 0.05)
 
 
 func _chips() -> void:

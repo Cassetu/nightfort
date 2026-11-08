@@ -1,6 +1,6 @@
 extends CanvasLayer
 
-const RADIUS := 20
+const RADIUS := 24
 const SIZE := RADIUS * 2 + 1
 const CELL := 4.0
 const UPDATE := 0.4
@@ -10,6 +10,8 @@ const EVICT_INTERVAL := 3.0
 const EDGE := 6.0
 const BACKDROP := Color(0.04, 0.04, 0.05, 1.0)
 const GLOOM_COLOR := Color(0.68, 0.3, 0.95, 1.0)
+const RAID_COLOR := Color(0.95, 0.2, 0.2, 1.0)
+const UNDERGROUND_DEPTH := 3
 const TROOP_COLOR := Color(0.35, 0.62, 1.0, 1.0)
 const CORE_COLOR := Color(0.3, 0.78, 1.0, 1.0)
 const PLAYER_COLOR := Color(1.0, 0.86, 0.2, 1.0)
@@ -40,6 +42,16 @@ func setup(p, c, t) -> void:
 	heights.resize(SIZE * SIZE)
 	map.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	map.draw.connect(_on_draw)
+	var frame := map.get_parent() as PanelContainer
+	if frame != null:
+		var box := frame.get_theme_stylebox("panel")
+		if box is StyleBoxFlat:
+			var flat := (box as StyleBoxFlat).duplicate() as StyleBoxFlat
+			flat.content_margin_left = float(flat.border_width_left)
+			flat.content_margin_right = float(flat.border_width_right)
+			flat.content_margin_top = float(flat.border_width_top)
+			flat.content_margin_bottom = float(flat.border_width_bottom)
+			frame.add_theme_stylebox_override("panel", flat)
 	terrain.block_broken.connect(_on_terrain_changed)
 	_rebuild()
 
@@ -153,6 +165,16 @@ func _rebuild() -> void:
 	texture.update(image)
 
 
+func _underground(pos: Vector3) -> bool:
+	var key := Vector2i(floori(pos.x), floori(pos.z))
+	var surface: int
+	if cache_h.has(key):
+		surface = cache_h[key]
+	else:
+		surface = terrain.surface_y(key.x, key.y)
+	return pos.y < float(surface - UNDERGROUND_DEPTH)
+
+
 func _to_map(world: Vector3, pp: Vector2, center: Vector2) -> Vector2:
 	return center + (Vector2(world.x, world.z) - pp) * CELL
 
@@ -185,15 +207,18 @@ func _on_draw() -> void:
 		var ring := PackedVector2Array([tri[0], tri[1], tri[2], tri[0]])
 		map.draw_polyline(ring, OUTLINE, 1.0)
 
-	for group in ["enemy", "wild_gloom"]:
+	for group in ["wild_gloom", "enemy"]:
+		var tint := RAID_COLOR if group == "enemy" else GLOOM_COLOR
 		for g in get_tree().get_nodes_in_group(group):
 			if not is_instance_valid(g) or g.dying:
 				continue
 			var gv := _to_map(g.global_position, pp, center)
 			if absf(gv.x - center.x) > limit.x or absf(gv.y - center.y) > limit.y:
 				continue
+			if _underground(g.global_position):
+				continue
 			map.draw_circle(gv, 4.0, OUTLINE)
-			map.draw_circle(gv, 3.0, GLOOM_COLOR)
+			map.draw_circle(gv, 3.0, tint)
 
 	var forward: Vector3 = -player.global_transform.basis.z
 	var dir := Vector2(forward.x, forward.z).normalized()

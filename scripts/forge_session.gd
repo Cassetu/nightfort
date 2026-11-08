@@ -244,6 +244,7 @@ func _on_field_input(event: InputEvent) -> void:
 			c["pop"] = 0.0
 			c["r_hit"] = r_now
 			Sfx.play(self, "anvil_hit", Vector3.INF, -3.0)
+			Sfx.play(self, "forge_sparkle", Vector3.INF, -4.0)
 			meter_value = minf(meter_value + gain, 1.0)
 			if meter_value >= 1.0:
 				_end("won")
@@ -259,6 +260,7 @@ func _on_field_input(event: InputEvent) -> void:
 
 
 func _miss() -> void:
+	Sfx.play(self, "anvil_hit", Vector3.INF, -3.0)
 	meter_value = maxf(meter_value - gain * LOSS_RATIO, 0.0)
 	var flash := create_tween()
 	meter.modulate = Color(1.0, 0.45, 0.45, 1.0)

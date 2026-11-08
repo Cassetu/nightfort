@@ -1287,7 +1287,7 @@ func pick_plant(origin: Vector3, dir: Vector3, reach: float, limit: float) -> Di
 	return best
 
 
-func break_plant(info: Dictionary) -> Dictionary:
+func break_plant(info: Dictionary, chips: bool = true) -> Dictionary:
 	var cc: Vector2i = info["coord"]
 	var kind: String = info["kind"]
 	var pos: Vector3 = info["pos"]
@@ -1296,7 +1296,8 @@ func break_plant(info: Dictionary) -> Dictionary:
 		broken_plants[cc] = {}
 	var gone: Dictionary = broken_plants[cc]
 	gone[key] = true
-	_spawn_plant_chips(info["center"], PLANT_CHIPS.get(kind, Color(0.3, 0.45, 0.2)))
+	if chips:
+		_spawn_plant_chips(info["center"], PLANT_CHIPS.get(kind, Color(0.3, 0.45, 0.2)))
 	if chunks.has(cc):
 		var chunk: Chunk = chunks[cc]
 		var origin_x: float = pos.x - cc.x * CHUNK
@@ -1306,6 +1307,53 @@ func break_plant(info: Dictionary) -> Dictionary:
 	if randf() < float(PLANT_FIBER.get(kind, 0.0)):
 		return {"item": "fiber", "amount": randi_range(1, 2) if kind == "bush" else 1}
 	return {}
+
+
+func sweep_plants(origin: Vector3, dir: Vector3, radius: float, half_arc: float) -> Dictionary:
+	var flat := Vector2(dir.x, dir.z)
+	if flat.length() < 0.01:
+		flat = Vector2(0.0, -1.0)
+	flat = flat.normalized()
+	var cos_arc := cos(half_arc)
+	var cells: Dictionary = {}
+	for ox: float in [-radius, 0.0, radius]:
+		for oz: float in [-radius, 0.0, radius]:
+			cells[_chunk_key(floori(origin.x + ox), floori(origin.z + oz))] = true
+	var found: Array = []
+	for cc: Vector2i in cells:
+		if not chunks.has(cc):
+			continue
+		var chunk: Chunk = chunks[cc]
+		var base := Vector3(cc.x * CHUNK, 0.0, cc.y * CHUNK)
+		for kind: String in chunk.plants:
+			if kind.ends_with("_far"):
+				continue
+			var buf: PackedFloat32Array = chunk.plants[kind]
+			var i := 0
+			while i + 16 <= buf.size():
+				var sx := Vector2(buf[i], buf[i + 2]).length()
+				if sx >= 0.01:
+					var pos := base + Vector3(buf[i + 3], buf[i + 7], buf[i + 11])
+					var off := Vector2(pos.x - origin.x, pos.z - origin.z)
+					var d := off.length()
+					if d <= radius and pos.y < origin.y + 0.6 and pos.y > origin.y - 3.2 and (d < 0.6 or off.normalized().dot(flat) >= cos_arc):
+						found.append({"kind": kind, "pos": pos, "center": pos + Vector3(0.0, 0.3, 0.0), "coord": cc, "index": i / 16})
+				i += 16
+	var fiber := 0
+	for n in found.size():
+		var drop: Dictionary = break_plant(found[n], n % 4 == 0)
+		if not drop.is_empty():
+			fiber += int(drop["amount"])
+	return {"count": found.size(), "fiber": fiber, "center": origin + dir * 1.5}
+
+
+func cover_ground(block_cell: Vector3i) -> void:
+	var below := block_cell + Vector3i(0, -1, 0)
+	if block_at(below.x, below.y, below.z) == B_GRASS:
+		_set_edit(below, B_DIRT)
+	var cc := _chunk_key(below.x, below.z)
+	if chunks.has(cc):
+		_remove_plants(chunks[cc], below)
 
 
 func _hide_plant(chunk: Chunk, key: String, index: int, local_x: float, local_z: float) -> void:
@@ -1551,6 +1599,30 @@ func _gen_block(x: int, iy: int, z: int, h: int, surf: int, in_desert: bool) -> 
 	if depth >= 2:
 		return _stone_at(fx, fy, fz, iy)
 	return B_STONE
+
+
+func _hole_under(coord: Vector2i, lx: int, lz: int, heights: PackedInt32Array) -> bool:
+	if lx < -1 or lz < -1 or lx > CHUNK or lz > CHUNK:
+		return false
+	var h := heights[(lz + 1) * PAD + lx + 1]
+	return _is_tunnel(coord.x * CHUNK + lx, h - 1, coord.y * CHUNK + lz)
+
+
+func _rock_over_hole(coord: Vector2i, lx: int, lz: int, heights: PackedInt32Array) -> bool:
+	for off: Vector2i in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		if _hole_under(coord, lx + off.x, lz + off.y, heights):
+			return true
+	return false
+
+
+func _drop_floating(coord: Vector2i, buf: PackedFloat32Array, heights: PackedInt32Array) -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	var i := 0
+	while i + 16 <= buf.size():
+		if not _hole_under(coord, floori(buf[i + 3]), floori(buf[i + 11]), heights):
+			out.append_array(buf.slice(i, i + 16))
+		i += 16
+	return out
 
 
 func _max_step(heights: PackedInt32Array, i: int, h: int) -> int:
@@ -1876,5 +1948,10 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 
 		if plants_enabled:
 			plants = _gen_plants(coord, heights, surf, moist, top_cols, desert, placed, rng)
+		trees = trees.filter(func(d: Dictionary) -> bool: return not _hole_under(coord, floori(d["x"]), floori(d["z"]), heights))
+		cacti = cacti.filter(func(d: Dictionary) -> bool: return not _hole_under(coord, floori(d["x"]), floori(d["z"]), heights))
+		rocks = rocks.filter(func(d: Dictionary) -> bool: return not _rock_over_hole(coord, floori(d["x"]), floori(d["z"]), heights))
+		for key: String in plants.keys():
+			plants[key] = _drop_floating(coord, plants[key], heights)
 
 	return {"verts": buf.verts, "norms": buf.norms, "cols": buf.cols, "uvs": buf.uvs, "uv2s": buf.uv2s, "trees": trees, "rocks": rocks, "cacti": cacti, "plants": plants, "remesh": not with_objects}

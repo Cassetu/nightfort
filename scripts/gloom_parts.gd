@@ -1,5 +1,7 @@
 extends RefCounted
 
+const GloomAnims = preload("res://scripts/gloom_anims.gd")
+
 const BONE := Color(0.78, 0.72, 0.58)
 const BONE_DARK := Color(0.32, 0.27, 0.22)
 const VISCERA := Color(0.42, 0.05, 0.07)
@@ -27,6 +29,9 @@ static func dress(gloom: Node3D) -> void:
 	(gloom.get_node("Body/ArmR/Mesh") as MeshInstance3D).mesh = meshes["arm_r"]
 	(gloom.get_node("Body/LegL/Mesh") as MeshInstance3D).mesh = meshes["leg_l"]
 	(gloom.get_node("Body/LegR/Mesh") as MeshInstance3D).mesh = meshes["leg_r"]
+	var player_anim: AnimationPlayer = gloom.get_node("Anim")
+	player_anim.remove_animation_library("")
+	player_anim.add_animation_library("", GloomAnims.library())
 	var eye_l: Node3D = gloom.get_node("Body/Head/EyeL")
 	var eye_r: Node3D = gloom.get_node("Body/Head/EyeR")
 	eye_l.scale = Vector3(1.7, 1.9, 1.0)

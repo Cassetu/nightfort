@@ -21,6 +21,7 @@ const SOUNDS := {
 	"bird_chirp": ["bird_chirp"],
 	"stone_hit": ["stone_hit"],
 	"anvil_hit": ["anvil_hit"],
+	"forge_sparkle": ["forge_sparkle"],
 	"stone_break": ["stone_hit"],
 	"ambient_creak": ["ambient_creak"],
 	"door_open": ["door_open"],
@@ -28,8 +29,8 @@ const SOUNDS := {
 	"block_place": ["block_place"],
 }
 const PITCH_BASE := {"stone_break": 0.74}
-const PITCH_VAR := {"stone_hit": 0.14, "stone_break": 0.1, "anvil_hit": 0.12}
-const VOL_JITTER := {"stone_hit": 2.0, "stone_break": 1.5, "anvil_hit": 1.8}
+const PITCH_VAR := {"stone_hit": 0.14, "stone_break": 0.1, "anvil_hit": 0.12, "forge_sparkle": 0.1}
+const VOL_JITTER := {"stone_hit": 2.0, "stone_break": 1.5, "anvil_hit": 1.8, "forge_sparkle": 1.5}
 const CREAK_MIN := 18.0
 const CREAK_MAX := 40.0
 const RAIN_BASE_DB := -24.0

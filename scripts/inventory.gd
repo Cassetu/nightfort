@@ -43,11 +43,12 @@ var BLOCK_TYPES := {
 	"soul_block": {"name": "Soul Block", "resource": "soul_gem", "tile": "soul_block", "weight": 3, "health": 8, "color": Color(0.3, 0.12, 0.45)},
 	"chest": {"name": "Chest", "resource": "chest", "tile": "chest_side", "weight": 1, "health": 6, "color": Color(0.55, 0.38, 0.2), "scene": "res://scenes/chest.tscn"},
 	"lantern": {"name": "Lantern", "resource": "lantern", "structural": false, "health": 2, "color": Color(0.85, 0.7, 0.35), "scene": "res://scenes/lantern.tscn", "needs_support": true, "ghost": Vector3(0.3, 1.0, 0.3)},
-	"torch": {"name": "Torch", "resource": "torch", "structural": false, "health": 1, "color": Color(0.9, 0.6, 0.25), "scene": "res://scenes/torch.tscn", "needs_support": true, "ghost": Vector3(0.25, 1.0, 0.25)},
+	"torch": {"name": "Torch", "resource": "torch", "structural": false, "health": 1, "color": Color(0.9, 0.6, 0.25), "scene": "res://scenes/torch.tscn", "needs_support": true, "ghost": Vector3(0.25, 0.875, 0.25)},
 }
 
 var ITEMS := {
 	"sword": {"name": "Sword", "kind": "weapon", "max_stack": 1, "damage": 3, "cooldown": 0.45, "reach": 2.6, "color": Color(0.78, 0.84, 0.92)},
+	"scythe": {"name": "Scythe", "kind": "weapon", "sweep": true, "max_stack": 1, "damage": 3, "cooldown": 0.75, "reach": 3.4, "color": Color(0.55, 0.57, 0.52)},
 	"wood": {"name": "Wood", "kind": "block", "tile": "wood", "color": Color(0.58, 0.40, 0.22)},
 	"stone": {"name": "Stone", "kind": "block", "tile": "stone", "color": Color(0.62, 0.62, 0.65)},
 	"dirt": {"name": "Dirt", "kind": "block", "tile": "dirt", "color": Color(0.42, 0.29, 0.18)},
