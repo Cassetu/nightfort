@@ -401,8 +401,8 @@ func _nearest_target() -> Dictionary:
 	var reach: float = float(weapon.get("range", BASE_RANGE))
 	var eye := global_position + Vector3(0.0, EYE_HEIGHT, 0.0)
 	var any_close := false
-	for group in ["enemy", "wild_gloom"]:
-		var limit: float = reach if group == "enemy" else minf(reach, WILD_RANGE)
+	for group in ["enemy", "wild_gloom", "gloom_bird"]:
+		var limit: float = minf(reach, WILD_RANGE) if group == "wild_gloom" else reach
 		for g in get_tree().get_nodes_in_group(group):
 			if not is_instance_valid(g) or g.dying:
 				continue

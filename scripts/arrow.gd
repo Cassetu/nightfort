@@ -115,7 +115,7 @@ func _physics_process(delta: float) -> void:
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	if not hit.is_empty():
 		var target = hit["collider"]
-		if target.is_in_group("enemy") or target.is_in_group("wild_gloom"):
+		if target.is_in_group("enemy") or target.is_in_group("wild_gloom") or target.is_in_group("gloom_bird"):
 			target.take_damage(damage, from - velocity.normalized() * 2.0)
 			_recycle()
 			return

@@ -135,6 +135,8 @@ func _hook_button(btn: BaseButton) -> void:
 
 
 func _on_button() -> void:
+	if not is_inside_tree() or pool_2d.is_empty():
+		return
 	play("ui_click")
 
 

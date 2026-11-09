@@ -698,7 +698,7 @@ func sweep(weapon):
 	var struck = {}
 	for entry in get_world_3d().direct_space_state.intersect_shape(query, 24):
 		var target = entry["collider"]
-		if struck.has(target) or not (target.is_in_group("enemy") or target.is_in_group("wild_gloom")):
+		if struck.has(target) or not (target.is_in_group("enemy") or target.is_in_group("wild_gloom") or target.is_in_group("gloom_bird")):
 			continue
 		var off = target.global_position - global_position
 		off.y = 0.0
@@ -736,7 +736,7 @@ func swing(weapon):
 	var struck = {}
 	for entry in found:
 		var target = entry["collider"]
-		if struck.has(target) or not (target.is_in_group("enemy") or target.is_in_group("wild_gloom")):
+		if struck.has(target) or not (target.is_in_group("enemy") or target.is_in_group("wild_gloom") or target.is_in_group("gloom_bird")):
 			continue
 		struck[target] = true
 		target.take_damage(weapon["damage"], global_position)

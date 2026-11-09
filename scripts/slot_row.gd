@@ -30,7 +30,8 @@ func show_info(info: Dictionary, mode: String) -> void:
 func _describe(info: Dictionary) -> String:
 	var stamp: String = info["saved_at"]
 	var mode: String = str(info.get("mode", "survival")).capitalize()
-	return "%s  -  Seed %d  -  %s  -  %s" % [mode, info["seed"], _format_time(info["play_time"]), stamp.substr(0, 16)]
+	var level: String = str(info.get("difficulty", "normal")).capitalize()
+	return "%s  -  %s  -  Seed %d  -  %s  -  %s" % [mode, level, info["seed"], _format_time(info["play_time"]), stamp.substr(0, 16)]
 
 
 func _format_time(seconds: float) -> String:

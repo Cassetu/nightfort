@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3 uid="uid://c66ndex75uxn4"]
+[gd_scene load_steps=17 format=3 uid="uid://c66ndex75uxn4"]
 
 [ext_resource type="PackedScene" uid="uid://dudcni17usbht" path="res://scenes/player.tscn" id="1_nnsk1"]
 [ext_resource type="Script" uid="uid://cdgex2rftoyya" path="res://scripts/sun.gd" id="1_rwgxs"]
@@ -9,7 +9,6 @@
 [ext_resource type="PackedScene" uid="uid://cbsouelol0coa" path="res://scenes/game_ui.tscn" id="7_ui"]
 [ext_resource type="Script" uid="uid://kgpr645xbsjp" path="res://scripts/flow_field.gd" id="8_flow"]
 [ext_resource type="Script" uid="uid://bhg34p6owcff4" path="res://scripts/wave_spawner.gd" id="9_waves"]
-[ext_resource type="PackedScene" uid="uid://5fcol8uiw01l" path="res://scenes/gloom.tscn" id="10_gloom"]
 [ext_resource type="PackedScene" path="res://scenes/intro.tscn" id="11_intro"]
 [ext_resource type="PackedScene" path="res://scenes/inventory_ui.tscn" id="12_inv"]
 [ext_resource type="Shader" uid="uid://bm1k2kcxxt0g5" path="res://resources/post.gdshader" id="13_post"]
@@ -81,7 +80,6 @@ script = ExtResource("8_flow")
 
 [node name="WaveSpawner" type="Node" parent="."]
 script = ExtResource("9_waves")
-enemy_scene = ExtResource("10_gloom")
 
 [node name="GameUI" parent="." instance=ExtResource("7_ui")]
 

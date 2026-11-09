@@ -2,6 +2,7 @@ extends Node
 
 signal settings_changed
 
+const StoneUI = preload("res://scripts/stone_ui.gd")
 const SAVE_DIR := "user://saves"
 const SETTINGS_PATH := "user://settings.cfg"
 const SLOT_COUNT := 3
@@ -11,6 +12,8 @@ const SEED_LIMIT := 2000000000
 const BACKUP_COUNT := 5
 const AUTOSAVE_INTERVAL := 300.0
 const DEFAULT_NAME := "New World"
+const DIFFICULTIES := ["easy", "normal", "hard"]
+const DIFFICULTY_SPAWN := {"easy": 0.6, "normal": 1.0, "hard": 1.6}
 
 var settings := {
 	"master_volume": 0.8,
@@ -27,11 +30,13 @@ var pending: Dictionary = {}
 var play_time: float = 0.0
 var current_slot: int = -1
 var gamemode: String = "survival"
+var difficulty: String = "normal"
 var world_name: String = DEFAULT_NAME
 var autosave_timer: float = 0.0
 
 
 func _ready() -> void:
+	StoneUI.apply(load(StoneUI.THEME_PATH))
 	load_settings()
 	apply_settings()
 
@@ -91,11 +96,12 @@ func seed_from_text(text: String) -> int:
 	return (t.hash() & 0x7FFFFFFF) % SEED_LIMIT
 
 
-func new_game(seed_text: String, mode: String = "survival", name_text: String = "") -> bool:
+func new_game(seed_text: String, mode: String = "survival", name_text: String = "", level: String = "normal") -> bool:
 	Inventory.reset()
 	world_name = _clean_name(name_text)
 	autosave_timer = 0.0
 	gamemode = mode if mode in ["survival", "creative"] else "survival"
+	difficulty = level if level in DIFFICULTIES else "normal"
 	world_seed = seed_from_text(seed_text)
 	has_session = true
 	in_world = true
@@ -114,6 +120,8 @@ func load_game(slot: int, backup: bool = false) -> bool:
 	Inventory.reset()
 	world_seed = int(data.get("seed", 1337))
 	gamemode = str(data.get("mode", "survival"))
+	var saved_level := str(data.get("difficulty", "normal"))
+	difficulty = saved_level if saved_level in DIFFICULTIES else "normal"
 	has_session = true
 	in_world = true
 	pending = data.get("state", {})
@@ -153,6 +161,10 @@ func slot_path(slot: int, backup: bool = false) -> String:
 	return "%s/slot_%d.json" % [SAVE_DIR, slot]
 
 
+func spawn_scale() -> float:
+	return float(DIFFICULTY_SPAWN.get(difficulty, 1.0))
+
+
 func _snapshot():
 	var scene := get_tree().current_scene
 	if scene == null or not scene.has_method("collect_state"):
@@ -162,6 +174,7 @@ func _snapshot():
 		"name": world_name,
 		"seed": world_seed,
 		"mode": gamemode,
+		"difficulty": difficulty,
 		"play_time": play_time,
 		"saved_at": Time.get_datetime_string_from_system(false, true),
 		"unix": Time.get_unix_time_from_system(),
@@ -240,6 +253,7 @@ func slot_info(slot: int, backup: bool = false) -> Dictionary:
 		"name": str(data.get("name", DEFAULT_NAME)),
 		"seed": int(data.get("seed", 0)),
 		"mode": str(data.get("mode", "survival")),
+		"difficulty": str(data.get("difficulty", "normal")),
 		"play_time": float(data.get("play_time", 0.0)),
 		"saved_at": str(data.get("saved_at", "")),
 		"unix": float(data.get("unix", 0.0)),

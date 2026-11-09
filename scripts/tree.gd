@@ -26,8 +26,8 @@ var variant: int = 0
 
 static var _meshes: Array = []
 static var _material: ShaderMaterial
+static var _conifer_material: ShaderMaterial
 static var _trunk_material: StandardMaterial3D
-static var _snow_material: ShaderMaterial
 static var _leaf_shader: Shader
 
 
@@ -68,40 +68,153 @@ static func _ensure_meshes() -> void:
 	if not _meshes.is_empty():
 		return
 
-	_leaf_shader = load("res://resources/leaves.gdshader")
-	_material = _shader_material("leaves", LEAF_COLORS[0], Vector2(4.0, 3.0), true)
-
+	_leaf_shader = load("res://resources/leaf_cards.gdshader")
+	_material = _card_material(_leaf_texture())
+	_conifer_material = _card_material(_conifer_texture())
 	_trunk_material = TileArt.uv_material("wood", TRUNK_COLOR, Vector3(2.0, 2.0, 1.0))
 
-	_snow_material = _shader_material("snow", SNOW_TINT, Vector2(2.0, 2.0), false)
-
-	for leaf: Color in LEAF_COLORS:
-		_meshes.append(_make_mesh(leaf))
+	for i in LEAF_COLORS.size():
+		_meshes.append(_make_crown(LEAF_COLORS[i], i))
 	for i in SPRUCE_COLORS.size():
 		_meshes.append(_make_spruce(SPRUCE_COLORS[i], i))
 
 
-static func _shader_material(tile_name: String, fallback: Color, uv_scale: Vector2, leafy: bool) -> ShaderMaterial:
+static func _card_material(tex: Texture2D) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = _leaf_shader
-	m.set_shader_parameter("albedo_tex", TileArt.uv_material(tile_name, fallback, Vector3(1.0, 1.0, 1.0), true).albedo_texture)
-	m.set_shader_parameter("uv_scale", uv_scale)
-	m.set_shader_parameter("ragged", 1.0 if leafy else 0.0)
+	m.set_shader_parameter("card_tex", tex)
 	return m
 
 
-static func _make_spruce(leaf: Color, index: int) -> ArrayMesh:
-	var verts := PackedVector3Array()
-	var norms := PackedVector3Array()
-	var cols := PackedColorArray()
-	var uvs := PackedVector2Array()
-	var indices := PackedInt32Array()
-	var s_verts := PackedVector3Array()
-	var s_norms := PackedVector3Array()
-	var s_cols := PackedColorArray()
-	var s_uvs := PackedVector2Array()
-	var s_indices := PackedInt32Array()
+static func _leaf_texture() -> ImageTexture:
+	var size := 64
+	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var src := TileArt.tile_image("leaves", Color(0.2, 0.4, 0.2))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4242
+	for n in 120:
+		var a := rng.randf() * TAU
+		var r := sqrt(rng.randf()) * 27.0
+		var cx := 32.0 + cos(a) * r
+		var cy := 32.0 + sin(a) * r * 0.85
+		var radius := rng.randf_range(2.2, 4.6)
+		var depth := clampf((cy - 4.0) / 56.0, 0.0, 1.0)
+		var shade := lerpf(1.18, 0.62, depth) * rng.randf_range(0.88, 1.1)
+		var base := src.get_pixel(rng.randi() % src.get_width(), rng.randi() % src.get_height())
+		var col := Color(base.r * shade, base.g * shade, base.b * shade, 1.0)
+		for y in range(int(cy - radius) - 1, int(cy + radius) + 2):
+			for x in range(int(cx - radius) - 1, int(cx + radius) + 2):
+				if x < 0 or y < 0 or x >= size or y >= size:
+					continue
+				var d := Vector2(float(x) - cx, float(y) - cy).length()
+				if d <= radius:
+					var rim := 0.82 if d > radius - 1.0 else 1.0
+					img.set_pixel(x, y, Color(col.r * rim, col.g * rim, col.b * rim, 1.0))
+	return ImageTexture.create_from_image(img)
 
+
+static func _conifer_texture() -> ImageTexture:
+	var size := 64
+	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var src := TileArt.tile_image("leaves", Color(0.2, 0.4, 0.2))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 777
+	for y in size:
+		var band := float(y % 14) / 14.0
+		var half := 3.0 + float(y) * 0.44 + (1.0 - band) * 4.5
+		for x in size:
+			var dx := absf(float(x) - 31.5)
+			var jag := rng.randf() * 2.2
+			if dx > half - jag:
+				continue
+			var base := src.get_pixel((x * 3) % src.get_width(), (y * 3) % src.get_height())
+			var shade := lerpf(1.15, 0.6, clampf(band * 0.9 + dx / 70.0, 0.0, 1.0)) * rng.randf_range(0.9, 1.08)
+			img.set_pixel(x, y, Color(base.r * shade, base.g * shade, base.b * shade, 1.0))
+	return ImageTexture.create_from_image(img)
+
+
+static func _card(buf: Dictionary, center: Vector3, right: Vector3, up: Vector3, half_w: float, half_h: float, normal: Vector3, color: Color) -> void:
+	var verts: PackedVector3Array = buf["verts"]
+	var norms: PackedVector3Array = buf["norms"]
+	var cols: PackedColorArray = buf["cols"]
+	var uvs: PackedVector2Array = buf["uvs"]
+	var indices: PackedInt32Array = buf["indices"]
+	var o := verts.size()
+	verts.append(center - right * half_w + up * half_h)
+	verts.append(center + right * half_w + up * half_h)
+	verts.append(center + right * half_w - up * half_h)
+	verts.append(center - right * half_w - up * half_h)
+	uvs.append(Vector2(0.0, 0.0))
+	uvs.append(Vector2(1.0, 0.0))
+	uvs.append(Vector2(1.0, 1.0))
+	uvs.append(Vector2(0.0, 1.0))
+	for i in 4:
+		norms.append(normal)
+		cols.append(color)
+	indices.append_array(PackedInt32Array([o, o + 1, o + 2, o, o + 2, o + 3]))
+	buf["verts"] = verts
+	buf["norms"] = norms
+	buf["cols"] = cols
+	buf["uvs"] = uvs
+	buf["indices"] = indices
+
+
+static func _new_buf() -> Dictionary:
+	return {"verts": PackedVector3Array(), "norms": PackedVector3Array(), "cols": PackedColorArray(), "uvs": PackedVector2Array(), "indices": PackedInt32Array()}
+
+
+static func _buf_arrays(buf: Dictionary) -> Array:
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = buf["verts"]
+	arrays[Mesh.ARRAY_NORMAL] = buf["norms"]
+	arrays[Mesh.ARRAY_COLOR] = buf["cols"]
+	arrays[Mesh.ARRAY_TEX_UV] = buf["uvs"]
+	arrays[Mesh.ARRAY_INDEX] = buf["indices"]
+	return arrays
+
+
+static func _finish_mesh(buf: Dictionary, material: ShaderMaterial) -> ArrayMesh:
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, _trunk_arrays())
+	mesh.surface_set_material(0, _trunk_material)
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, _buf_arrays(buf))
+	mesh.surface_set_material(1, material)
+	return mesh
+
+
+static func _make_crown(leaf: Color, index: int) -> ArrayMesh:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 9100 + index
+	var buf := _new_buf()
+	var tint := Color.from_hsv(leaf.h, 0.22, 0.95)
+	var crown := Vector3(0.0, TRUNK_HEIGHT * 0.6 + 2.0, 0.0)
+	var layers := [[5, 1.15, 0.7, 1.15], [4, 0.85, 1.7, 1.0], [2, 0.4, 2.65, 0.85]]
+	for layer: Array in layers:
+		var count: int = layer[0]
+		for i in count:
+			var a := TAU * (float(i) + rng.randf() * 0.6) / float(count)
+			var r: float = float(layer[1]) * rng.randf_range(0.8, 1.1)
+			var c := Vector3(cos(a) * r, TRUNK_HEIGHT * 0.6 + float(layer[2]) + rng.randf_range(-0.15, 0.15), sin(a) * r)
+			var half: float = float(layer[3]) * rng.randf_range(0.9, 1.15)
+			var height_k := clampf((c.y - TRUNK_HEIGHT * 0.6) / 3.0, 0.0, 1.0)
+			var color := tint.lightened(0.14 * height_k)
+			var outward := (c - crown).normalized()
+			var yaw := rng.randf() * PI
+			var right_a := Vector3(cos(yaw), 0.0, sin(yaw))
+			var right_b := Vector3(-sin(yaw), 0.0, cos(yaw))
+			_card(buf, c, right_a, Vector3.UP, half, half * 0.9, outward, color)
+			_card(buf, c, right_b, Vector3.UP, half, half * 0.9, outward, color)
+			var flat_right := Vector3(cos(yaw + 0.8), 0.0, sin(yaw + 0.8))
+			var flat_up := Vector3(-sin(yaw + 0.8), 0.0, cos(yaw + 0.8))
+			_card(buf, c + Vector3(0.0, 0.08, 0.0), flat_right, flat_up, half, half, Vector3.UP, color.lightened(0.05))
+	return _finish_mesh(buf, _material)
+
+
+static func _make_spruce(leaf: Color, index: int) -> ArrayMesh:
+	var buf := _new_buf()
 	var tiers := 5 + index % 2
 	var base := 0.9
 	var step := 0.95
@@ -110,64 +223,12 @@ static func _make_spruce(leaf: Color, index: int) -> ArrayMesh:
 		var radius := lerpf(1.55, 0.45, k)
 		var height := 1.9
 		var cy := base + height * 0.5 + float(t) * step
-		var shade := leaf.lightened(0.05 * k)
-		_append_part(verts, norms, cols, uvs, indices, 0.0, radius, height, cy, shade)
-		var cap_h := height * 0.55
-		_append_part(s_verts, s_norms, s_cols, s_uvs, s_indices, 0.0, radius * 0.55 * 1.08, cap_h, cy + height * 0.5 - cap_h * 0.5 + 0.02, SNOW_TINT)
-
-	var needle_arrays := []
-	needle_arrays.resize(Mesh.ARRAY_MAX)
-	needle_arrays[Mesh.ARRAY_VERTEX] = verts
-	needle_arrays[Mesh.ARRAY_NORMAL] = norms
-	needle_arrays[Mesh.ARRAY_COLOR] = cols
-	needle_arrays[Mesh.ARRAY_TEX_UV] = uvs
-	needle_arrays[Mesh.ARRAY_INDEX] = indices
-
-	var snow_arrays := []
-	snow_arrays.resize(Mesh.ARRAY_MAX)
-	snow_arrays[Mesh.ARRAY_VERTEX] = s_verts
-	snow_arrays[Mesh.ARRAY_NORMAL] = s_norms
-	snow_arrays[Mesh.ARRAY_COLOR] = s_cols
-	snow_arrays[Mesh.ARRAY_TEX_UV] = s_uvs
-	snow_arrays[Mesh.ARRAY_INDEX] = s_indices
-
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, _trunk_arrays())
-	mesh.surface_set_material(0, _trunk_material)
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, needle_arrays)
-	mesh.surface_set_material(1, _material)
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, snow_arrays)
-	mesh.surface_set_material(2, _snow_material)
-	return mesh
-
-
-static func _make_mesh(leaf: Color) -> ArrayMesh:
-	var verts := PackedVector3Array()
-	var norms := PackedVector3Array()
-	var cols := PackedColorArray()
-	var uvs := PackedVector2Array()
-	var indices := PackedInt32Array()
-
-	var tint := Color.from_hsv(leaf.h, 0.22, 0.95)
-	var base := TRUNK_HEIGHT * 0.6
-	_append_part(verts, norms, cols, uvs, indices, 0.0, 1.7, 2.4, base + 1.2, tint)
-	_append_part(verts, norms, cols, uvs, indices, 0.0, 1.3, 2.2, base + 2.3, tint.lightened(0.07))
-	_append_part(verts, norms, cols, uvs, indices, 0.0, 0.9, 2.0, base + 3.4, tint.lightened(0.14))
-
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = verts
-	arrays[Mesh.ARRAY_NORMAL] = norms
-	arrays[Mesh.ARRAY_COLOR] = cols
-	arrays[Mesh.ARRAY_TEX_UV] = uvs
-	arrays[Mesh.ARRAY_INDEX] = indices
-
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, _trunk_arrays())
-	mesh.surface_set_material(0, _trunk_material)
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	mesh.surface_set_material(1, _material)
-	return mesh
+		var color := leaf.lerp(SNOW_TINT, 0.2 + 0.3 * k)
+		for n in 3:
+			var yaw := PI * float(n) / 3.0 + float(t) * 0.5
+			var right := Vector3(cos(yaw), 0.0, sin(yaw))
+			_card(buf, Vector3(0.0, cy, 0.0), right, Vector3.UP, radius, height * 0.5, Vector3.UP, color)
+	return _finish_mesh(buf, _conifer_material)
 
 
 static func _trunk_arrays() -> Array:
@@ -185,29 +246,3 @@ static func _trunk_arrays() -> Array:
 		part_verts[i] += Vector3(0.0, TRUNK_HEIGHT * 0.5, 0.0)
 	arrays[Mesh.ARRAY_VERTEX] = part_verts
 	return arrays
-
-
-static func _append_part(verts: PackedVector3Array, norms: PackedVector3Array, cols: PackedColorArray, uvs: PackedVector2Array, indices: PackedInt32Array, top_radius: float, bottom_radius: float, height: float, center_y: float, color: Color) -> void:
-	var cylinder := CylinderMesh.new()
-	cylinder.top_radius = top_radius
-	cylinder.bottom_radius = bottom_radius
-	cylinder.height = height
-	cylinder.radial_segments = 12
-	cylinder.rings = 3
-	cylinder.cap_top = false
-	cylinder.cap_bottom = false
-
-	var arrays := cylinder.get_mesh_arrays()
-	var part_verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	var part_norms: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
-	var part_uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
-	var part_indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
-
-	var offset := verts.size()
-	for i in part_verts.size():
-		verts.append(part_verts[i] + Vector3(0.0, center_y, 0.0))
-		norms.append(part_norms[i])
-		cols.append(color)
-		uvs.append(part_uvs[i])
-	for index in part_indices:
-		indices.append(offset + index)

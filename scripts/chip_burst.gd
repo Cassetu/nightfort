@@ -50,7 +50,7 @@ static func _make_emitter() -> CPUParticles3D:
 	p.one_shot = true
 	p.explosiveness = 1.0
 	p.direction = Vector3.UP
-	p.flag_rotate_y = true
+	p.particle_flag_rotate_y = true
 	p.angle_min = 0.0
 	p.angle_max = 360.0
 	p.angular_velocity_min = -420.0

@@ -1,7 +1,7 @@
 extends PanelContainer
 
 signal back_requested
-signal start_requested(seed_text, mode, name_text)
+signal start_requested(seed_text, mode, name_text, level)
 
 @onready var seed_edit = %Seed
 @onready var name_edit = %WorldName
@@ -9,6 +9,9 @@ signal start_requested(seed_text, mode, name_text)
 @onready var back_button = %Back
 @onready var survival_button = %Survival
 @onready var creative_button = %Creative
+@onready var easy_button = %Easy
+@onready var normal_button = %Normal
+@onready var hard_button = %Hard
 
 
 func _ready() -> void:
@@ -24,15 +27,16 @@ func _on_visibility() -> void:
 		seed_edit.clear()
 		name_edit.clear()
 		survival_button.button_pressed = true
+		normal_button.button_pressed = true
 		name_edit.grab_focus()
 
 
 func _on_start() -> void:
-	start_requested.emit(seed_edit.text, _mode(), name_edit.text)
+	start_requested.emit(seed_edit.text, _mode(), name_edit.text, _level())
 
 
 func _on_submitted(text: String) -> void:
-	start_requested.emit(seed_edit.text, _mode(), name_edit.text)
+	start_requested.emit(seed_edit.text, _mode(), name_edit.text, _level())
 
 
 func _on_back() -> void:
@@ -41,3 +45,11 @@ func _on_back() -> void:
 
 func _mode() -> String:
 	return "creative" if creative_button.button_pressed else "survival"
+
+
+func _level() -> String:
+	if easy_button.button_pressed:
+		return "easy"
+	if hard_button.button_pressed:
+		return "hard"
+	return "normal"

@@ -2,6 +2,7 @@ extends Node
 
 signal status_changed(text: String)
 
+const BirdScript = preload("res://scripts/gloom_bird.gd")
 const GloomNest = preload("res://scripts/gloom_nest.gd")
 const NEST_INTERVAL := 0.5
 
@@ -25,6 +26,13 @@ const NEST_INTERVAL := 0.5
 @export var two_front_night: int = 4
 @export var retry_interval: float = 0.4
 @export var min_player_distance: float = 14.0
+@export var bird_start_night: int = 3
+@export var bird_cap: int = 6
+@export var bird_interval_min: float = 12.0
+@export var bird_interval_max: float = 26.0
+@export var bird_distance: float = 72.0
+@export var bird_altitude_min: float = 20.0
+@export var bird_altitude_max: float = 28.0
 @export var night_start_elevation: float = -0.1
 @export var dawn_elevation: float = 0.03
 
@@ -44,6 +52,9 @@ var last_elevation: float = 1.0
 var spawn_timer: float = 0.0
 var last_status: String = ""
 var nests: Dictionary = {}
+var birds_total: int = 0
+var birds_spawned: int = 0
+var bird_timer: float = 0.0
 var nest_timer: float = 0.0
 
 
@@ -60,7 +71,8 @@ func wave_size(n: int) -> int:
 	var real := n - calm_nights
 	if real <= 0:
 		return 0
-	return mini(base_count + (real - 1) * count_growth, max_count)
+	var raw := base_count + (real - 1) * count_growth
+	return maxi(roundi(float(mini(raw, max_count)) * Game.spawn_scale()), 1)
 
 
 func export_state() -> Dictionary:
@@ -74,6 +86,8 @@ func import_state(d: Dictionary) -> void:
 	for a in d.get("dirs", []):
 		attack_dirs.append(float(a))
 	if night_active:
+		birds_total = _bird_count(night)
+		bird_timer = randf_range(bird_interval_min * 0.5, bird_interval_max)
 		total = wave_size(night)
 		spawned = mini(int(d.get("spawned", 0)), total)
 		night_time = float(d.get("elapsed", 0.0))
@@ -104,9 +118,16 @@ func _process(delta: float) -> void:
 		var target := ceili(total * _spawn_curve(p))
 		if spawn_timer <= 0.0 and spawned < target:
 			spawn_timer = swarm_interval if swarming else retry_interval
-			var cap := swarm_max_alive if swarming else max_alive
+			var cap := roundi(float(swarm_max_alive if swarming else max_alive) * Game.spawn_scale())
 			if get_tree().get_nodes_in_group("enemy").size() < cap and _spawn_one():
 				spawned += 1
+
+	if night_active and birds_spawned < birds_total and not _is_calmed():
+		bird_timer -= delta
+		if bird_timer <= 0.0:
+			bird_timer = randf_range(bird_interval_min, bird_interval_max)
+			if _spawn_bird():
+				birds_spawned += 1
 
 	if _is_calmed() and not attack_dirs.is_empty():
 		attack_dirs.clear()
@@ -172,6 +193,9 @@ func _begin_night() -> void:
 	spawned = 0
 	night_time = 0.0
 	spawn_timer = first_delay
+	birds_total = _bird_count(night)
+	birds_spawned = 0
+	bird_timer = randf_range(bird_interval_min * 0.5, bird_interval_max * 0.7)
 
 
 func _end_night() -> void:
@@ -184,6 +208,32 @@ func _end_night() -> void:
 	attack_dirs.clear()
 	for enemy in get_tree().get_nodes_in_group("enemy"):
 		enemy.dissolve()
+	for bird in get_tree().get_nodes_in_group("gloom_bird"):
+		bird.dissolve()
+	birds_total = 0
+
+
+func _bird_count(n: int) -> int:
+	var real := n - bird_start_night + 1
+	if real <= 0:
+		return 0
+	return maxi(roundi(float(mini(real, bird_cap)) * Game.spawn_scale()), 1)
+
+
+func _spawn_bird() -> bool:
+	if not is_instance_valid(core) or enemies_root == null:
+		return false
+	var angle := randf() * TAU
+	if not attack_dirs.is_empty() and randf() < focus_share:
+		var base: float = attack_dirs[randi() % attack_dirs.size()]
+		angle = base + randf_range(-1.0, 1.0) * deg_to_rad(focus_spread_degrees)
+	var c: Vector3 = core.global_position
+	var bird := StaticBody3D.new()
+	bird.set_script(BirdScript)
+	enemies_root.add_child(bird)
+	bird.global_position = Vector3(c.x + cos(angle) * bird_distance, c.y + randf_range(bird_altitude_min, bird_altitude_max), c.z + sin(angle) * bird_distance)
+	bird.setup(core)
+	return true
 
 
 func _spawn_one() -> bool:

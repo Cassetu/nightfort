@@ -29,6 +29,7 @@ func _configure() -> void:
 	needs_support = not fixture
 	if fixture:
 		remove_from_group("block")
+		BlockIndex.remove(self)
 
 
 func _build() -> void:
@@ -62,7 +63,7 @@ func _supported() -> bool:
 	var w := global_position - wall_normal
 	if terrain != null and terrain.block_at(floori(w.x), floori(w.y), floori(w.z)) != 0:
 		return true
-	for n in get_tree().get_nodes_in_group("block"):
+	for n in BlockIndex.list:
 		if n != self and not n.dying and n.block_type != "torch" and n.covers(w):
 			return true
 	return false

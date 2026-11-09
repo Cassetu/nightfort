@@ -4,6 +4,8 @@
 
 [sub_resource type="ButtonGroup" id="ButtonGroup_modes"]
 
+[sub_resource type="ButtonGroup" id="ButtonGroup_levels"]
+
 [node name="NewGamePanel" type="PanelContainer"]
 custom_minimum_size = Vector2(680, 0)
 script = ExtResource("1_panel")
@@ -76,6 +78,43 @@ size_flags_horizontal = 3
 toggle_mode = true
 button_group = SubResource("ButtonGroup_modes")
 text = "Creative"
+
+[node name="LevelLabel" type="Label" parent="Box"]
+layout_mode = 2
+theme_type_variation = &"BodyLabel"
+text = "Difficulty"
+
+[node name="Levels" type="HBoxContainer" parent="Box"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Easy" type="Button" parent="Box/Levels"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+button_group = SubResource("ButtonGroup_levels")
+text = "Easy"
+
+[node name="Normal" type="Button" parent="Box/Levels"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+button_pressed = true
+button_group = SubResource("ButtonGroup_levels")
+text = "Normal"
+
+[node name="Hard" type="Button" parent="Box/Levels"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+button_group = SubResource("ButtonGroup_levels")
+text = "Hard"
 
 [node name="Options" type="VBoxContainer" parent="Box"]
 layout_mode = 2

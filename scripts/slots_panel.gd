@@ -99,6 +99,10 @@ func _on_yes() -> void:
 		return
 	if task["action"] == "save":
 		_do_save(int(task["slot"]))
+	elif task["action"] == "delete":
+		Game.delete_slot(int(task["slot"]), bool(task["backup"]))
+		status_label.text = "Deleted %s %d." % ["backup" if bool(task["backup"]) else "slot", int(task["slot"]) + 1]
+		refresh()
 	else:
 		if not Game.load_game(int(task["slot"]), bool(task["backup"])):
 			status_label.text = "That save could not be read."
@@ -118,9 +122,7 @@ func _do_save(slot: int) -> void:
 
 
 func _on_delete(slot: int, backup: bool) -> void:
-	Game.delete_slot(slot, backup)
-	status_label.text = "Deleted %s %d." % ["backup" if backup else "slot", slot + 1]
-	refresh()
+	_ask("delete", slot, backup, "Delete")
 
 
 func _on_back() -> void:
