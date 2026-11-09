@@ -34,6 +34,7 @@ static var _leaf_shader: Shader
 func _configure() -> void:
 	resource_type = "wood"
 	chip_color = Color(0.45, 0.3, 0.16)
+	chip_tile = "wood"
 	max_health = maxi(3, roundi(4.0 * size_factor))
 	resource_amount = maxi(3, roundi(3.5 * size_factor))
 	add_to_group("tree")

@@ -1,5 +1,6 @@
 extends CharacterBody3D
 
+const ChipBurst = preload("res://scripts/chip_burst.gd")
 const Sfx = preload("res://scripts/sfx.gd")
 const GloomParts = preload("res://scripts/gloom_parts.gd")
 const GloomAnims = preload("res://scripts/gloom_anims.gd")
@@ -413,28 +414,4 @@ func _smash() -> void:
 
 
 func _chips() -> void:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.3, 0.1, 0.5)
-	mat.emission_enabled = true
-	mat.emission = Color(0.4, 0.1, 0.7)
-
-	var chip := BoxMesh.new()
-	chip.size = Vector3(0.12, 0.12, 0.12)
-	chip.material = mat
-
-	var burst := CPUParticles3D.new()
-	burst.mesh = chip
-	burst.amount = 12
-	burst.lifetime = 0.7
-	burst.one_shot = true
-	burst.explosiveness = 1.0
-	burst.direction = Vector3.UP
-	burst.spread = 80.0
-	burst.gravity = Vector3(0.0, -10.0, 0.0)
-	burst.initial_velocity_min = 2.0
-	burst.initial_velocity_max = 5.0
-	burst.emitting = false
-	get_tree().current_scene.add_child(burst)
-	burst.global_position = global_position + Vector3(0.0, 0.4, 0.0)
-	burst.emitting = true
-	get_tree().create_timer(1.4).timeout.connect(burst.queue_free)
+	ChipBurst.spawn(self, global_position + Vector3(0.0, 0.4, 0.0), "", Color(0.34, 0.12, 0.55), 12, 0.12, 0.7, 80.0, 2.0, 5.0, 10.0)

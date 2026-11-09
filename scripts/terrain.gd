@@ -4,10 +4,15 @@ const TreeScript = preload("res://scripts/tree.gd")
 const RockScript = preload("res://scripts/rock.gd")
 const CactusScript = preload("res://scripts/cactus.gd")
 const TileArt = preload("res://scripts/tile_art.gd")
+const ChipBurst = preload("res://scripts/chip_burst.gd")
 
 signal block_broken(cell: Vector3i)
 
 const CHUNK := 16
+const OCCLUDERS := true
+const OCC_CELL := 4
+const OCC_TOP := 1.0
+const OCC_THICK := 3.0
 const PLATFORM_MIN := -2
 const PLATFORM_MAX := 1
 const PAD := CHUNK + 2
@@ -174,6 +179,7 @@ class Chunk:
 	var cacti: Array
 	var plants: Dictionary = {}
 	var plant_nodes: Dictionary = {}
+	var occluder: OccluderInstance3D
 
 class MeshBuf:
 	var verts := PackedVector3Array()
@@ -386,7 +392,7 @@ func hit_block(cell: Vector3i, damage: float) -> Dictionary:
 	crack_time = Time.get_ticks_msec()
 
 	var center := Vector3(cell) + Vector3(0.5, 0.5, 0.5)
-	_spawn_chips(center, BASE_COL[id])
+	_spawn_chips(center, BASE_COL[id], TILE_NAMES[FACE_TILE[id][2]])
 
 	var hardness: float = HARDNESS[id]
 	if crack_progress >= hardness:
@@ -613,31 +619,8 @@ func _clear_crack() -> void:
 	crack_progress = 0.0
 
 
-func _spawn_chips(origin: Vector3, color: Color) -> void:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.roughness = 1.0
-
-	var chip := BoxMesh.new()
-	chip.size = Vector3(0.12, 0.12, 0.12)
-	chip.material = mat
-
-	var burst := CPUParticles3D.new()
-	burst.mesh = chip
-	burst.amount = 10
-	burst.lifetime = 0.6
-	burst.one_shot = true
-	burst.explosiveness = 1.0
-	burst.direction = Vector3.UP
-	burst.spread = 80.0
-	burst.gravity = Vector3(0.0, -12.0, 0.0)
-	burst.initial_velocity_min = 2.0
-	burst.initial_velocity_max = 4.5
-	burst.emitting = false
-	get_tree().current_scene.add_child(burst)
-	burst.global_position = origin
-	burst.emitting = true
-	get_tree().create_timer(1.2).timeout.connect(burst.queue_free)
+func _spawn_chips(origin: Vector3, color: Color, tile: String = "") -> void:
+	ChipBurst.spawn(self, origin, tile, color, 10, 0.12, 0.6, 80.0)
 
 
 func _is_protected(cell: Vector3i) -> bool:
@@ -659,6 +642,12 @@ func _set_edit(cell: Vector3i, id: int) -> void:
 		edit_chunks[cc] = {}
 	var edits: Dictionary = edit_chunks[cc]
 	edits[cell] = id
+
+	if chunks.has(cc):
+		var edited: Chunk = chunks[cc]
+		if edited.occluder != null:
+			edited.occluder.queue_free()
+			edited.occluder = null
 
 	var lx := cell.x - cc.x * CHUNK
 	var lz := cell.z - cc.y * CHUNK
@@ -892,8 +881,60 @@ func _finalize(coord: Vector2i, data: Dictionary) -> Chunk:
 	root.add_child(mi)
 	chunk.mi = mi
 
+	if OCCLUDERS and data.has("heights") and not edit_chunks.has(coord):
+		_add_occluder(chunk, data["heights"])
+
 	chunks[coord] = chunk
 	return chunk
+
+
+func _add_occluder(chunk: Chunk, heights: PackedInt32Array) -> void:
+	var verts := PackedVector3Array()
+	var indices := PackedInt32Array()
+	var cells := CHUNK / OCC_CELL
+	for cz in cells:
+		for cx in cells:
+			var low := 100000
+			var blocked := false
+			for dz in range(-1, OCC_CELL + 1):
+				for dx in range(-1, OCC_CELL + 1):
+					var lx := cx * OCC_CELL + dx
+					var lz := cz * OCC_CELL + dz
+					var h := heights[(lz + 1) * PAD + lx + 1]
+					if dx >= 0 and dx < OCC_CELL and dz >= 0 and dz < OCC_CELL:
+						low = mini(low, h)
+					if _hole_under(chunk.coord, lx, lz, heights):
+						blocked = true
+			if blocked:
+				continue
+			var top := float(low) - OCC_TOP
+			var bottom := top - OCC_THICK
+			if bottom < 1.0:
+				continue
+			var x0 := float(cx * OCC_CELL) + 0.3
+			var x1 := float((cx + 1) * OCC_CELL) - 0.3
+			var z0 := float(cz * OCC_CELL) + 0.3
+			var z1 := float((cz + 1) * OCC_CELL) - 0.3
+			var base := verts.size()
+			verts.append_array(PackedVector3Array([
+				Vector3(x0, bottom, z0), Vector3(x1, bottom, z0), Vector3(x1, bottom, z1), Vector3(x0, bottom, z1),
+				Vector3(x0, top, z0), Vector3(x1, top, z0), Vector3(x1, top, z1), Vector3(x0, top, z1),
+			]))
+			for quad: Array in [[0, 1, 2, 3], [4, 7, 6, 5], [0, 4, 5, 1], [1, 5, 6, 2], [2, 6, 7, 3], [3, 7, 4, 0]]:
+				var a: int = base + quad[0]
+				var b: int = base + quad[1]
+				var c: int = base + quad[2]
+				var d: int = base + quad[3]
+				indices.append_array(PackedInt32Array([a, b, c, a, c, d, a, c, b, a, d, c]))
+	if verts.is_empty():
+		return
+	var occluder := ArrayOccluder3D.new()
+	occluder.set_arrays(verts, indices)
+	var inst := OccluderInstance3D.new()
+	inst.name = "Occluder"
+	inst.occluder = occluder
+	chunk.root.add_child(inst)
+	chunk.occluder = inst
 
 
 func _apply_remesh(chunk: Chunk, data: Dictionary) -> void:
@@ -1954,4 +1995,4 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 		for key: String in plants.keys():
 			plants[key] = _drop_floating(coord, plants[key], heights)
 
-	return {"verts": buf.verts, "norms": buf.norms, "cols": buf.cols, "uvs": buf.uvs, "uv2s": buf.uv2s, "trees": trees, "rocks": rocks, "cacti": cacti, "plants": plants, "remesh": not with_objects}
+	return {"verts": buf.verts, "norms": buf.norms, "cols": buf.cols, "uvs": buf.uvs, "uv2s": buf.uv2s, "trees": trees, "rocks": rocks, "cacti": cacti, "plants": plants, "remesh": not with_objects, "heights": heights}

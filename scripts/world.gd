@@ -23,6 +23,8 @@ const CoreUIScene = preload("res://scenes/core_ui.tscn")
 const GloomFogScript = preload("res://scripts/gloom_fog.gd")
 const FogOverlayScene = preload("res://scenes/fog_overlay.tscn")
 const AttackMarkerScene = preload("res://scenes/attack_marker.tscn")
+const Pool = preload("res://scripts/pool.gd")
+const BlockIndex = preload("res://scripts/block_index.gd")
 
 @onready var sun = $Sun
 @onready var terrain = $Terrain
@@ -207,10 +209,12 @@ func spawn_drop(id: String, amount: int, pos: Vector3, merge: bool = true) -> vo
 	while remaining > 0:
 		var n := mini(remaining, cap)
 		remaining -= n
-		var drop = scene.instantiate()
+		var drop = Pool.take("item_drop", func() -> Node: return scene.instantiate())
 		drop.id = id
 		drop.count = n
 		add_child(drop)
+		if drop.built:
+			drop.reuse()
 		drop.global_position = pos
 		drop.linear_velocity = Vector3(randf_range(-1.2, 1.2), randf_range(2.0, 3.5), randf_range(-1.2, 1.2))
 
@@ -258,7 +262,7 @@ func respawn_player() -> void:
 
 func collect_state() -> Dictionary:
 	var blocks: Array = []
-	for node in get_tree().get_nodes_in_group("block"):
+	for node in BlockIndex.list:
 		if node.dying:
 			continue
 		var p: Vector3 = node.global_position

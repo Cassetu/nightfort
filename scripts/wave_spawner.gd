@@ -2,6 +2,9 @@ extends Node
 
 signal status_changed(text: String)
 
+const GloomNest = preload("res://scripts/gloom_nest.gd")
+const NEST_INTERVAL := 0.5
+
 @export var enemy_scene: PackedScene
 @export var spawn_radius: float = 38.0
 @export var spawn_jitter: float = 5.0
@@ -14,7 +17,7 @@ signal status_changed(text: String)
 @export_range(0.02, 0.3) var swarm_width: float = 0.07
 @export var swarm_max_alive: int = 45
 @export var swarm_interval: float = 0.12
-@export var night_fraction: float = 0.4888
+@export var night_fraction: float = 0.25
 @export var first_delay: float = 3.0
 @export var warn_elevation: float = 0.12
 @export_range(0.0, 1.0) var focus_share: float = 0.8
@@ -40,6 +43,8 @@ var attack_dirs: Array = []
 var last_elevation: float = 1.0
 var spawn_timer: float = 0.0
 var last_status: String = ""
+var nests: Dictionary = {}
+var nest_timer: float = 0.0
 
 
 func setup(t, f, c, p, s, root: Node3D) -> void:
@@ -81,6 +86,7 @@ func _process(delta: float) -> void:
 	if sun == null:
 		return
 
+	_sync_nests(delta)
 	var e: float = sun.elevation
 	if not night_active and attack_dirs.is_empty() and e < last_elevation and e < warn_elevation and wave_size(night + 1) > 0:
 		_choose_directions(night + 1)
@@ -105,6 +111,39 @@ func _process(delta: float) -> void:
 	if _is_calmed() and not attack_dirs.is_empty():
 		attack_dirs.clear()
 	_update_status()
+
+
+func _sync_nests(delta: float) -> void:
+	nest_timer -= delta
+	if nest_timer > 0.0:
+		return
+	nest_timer = NEST_INTERVAL
+	var wanted: Dictionary = {}
+	if not _is_calmed() and is_instance_valid(core) and terrain != null:
+		for a: float in attack_dirs:
+			wanted[str(snappedf(a, 0.001))] = a
+	for key: String in nests.keys():
+		if not wanted.has(key):
+			var old = nests[key]
+			if is_instance_valid(old):
+				old.sink()
+			nests.erase(key)
+	for key: String in wanted.keys():
+		if nests.has(key):
+			continue
+		var a: float = wanted[key]
+		var c: Vector3 = core.global_position
+		var pos := Vector3(c.x + cos(a) * spawn_radius, 0.0, c.z + sin(a) * spawn_radius)
+		if not terrain.collision_ready(pos):
+			continue
+		pos.y = float(terrain.surface_y(floori(pos.x), floori(pos.z))) + 1.0
+		var nest := Node3D.new()
+		nest.set_script(GloomNest)
+		nest.set_meta("ground_y", pos.y)
+		nest.set_meta("seed", int(absf(a) * 1000.0))
+		enemies_root.add_child(nest)
+		nest.global_position = Vector3(pos.x, nest.global_position.y, pos.z)
+		nests[key] = nest
 
 
 func _is_calmed() -> bool:

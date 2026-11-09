@@ -1,4 +1,5 @@
 extends Node
+const BlockIndex = preload("res://scripts/block_index.gd")
 
 const SIZE := 96
 const COLUMNS_PER_FRAME := 420
@@ -54,7 +55,7 @@ func _process(delta: float) -> void:
 
 
 func _finish() -> void:
-	for n in get_tree().get_nodes_in_group("block"):
+	for n in BlockIndex.list:
 		if n.dying:
 			continue
 		var info: Dictionary = Inventory.BLOCK_TYPES.get(n.block_type, {})

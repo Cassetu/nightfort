@@ -1,6 +1,7 @@
 extends Node
 
 const BlockScript = preload("res://scripts/block.gd")
+const BlockIndex = preload("res://scripts/block_index.gd")
 const DIRS := [Vector3i(1, 0, 0), Vector3i(-1, 0, 0), Vector3i(0, 0, 1), Vector3i(0, 0, -1)]
 const SKY_RANGE := 16
 const PER_FRAME := 24
@@ -26,7 +27,7 @@ func _process(delta: float) -> void:
 	if not wet:
 		if was_wet:
 			was_wet = false
-			for n in get_tree().get_nodes_in_group("block"):
+			for n in BlockIndex.list.duplicate():
 				n.set_wet(false)
 		return
 	was_wet = true
@@ -37,7 +38,7 @@ func _process(delta: float) -> void:
 	list_timer -= delta
 	if list_timer <= 0.0 or cursor >= blocks.size():
 		list_timer = LIST_REFRESH
-		blocks = get_tree().get_nodes_in_group("block")
+		blocks = BlockIndex.list.duplicate()
 		cursor = 0
 	var end := mini(cursor + PER_FRAME, blocks.size())
 	for i in range(cursor, end):

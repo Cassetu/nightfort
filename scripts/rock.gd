@@ -1,5 +1,7 @@
 extends "res://scripts/resource_node.gd"
 
+const TileArt = preload("res://scripts/tile_art.gd")
+
 const GOLDEN := 1.618034
 
 const CORNERS := [
@@ -19,9 +21,9 @@ const FACES := [
 ]
 
 const TINTS := [
-	Color(0.52, 0.52, 0.55),
-	Color(0.56, 0.50, 0.44),
-	Color(0.45, 0.50, 0.57),
+	Color(0.9, 0.9, 0.93),
+	Color(0.95, 0.88, 0.82),
+	Color(0.82, 0.88, 0.95),
 ]
 
 var rock_seed: int = 0
@@ -34,6 +36,7 @@ static var _material: StandardMaterial3D
 func _configure() -> void:
 	resource_type = "stone"
 	chip_color = Color(0.55, 0.55, 0.58)
+	chip_tile = "stone"
 	max_health = maxi(4, roundi(6.0 * size_factor * size_factor))
 	resource_amount = maxi(2, roundi(2.5 * size_factor))
 	add_to_group("rock")
@@ -108,4 +111,8 @@ static func _ensure_material() -> void:
 	_material = StandardMaterial3D.new()
 	_material.vertex_color_use_as_albedo = true
 	_material.vertex_color_is_srgb = true
+	_material.albedo_texture = TileArt.texture("stone", Color(0.5, 0.5, 0.52))
+	_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	_material.uv1_triplanar = true
+	_material.uv1_scale = Vector3.ONE * 0.9
 	_material.roughness = 0.95

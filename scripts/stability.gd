@@ -1,4 +1,5 @@
 extends Node
+const BlockIndex = preload("res://scripts/block_index.gd")
 
 const MAX_DIST := 5
 const TICK := 0.2
@@ -100,7 +101,7 @@ func _recompute() -> void:
 	unstable.clear()
 
 	var nodes: Array = []
-	for n in get_tree().get_nodes_in_group("block"):
+	for n in BlockIndex.list:
 		if n.dying or not n.structural or n.falling_now:
 			continue
 		nodes.append(n)

@@ -42,6 +42,10 @@ const CACTUS_PUNCH_DAMAGE = 3
 const AIR_ACCEL = 7.0
 const AIR_DRAG = 1.5
 const FALL_TRIGGER_DROP = 2.9
+const LAND_STUN_DROP = 1.6
+const LAND_STUN_MIN = 0.18
+const LAND_STUN_MAX = 0.8
+const LAND_SINK_MAX = 0.32
 const FALL_FREE_DROP = 2.5
 const FALL_DAMAGE = 12.0
 const REGEN_DELAY = 6.0
@@ -70,6 +74,9 @@ var health: float = 100.0
 var dead: bool = false
 var since_damage: float = 0.0
 var was_on_floor: bool = true
+var stun_left: float = 0.0
+var stun_total: float = 0.0
+var stun_depth: float = 0.0
 var shown_health: int = 100
 var draw: float = 0.0
 var bow_ready: bool = false
@@ -139,7 +146,22 @@ func _update_crouch(delta: float, on_ladder: bool) -> void:
 		$CollisionShape3D.position.y = -FEET_OFFSET + h * 0.5
 	crouch_t = move_toward(crouch_t, 1.0 if crouching else 0.0, delta * 7.0)
 	var eased = crouch_t * crouch_t * (3.0 - 2.0 * crouch_t)
-	head.position.y = lerpf(STAND_EYE, CROUCH_EYE, eased)
+	head.position.y = lerpf(STAND_EYE, CROUCH_EYE, eased) - _land_sink()
+
+
+func _land_sink() -> float:
+	if stun_left <= 0.0 or stun_total <= 0.0:
+		return 0.0
+	var t := 1.0 - stun_left / stun_total
+	var curve := smoothstep(0.0, 0.18, t) if t < 0.18 else 1.0 - smoothstep(0.35, 1.0, t)
+	return stun_depth * curve
+
+
+func _begin_stun(drop: float) -> void:
+	var k := clampf((drop - LAND_STUN_DROP) / 6.0, 0.0, 1.0)
+	stun_total = lerpf(LAND_STUN_MIN, LAND_STUN_MAX, k)
+	stun_left = stun_total
+	stun_depth = lerpf(0.08, LAND_SINK_MAX, k)
 
 
 func _ceiling_blocked() -> bool:
@@ -250,12 +272,16 @@ func _physics_process(delta):
 		move_and_slide()
 		return
 
+	stun_left = maxf(stun_left - delta, 0.0)
+	var stunned := stun_left > 0.0
 	var jumped = false
-	if Input.is_action_just_pressed("ui_accept") and is_on_floor():
+	if Input.is_action_just_pressed("ui_accept") and is_on_floor() and not stunned:
 		velocity.y = JUMP_VELOCITY
 		jumped = true
 
 	var input_dir = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
+	if stunned:
+		input_dir = Vector2.ZERO
 	if on_ladder and not jumped:
 		velocity.y = -input_dir.y * CLIMB_SPEED * slow * climb_sign(ladder)
 	var direction = (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
@@ -282,6 +308,8 @@ func _physics_process(delta):
 	move_and_slide()
 	if is_on_floor() and not was_on_floor and impact < 0.0:
 		var drop = impact * impact / (2.0 * gravity)
+		if drop >= LAND_STUN_DROP:
+			_begin_stun(drop)
 		if drop >= FALL_TRIGGER_DROP:
 			take_damage(roundi((drop - FALL_FREE_DROP) * FALL_DAMAGE))
 	was_on_floor = is_on_floor()
@@ -342,8 +370,7 @@ func fire_bow(bow, charge):
 		return
 	var dir = -camera.global_transform.basis.z
 	var damage = maxi(1, roundi(float(ARROW_BASE_DAMAGE + int(bow.get("damage", 3))) * charge))
-	var arrow = Node3D.new()
-	arrow.set_script(ArrowScript)
+	var arrow = ArrowScript.fetch()
 	get_tree().current_scene.add_child(arrow)
 	arrow.ignore = [get_rid()]
 	arrow.pickable = true

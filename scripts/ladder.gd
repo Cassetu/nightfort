@@ -43,7 +43,7 @@ func _supported() -> bool:
 	var cell := Vector3i(floori(behind.x), floori(behind.y), floori(behind.z))
 	if terrain != null and terrain.block_at(cell.x, cell.y, cell.z) != 0:
 		return true
-	for n in get_tree().get_nodes_in_group("block"):
+	for n in BlockIndex.list:
 		if n != self and not n.dying and n.covers(behind):
 			return true
 	return false

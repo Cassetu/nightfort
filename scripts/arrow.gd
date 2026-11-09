@@ -1,6 +1,7 @@
 extends Node3D
 
 const Sfx = preload("res://scripts/sfx.gd")
+const Pool = preload("res://scripts/pool.gd")
 
 const SPEED := 34.0
 const GRAVITY := 4.0
@@ -27,6 +28,31 @@ static var head_mesh: BoxMesh
 static var vane_mesh: BoxMesh
 
 
+static func fetch() -> Node3D:
+	var arrow: Node3D = Pool.take("arrow", func() -> Node:
+		var node := Node3D.new()
+		node.set_script(load("res://scripts/arrow.gd"))
+		return node)
+	arrow.reset()
+	return arrow
+
+
+func reset() -> void:
+	velocity = Vector3.ZERO
+	damage = 2
+	age = 0.0
+	ignore = []
+	pickable = false
+	landed = false
+	landed_age = 0.0
+	stuck_on = null
+
+
+func _recycle() -> void:
+	set_physics_process(false)
+	Pool.give("arrow", self)
+
+
 func _ready() -> void:
 	if shaft_mesh == null:
 		var wood := StandardMaterial3D.new()
@@ -48,6 +74,8 @@ func _ready() -> void:
 		vane_mesh = BoxMesh.new()
 		vane_mesh.size = Vector3(0.1, 0.004, 0.14)
 		vane_mesh.material = feather
+	if get_child_count() > 0:
+		return
 	_add_part(shaft_mesh, Vector3.ZERO, 0.0)
 	_add_part(head_mesh, Vector3(0.0, 0.0, -LENGTH * 0.5 - 0.03), 0.0)
 	_add_part(vane_mesh, Vector3(0.0, 0.0, LENGTH * 0.5 - 0.08), 0.0)
@@ -64,6 +92,7 @@ func _add_part(mesh: Mesh, pos: Vector3, roll: float) -> void:
 
 
 func launch(from: Vector3, dir: Vector3, dmg: int, speed: float = SPEED) -> void:
+	set_physics_process(true)
 	global_position = from
 	velocity = dir.normalized() * speed
 	damage = dmg
@@ -77,7 +106,7 @@ func _physics_process(delta: float) -> void:
 		return
 	age += delta
 	if age > LIFE:
-		queue_free()
+		_recycle()
 		return
 	var from := global_position
 	var to := from + velocity * delta
@@ -88,12 +117,12 @@ func _physics_process(delta: float) -> void:
 		var target = hit["collider"]
 		if target.is_in_group("enemy") or target.is_in_group("wild_gloom"):
 			target.take_damage(damage, from - velocity.normalized() * 2.0)
-			queue_free()
+			_recycle()
 			return
 		if pickable:
 			_land(hit)
 			return
-		queue_free()
+		_recycle()
 		return
 	global_position = to
 	velocity.y -= GRAVITY * delta
@@ -113,13 +142,13 @@ func _land(hit: Dictionary) -> void:
 func _resting(delta: float) -> void:
 	landed_age += delta
 	if landed_age > LAND_LIFE:
-		queue_free()
+		_recycle()
 		return
 	if stuck_on != null and (not is_instance_valid(stuck_on) or (stuck_on.has_method("take_damage") and stuck_on.get("dying") == true)):
 		var world := get_tree().current_scene
 		if world != null and world.has_method("spawn_drop"):
 			world.spawn_drop("arrow", 1, global_position)
-		queue_free()
+		_recycle()
 		return
 	if landed_age < PICKUP_DELAY:
 		return
@@ -133,4 +162,4 @@ func _resting(delta: float) -> void:
 	if Inventory.add_item("arrow", 1) > 0:
 		return
 	Sfx.play(self, "pickup", global_position, -4.0)
-	queue_free()
+	_recycle()

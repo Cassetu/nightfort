@@ -2,6 +2,7 @@ extends RigidBody3D
 
 const TileArt = preload("res://scripts/tile_art.gd")
 const Sfx = preload("res://scripts/sfx.gd")
+const Pool = preload("res://scripts/pool.gd")
 
 const PICKUP_RADIUS := 0.9
 const MAGNET_RADIUS := 2.8
@@ -13,12 +14,33 @@ var id: String = "dirt"
 var count: int = 1
 var age: float = 0.0
 var player
+var built: bool = false
 
 @onready var visual: Node3D = $Visual
 @onready var mesh: MeshInstance3D = $Visual/Mesh
 
 
 func _ready() -> void:
+	_setup()
+	built = true
+
+
+func reuse() -> void:
+	age = 0.0
+	sleeping = false
+	linear_velocity = Vector3.ZERO
+	angular_velocity = Vector3.ZERO
+	visual.rotation = Vector3.ZERO
+	_setup()
+	set_physics_process(true)
+
+
+func _recycle() -> void:
+	set_physics_process(false)
+	Pool.give("item_drop", self)
+
+
+func _setup() -> void:
 	var info: Dictionary = Inventory.ITEMS.get(id, {})
 	var color: Color = info.get("color", Color.WHITE)
 	var tile_name: String = info.get("tile", "")
@@ -44,7 +66,7 @@ func _process(delta: float) -> void:
 func _physics_process(delta: float) -> void:
 	age += delta
 	if age > LIFETIME or global_position.y < -70.0:
-		queue_free()
+		_recycle()
 		return
 	if age < PICKUP_DELAY:
 		return
@@ -63,7 +85,7 @@ func _physics_process(delta: float) -> void:
 		if left < count:
 			Sfx.play(self, "pickup_gem" if id == "soul_gem" else "pickup", global_position, -2.0)
 		if left <= 0:
-			queue_free()
+			_recycle()
 		else:
 			count = left
 	elif dist < MAGNET_RADIUS and Inventory.can_accept(id):

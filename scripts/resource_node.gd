@@ -1,5 +1,7 @@
 extends StaticBody3D
 
+const ChipBurst = preload("res://scripts/chip_burst.gd")
+
 const Sfx = preload("res://scripts/sfx.gd")
 const STONE_TYPES := ["stone", "basalt", "diorite", "granite", "limestone", "sandstone", "stone_brick", "basalt_brick", "diorite_brick", "granite_brick", "limestone_brick", "fortified_brick", "ruined_brick", "stone_forge", "iron_block"]
 const CHOP_TYPES := ["wood", "plank", "scaffold", "door", "ladder", "chest", "workbench", "barricade"]
@@ -13,6 +15,7 @@ signal harvested(resource_type: String, amount: int)
 var current_health: int = 0
 var dying: bool = false
 var chip_color: Color = Color(0.5, 0.5, 0.5)
+var chip_tile: String = ""
 var visual: Node3D
 var shake_tween: Tween
 
@@ -83,28 +86,4 @@ func _spawn_chips(hit_position: Vector3) -> void:
 	var origin: Vector3 = global_position + Vector3(0.0, 1.0, 0.0)
 	if hit_position.is_finite():
 		origin = hit_position
-
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = chip_color
-	mat.roughness = 1.0
-
-	var chip := BoxMesh.new()
-	chip.size = Vector3(0.1, 0.1, 0.1)
-	chip.material = mat
-
-	var burst := CPUParticles3D.new()
-	burst.mesh = chip
-	burst.amount = 10
-	burst.lifetime = 0.6
-	burst.one_shot = true
-	burst.explosiveness = 1.0
-	burst.direction = Vector3.UP
-	burst.spread = 70.0
-	burst.gravity = Vector3(0.0, -12.0, 0.0)
-	burst.initial_velocity_min = 2.0
-	burst.initial_velocity_max = 4.5
-	burst.emitting = false
-	get_tree().current_scene.add_child(burst)
-	burst.global_position = origin
-	burst.emitting = true
-	get_tree().create_timer(1.2).timeout.connect(burst.queue_free)
+	ChipBurst.spawn(self, origin, chip_tile, chip_color, 10, 0.1, 0.6, 70.0)

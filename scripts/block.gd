@@ -1,6 +1,8 @@
 extends "res://scripts/resource_node.gd"
 
 const TileArt = preload("res://scripts/tile_art.gd")
+const BlockIndex = preload("res://scripts/block_index.gd")
+const BlockBatch = preload("res://scripts/block_batch.gd")
 
 const SUPPORT_INTERVAL := 0.25
 const REINFORCE_HP := 2.5
@@ -43,7 +45,9 @@ func _configure() -> void:
 	max_health = info["health"]
 	base_health = max_health
 	chip_color = info["color"]
+	chip_tile = str(info.get("tile", ""))
 	add_to_group("block")
+	BlockIndex.add(self)
 	terrain = get_tree().get_first_node_in_group("terrain")
 	structural = info.get("structural", true)
 	falls = info.get("falls", false)
@@ -63,6 +67,28 @@ func _build() -> void:
 	var col := CollisionShape3D.new()
 	col.shape = BoxShape3D.new()
 	add_child(col)
+	if get_script().resource_path == "res://scripts/block.gd":
+		_try_batch.call_deferred()
+
+
+func _try_batch() -> void:
+	if dying or not is_inside_tree() or body_mesh == null or wet or reinforced or falling_now or collapsing:
+		return
+	if BlockBatch.add(self, _material_for(block_type), block_type):
+		body_mesh.visible = false
+
+
+func _unbatch() -> void:
+	if not BlockBatch.has(self):
+		return
+	BlockBatch.remove(self)
+	if body_mesh != null:
+		body_mesh.visible = true
+
+
+func take_damage(amount: int, hit_position: Vector3 = Vector3.INF) -> void:
+	_unbatch()
+	super(amount, hit_position)
 
 
 func _process(delta: float) -> void:
@@ -83,7 +109,7 @@ func _supported() -> bool:
 	if terrain != null and terrain.block_at(cx, cy - 1, cz) != 0:
 		return true
 	var below := Vector3(cx + 0.5, cy - 0.5, cz + 0.5)
-	for n in get_tree().get_nodes_in_group("block"):
+	for n in BlockIndex.list:
 		if n != self and not n.dying and n.covers(below):
 			return true
 	return false
@@ -111,6 +137,7 @@ func is_brick() -> bool:
 func set_reinforced(value: bool) -> void:
 	if value == reinforced or body_mesh == null:
 		return
+	_unbatch()
 	reinforced = value
 	var ratio := float(current_health) / float(maxi(max_health, 1))
 	max_health = roundi(base_health * REINFORCE_HP) if value else base_health
@@ -129,6 +156,7 @@ func set_reinforced(value: bool) -> void:
 func set_wet(value: bool) -> void:
 	if value == wet or body_mesh == null:
 		return
+	_unbatch()
 	wet = value
 	_apply_material()
 
@@ -199,6 +227,8 @@ func _die() -> void:
 
 
 func _exit_tree() -> void:
+	BlockIndex.remove(self)
+	BlockBatch.remove(self)
 	if structural and is_inside_tree():
 		_mark_stability()
 
@@ -207,6 +237,7 @@ func begin_collapse(delay: float) -> void:
 	if collapsing or dying:
 		return
 	collapsing = true
+	_unbatch()
 	var tween := create_tween().set_loops(int(delay / 0.12) + 1)
 	tween.tween_property(visual, "rotation:z", 0.04, 0.06)
 	tween.tween_property(visual, "rotation:z", -0.04, 0.06)
@@ -244,6 +275,7 @@ func fall_to(target_cell: Vector3i) -> void:
 	if falling_now or dying:
 		return
 	falling_now = true
+	_unbatch()
 	var core = get_tree().get_first_node_in_group("Core")
 	if core != null:
 		var shift = target_cell - cells()[0]

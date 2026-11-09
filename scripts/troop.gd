@@ -443,8 +443,7 @@ func _shoot(delta: float) -> void:
 	var damage: int = BASE_DAMAGE + int(weapon.get("damage", 0))
 	var cooldown: float = float(weapon.get("cooldown", BASE_COOLDOWN))
 	cooldown *= 1.4 - 0.6 * mood
-	var arrow := Node3D.new()
-	arrow.set_script(ArrowScript)
+	var arrow := ArrowScript.fetch()
 	get_tree().current_scene.add_child(arrow)
 	arrow.launch(eye + dir.normalized() * 0.6, dir, damage)
 	Sfx.play(self, "arrow_release", global_position, -3.0)

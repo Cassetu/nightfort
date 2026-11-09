@@ -1,4 +1,5 @@
 extends CanvasLayer
+const BlockIndex = preload("res://scripts/block_index.gd")
 
 const RADIUS := 24
 const SIZE := RADIUS * 2 + 1
@@ -145,7 +146,7 @@ func _rebuild() -> void:
 				image.set_pixel(i, j, BACKDROP)
 	var px := float(pc.x)
 	var pz := float(pc.y)
-	for n in get_tree().get_nodes_in_group("block"):
+	for n in BlockIndex.list:
 		if n.dying:
 			continue
 		if absf(n.global_position.x - px) > RADIUS + 3.0 or absf(n.global_position.z - pz) > RADIUS + 3.0:
