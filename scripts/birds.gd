@@ -17,7 +17,7 @@ const BIRD_SCALE := 1.7
 const CHIRP_MAX := 3
 const CHIRP_RANGE := 58.0
 const CHIRP_DB := -11.0
-const Sfx = preload("res://scripts/sfx.gd")
+const Sfx = preload("res://scripts/core/sfx.gd")
 
 var player
 var sun

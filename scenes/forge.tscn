@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://scripts/forge.gd" id="1_forge"]
+[ext_resource type="Script" uid="uid://cfrsi7pkjg341" path="res://scripts/forge/forge.gd" id="1_forge"]
 
 [node name="Forge" type="StaticBody3D"]
 script = ExtResource("1_forge")

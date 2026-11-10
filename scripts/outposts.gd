@@ -53,6 +53,7 @@ static func _find_site(terrain, rng: RandomNumberGenerator, cx: int, cz: int) ->
 
 static func _build_site(world, terrain, rng: RandomNumberGenerator, x: int, z: int) -> void:
 	var gate_side := rng.randi_range(0, 3)
+	world.outposts.append(Vector3(x + 0.5, terrain.surface_y(x, z), z + 0.5))
 	for dx in range(-HALF, HALF + 1):
 		for dz in range(-HALF, HALF + 1):
 			if maxi(absi(dx), absi(dz)) != HALF:

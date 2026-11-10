@@ -1,6 +1,6 @@
 extends CanvasLayer
 
-const Sfx = preload("res://scripts/sfx.gd")
+const Sfx = preload("res://scripts/core/sfx.gd")
 const TerritoryScript = preload("res://scripts/territory.gd")
 
 const ORBIT_RADIUS := 24.0

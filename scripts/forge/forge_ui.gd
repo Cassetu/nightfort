@@ -1,6 +1,6 @@
 extends CanvasLayer
 
-const ForgeRecipes = preload("res://scripts/forge_recipes.gd")
+const ForgeRecipes = preload("res://scripts/forge/forge_recipes.gd")
 const RECIPE_ROW := preload("res://scenes/recipe_row.tscn")
 const SessionScene := preload("res://scenes/forge_minigame.tscn")
 
@@ -101,6 +101,7 @@ func _on_row_pressed(id: String) -> void:
 func _on_finished(result: String) -> void:
 	var id: String = current["id"]
 	if result == "won":
+		get_tree().call_group("missions", "on_event", "forged")
 		var left := Inventory.add_item(id, 1)
 		if left > 0:
 			world.spawn_drop(id, left, player.global_position + Vector3(0.0, 1.0, 0.0))

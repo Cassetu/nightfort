@@ -1,8 +1,8 @@
 extends RigidBody3D
 
 const TileArt = preload("res://scripts/tile_art.gd")
-const Sfx = preload("res://scripts/sfx.gd")
-const Pool = preload("res://scripts/pool.gd")
+const Sfx = preload("res://scripts/core/sfx.gd")
+const Pool = preload("res://scripts/core/pool.gd")
 
 const PICKUP_RADIUS := 0.9
 const MAGNET_RADIUS := 2.8

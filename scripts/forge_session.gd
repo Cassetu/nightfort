@@ -2,8 +2,8 @@ extends CanvasLayer
 
 signal finished(result: String)
 
-const Sfx = preload("res://scripts/sfx.gd")
-const HeldItem = preload("res://scripts/held_item.gd")
+const Sfx = preload("res://scripts/core/sfx.gd")
+const HeldItem = preload("res://scripts/player/held_item.gd")
 const TileArt = preload("res://scripts/tile_art.gd")
 
 const START_METER := 0.25

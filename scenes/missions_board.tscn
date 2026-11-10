@@ -1,0 +1,44 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" uid="uid://cm8fydkawsqky" path="res://scripts/core/missions.gd" id="1_missions"]
+[ext_resource type="Theme" uid="uid://gr2kk87lccmd" path="res://resources/main-theme.tres" id="2_theme"]
+
+[node name="Missions" type="CanvasLayer"]
+layer = 6
+script = ExtResource("1_missions")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme = ExtResource("2_theme")
+
+[node name="List" type="VBoxContainer" parent="Root"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -196.0
+offset_top = 240.0
+offset_right = -16.0
+grow_horizontal = 0
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="Marker" type="Label" parent="Root"]
+unique_name_in_owner = true
+visible = false
+offset_right = 90.0
+offset_bottom = 50.0
+mouse_filter = 2
+theme_type_variation = &"CoreMarker"
+theme_override_colors/font_color = Color(0.78, 0.55, 1, 1)
+theme_override_colors/font_outline_color = Color(0.08, 0.02, 0.14, 1)
+text = "Ruins"
+horizontal_alignment = 1
+vertical_alignment = 2

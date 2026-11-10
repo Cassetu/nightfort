@@ -2,7 +2,7 @@ extends CanvasLayer
 
 signal toggled(is_open: bool)
 
-const Recipes = preload("res://scripts/recipes.gd")
+const Recipes = preload("res://scripts/player/recipes.gd")
 const RECIPE_ROW := preload("res://scenes/recipe_row.tscn")
 const DOUBLE_CLICK_TIME := 0.35
 const CRAFT_CELLS := 9

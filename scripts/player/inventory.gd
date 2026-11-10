@@ -1,12 +1,13 @@
 extends Node
 
-const Sfx = preload("res://scripts/sfx.gd")
+const Sfx = preload("res://scripts/core/sfx.gd")
 
 signal changed
 signal selection_changed(index: int)
 signal recipes_unlocked(ids: Array)
+signal item_added(id: String, amount: int)
 
-const Recipes = preload("res://scripts/recipes.gd")
+const Recipes = preload("res://scripts/player/recipes.gd")
 
 const SLOT_COUNT := 6
 const BACKPACK_SIZE := 12
@@ -226,6 +227,7 @@ func add_item(id: String, amount: int) -> int:
 	if left != amount:
 		discover(id)
 		changed.emit()
+		item_added.emit(id, amount - left)
 	return left
 
 

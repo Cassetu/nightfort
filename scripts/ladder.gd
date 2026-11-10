@@ -1,4 +1,4 @@
-extends "res://scripts/block.gd"
+extends "res://scripts/blocks/block.gd"
 
 const RAIL_X := 0.3
 const DEPTH := 0.16

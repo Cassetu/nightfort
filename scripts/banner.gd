@@ -1,4 +1,4 @@
-extends "res://scripts/block.gd"
+extends "res://scripts/blocks/block.gd"
 
 const SHOW_DISTANCE := 12.0
 const POLE := Vector3(0.08, 2.0, 0.08)

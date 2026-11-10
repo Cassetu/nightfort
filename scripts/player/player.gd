@@ -1,5 +1,7 @@
 extends CharacterBody3D
 
+const BannerRangeScript = preload("res://scripts/allies/banner_range.gd")
+
 signal health_changed(current, maximum)
 signal damaged(amount)
 signal died
@@ -28,7 +30,7 @@ const PLACE_REACH = 5.0
 const MINE_DAMAGE = 1
 const TileArt = preload("res://scripts/tile_art.gd")
 const ArrowScript = preload("res://scripts/arrow.gd")
-const Sfx = preload("res://scripts/sfx.gd")
+const Sfx = preload("res://scripts/core/sfx.gd")
 const DRAW_TIME = 0.9
 const MIN_DRAW = 0.25
 const ARROW_MIN_SPEED = 0.45
@@ -42,7 +44,7 @@ const CACTUS_PUNCH_DAMAGE = 3
 const AIR_ACCEL = 7.0
 const AIR_DRAG = 1.5
 const FALL_TRIGGER_DROP = 2.9
-const LAND_STUN_DROP = 1.6
+const LAND_STUN_DROP = 3.0
 const LAND_STUN_MIN = 0.18
 const LAND_STUN_MAX = 0.8
 const LAND_SINK_MAX = 0.32
@@ -61,11 +63,13 @@ var slow: float = 1.0
 var crouching: bool = false
 var crouch_t: float = 0.0
 var bauble_light: OmniLight3D
+var place_cell := Vector3.INF
+var banner_range
 var ghost_valid_mat
 var ghost_blocked_mat
 var ghost_warn_mat
 var aim_normal: Vector3 = Vector3.UP
-const TorchScript = preload("res://scripts/torch.gd")
+const TorchScript = preload("res://scripts/blocks/torch.gd")
 const SWEEP_ARC = 1.3
 const SWEEP_ARC_COS = 0.267
 var ladder_query: PhysicsShapeQueryParameters3D
@@ -158,7 +162,7 @@ func _land_sink() -> float:
 
 
 func _begin_stun(drop: float) -> void:
-	var k := clampf((drop - LAND_STUN_DROP) / 6.0, 0.0, 1.0)
+	var k := clampf((drop - LAND_STUN_DROP) / 5.0, 0.0, 1.0)
 	stun_total = lerpf(LAND_STUN_MIN, LAND_STUN_MAX, k)
 	stun_left = stun_total
 	stun_depth = lerpf(0.08, LAND_SINK_MAX, k)
@@ -323,6 +327,7 @@ func _physics_process(delta):
 	attack_timer = maxf(attack_timer - delta, 0.0)
 	var hit = look_hit()
 	update_ghost(hit)
+	_update_banner_range()
 	held.set_item(held_visual_id())
 	held.set_motion(Vector2(velocity.x, velocity.z).length() / SPEED if is_on_floor() else 0.0)
 
@@ -491,6 +496,18 @@ func has_support(cell):
 	return not probe_empty(cell - Vector3(0.0, 1.0, 0.0))
 
 
+func full_block_below(cell) -> bool:
+	var terrain = get_tree().get_first_node_in_group("terrain")
+	if terrain != null and terrain.block_at(floori(cell.x), floori(cell.y) - 1, floori(cell.z)) != 0:
+		return true
+	probe_query.transform = Transform3D(Basis.IDENTITY, cell - Vector3(0.0, 1.0, 0.0))
+	for r in get_world_3d().direct_space_state.intersect_shape(probe_query, 8):
+		var body = r["collider"]
+		if body.is_in_group("block") and not body.dying and not Inventory.BLOCK_TYPES[body.block_type].has("scene"):
+			return true
+	return false
+
+
 func in_territory(cell):
 	var territory = get_tree().get_first_node_in_group("territory")
 	return territory == null or territory.contains(cell)
@@ -518,6 +535,8 @@ func can_place(type, cell):
 				return false
 		elif not has_support(cell):
 			return false
+	if type == "barricade" and not full_block_below(cell):
+		return false
 	if stability_of(type, cell) < 0:
 		return false
 	return true
@@ -551,6 +570,22 @@ func stability_of(type, cell):
 	return stability.evaluate(type, Vector3i(floori(cell.x), floori(cell.y), floori(cell.z)))
 
 
+func _update_banner_range() -> void:
+	if banner_range == null:
+		banner_range = BannerRangeScript.new()
+		get_tree().current_scene.add_child(banner_range)
+	var held_type: String = Inventory.held_block_type()
+	if held_type.begins_with("banner_") and ghost_block.visible and place_cell.is_finite():
+		banner_range.show_for(held_type, place_cell)
+		return
+	var feet: Vector3 = global_position + Vector3(0.0, 0.5, 0.0)
+	for b in get_tree().get_nodes_in_group("banner"):
+		if is_instance_valid(b) and not b.dying and b.covers(feet):
+			banner_range.show_for(b.block_type, b.global_position)
+			return
+	banner_range.clear()
+
+
 func update_ghost(hit):
 	var type = Inventory.held_block_type()
 	if type == "" or hit.is_empty():
@@ -558,6 +593,7 @@ func update_ghost(hit):
 		return
 	aim_normal = hit.normal
 	var cell = cell_center(hit)
+	place_cell = cell
 	var height = block_height(type)
 	var gs: Vector3 = Inventory.BLOCK_TYPES[type].get("ghost", Vector3.ONE)
 	var span = Vector3.ZERO

@@ -1,4 +1,4 @@
-extends "res://scripts/block.gd"
+extends "res://scripts/blocks/block.gd"
 
 const WIND_SCALE := 1.1
 const TILT := 0.38

@@ -1,6 +1,6 @@
 extends RefCounted
 
-const Pool = preload("res://scripts/pool.gd")
+const Pool = preload("res://scripts/core/pool.gd")
 const TileArt = preload("res://scripts/tile_art.gd")
 
 const POOL_KEY := "chip_burst"

@@ -1,8 +1,8 @@
 [gd_scene load_steps=9 format=3 uid="uid://cx7k8iaq34851"]
 
-[ext_resource type="Script" uid="uid://dlwgxk55oa7fo" path="res://scripts/hud.gd" id="1_oo0fn"]
+[ext_resource type="Script" uid="uid://8p1x636ps4qy" path="res://scripts/hud.gd" id="1_oo0fn"]
 [ext_resource type="Theme" uid="uid://gr2kk87lccmd" path="res://resources/main-theme.tres" id="2_5ysmq"]
-[ext_resource type="Script" path="res://scripts/hotbar.gd" id="3_hotbar"]
+[ext_resource type="Script" uid="uid://dmnyx0iudle1b" path="res://scripts/player/hotbar.gd" id="3_hotbar"]
 [ext_resource type="PackedScene" path="res://scenes/slot.tscn" id="4_slot"]
 
 [sub_resource type="Gradient" id="Gradient_oo0fn"]

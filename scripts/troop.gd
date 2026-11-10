@@ -1,8 +1,8 @@
 extends CharacterBody3D
 
-const PathScript = preload("res://scripts/troop_path.gd")
+const PathScript = preload("res://scripts/allies/troop_path.gd")
 const ArrowScript = preload("res://scripts/arrow.gd")
-const Sfx = preload("res://scripts/sfx.gd")
+const Sfx = preload("res://scripts/core/sfx.gd")
 
 const NAMES := ["Garrick", "Mina", "Torvald", "Edda", "Bram", "Isolde", "Corwin", "Hesper", "Dunstan", "Wren", "Alaric", "Odette", "Rurik", "Nessa", "Osric", "Tamsin", "Leofric", "Maren", "Cael", "Brigid", "Ansel", "Verity", "Hollis", "Sabine"]
 const EQUIP_SLOTS := ["weapon", "head", "chest", "legs", "feet"]
@@ -11,6 +11,7 @@ const CLIMB_SPEED := 2.6
 const JUMP_VELOCITY := 5.2
 const BASE_RANGE := 20.0
 const WILD_RANGE := 13.0
+const BIRD_RANGE_SCALE := 1.5
 const BASE_DAMAGE := 2
 const BASE_COOLDOWN := 1.5
 const EYE_HEIGHT := 1.5
@@ -397,27 +398,39 @@ func _move(delta: float) -> void:
 func _nearest_target() -> Dictionary:
 	var best = null
 	var best_d := INF
+	var best_bird = null
+	var best_bird_d := INF
 	var weapon := weapon_info()
 	var reach: float = float(weapon.get("range", BASE_RANGE))
 	var eye := global_position + Vector3(0.0, EYE_HEIGHT, 0.0)
 	var any_close := false
 	for group in ["enemy", "wild_gloom", "gloom_bird"]:
+		var is_bird: bool = group == "gloom_bird"
 		var limit: float = minf(reach, WILD_RANGE) if group == "wild_gloom" else reach
+		if is_bird:
+			limit = reach * BIRD_RANGE_SCALE
 		for g in get_tree().get_nodes_in_group(group):
 			if not is_instance_valid(g) or g.dying:
 				continue
 			var d: float = eye.distance_to(g.global_position)
 			if d < 14.0:
 				any_close = true
-			if d > limit or d >= best_d:
+			var cap: float = best_bird_d if is_bird else best_d
+			if d > limit or d >= cap:
 				continue
 			var aim: Vector3 = g.global_position + Vector3(0.0, 0.8, 0.0)
 			var query := PhysicsRayQueryParameters3D.create(eye, aim, 1)
 			if not get_world_3d().direct_space_state.intersect_ray(query).is_empty():
 				continue
-			best = g
-			best_d = d
+			if is_bird:
+				best_bird = g
+				best_bird_d = d
+			else:
+				best = g
+				best_d = d
 	threat = any_close
+	if best_bird != null:
+		return {"node": best_bird, "dist": best_bird_d}
 	if best == null:
 		return {}
 	return {"node": best, "dist": best_d}
@@ -436,6 +449,10 @@ func _shoot(delta: float) -> void:
 	var eye := global_position + Vector3(0.0, EYE_HEIGHT, 0.0)
 	var aim := target.global_position + Vector3(0.0, 0.8, 0.0)
 	var flight := dist / ArrowScript.SPEED
+	if target.has_method("motion"):
+		for i in 2:
+			aim = target.global_position + Vector3(0.0, 0.8, 0.0) + target.motion() * flight
+			flight = eye.distance_to(aim) / ArrowScript.SPEED
 	aim.y += 0.5 * ArrowScript.GRAVITY * flight * flight
 	var dir := aim - eye
 	_face(dir)

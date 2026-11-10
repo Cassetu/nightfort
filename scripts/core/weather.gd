@@ -3,7 +3,7 @@ extends Node
 enum State { CLEAR, CLOUDY, RAIN, FOG, STORM }
 
 const CloudShader = preload("res://resources/cloud.gdshader")
-const BlockScript = preload("res://scripts/block.gd")
+const BlockScript = preload("res://scripts/blocks/block.gd")
 
 const TARGETS := {
 	State.CLEAR: {"cover": 0.3, "rain": 0.0, "fog": 0.0, "dark": 0.0, "wind": 1.0},
@@ -23,7 +23,7 @@ const WIND_DIR := Vector2(0.8, 0.35)
 const NIGHT_TINT := Color(0.05, 0.06, 0.11)
 const RAIN_AMOUNT := 2600
 const RAIN_HEIGHT := 14.0
-const Sfx = preload("res://scripts/sfx.gd")
+const Sfx = preload("res://scripts/core/sfx.gd")
 const DROP_AMOUNT := 260
 const DROP_LIFE := 1.3
 const DROP_RATE := 34.0

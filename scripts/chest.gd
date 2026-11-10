@@ -1,4 +1,4 @@
-extends "res://scripts/block.gd"
+extends "res://scripts/blocks/block.gd"
 
 const SLOT_TOTAL := 18
 

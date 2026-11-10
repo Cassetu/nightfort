@@ -1,7 +1,7 @@
 extends Node3D
 
-const Sfx = preload("res://scripts/sfx.gd")
-const Pool = preload("res://scripts/pool.gd")
+const Sfx = preload("res://scripts/core/sfx.gd")
+const Pool = preload("res://scripts/core/pool.gd")
 
 const SPEED := 34.0
 const GRAVITY := 4.0

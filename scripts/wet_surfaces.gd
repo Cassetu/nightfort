@@ -1,6 +1,6 @@
 extends Node
 
-const BlockScript = preload("res://scripts/block.gd")
+const BlockScript = preload("res://scripts/blocks/block.gd")
 const BlockIndex = preload("res://scripts/block_index.gd")
 const DIRS := [Vector3i(1, 0, 0), Vector3i(-1, 0, 0), Vector3i(0, 0, 1), Vector3i(0, 0, -1)]
 const SKY_RANGE := 16

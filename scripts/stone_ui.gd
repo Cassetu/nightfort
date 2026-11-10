@@ -5,6 +5,7 @@ const TileArt = preload("res://scripts/tile_art.gd")
 const THEME_PATH := "res://resources/main-theme.tres"
 const SIZE := 32
 const BORDER := 3
+const BODY_FONT := "res://resources/fonts/AlegreyaSans-Medium.ttf"
 const AMBER := Color(1.0, 0.78, 0.25)
 
 static var applied: bool = false
@@ -14,6 +15,10 @@ static func apply(theme: Theme) -> void:
 	if applied or theme == null:
 		return
 	applied = true
+	var body: Font = load(BODY_FONT)
+	if body != null:
+		theme.default_font = body
+		ThemeDB.fallback_font = body
 	var cool := Color(0.74, 0.74, 0.8)
 	_style(theme, "Button", "normal", cool, false, Color(0, 0, 0, 0))
 	_style(theme, "Button", "hover", Color(0.98, 0.9, 0.78), false, AMBER)

@@ -31,7 +31,7 @@ const LIST := [
 	{"id": "stone_leggings", "out": "stone_leggings", "count": 1, "shape": [["stone", "stone", "stone"], ["stone", "fiber", "stone"], ["stone", "", "stone"]]},
 	{"id": "stone_boots", "out": "stone_boots", "count": 1, "shape": [["stone", "", "stone"], ["stone", "fiber", "stone"]]},
 	{"id": "barricade", "out": "barricade", "count": 1, "shape": [["wood", "wood", "wood"], ["wood", "wood", "wood"], ["wood", "wood", "wood"]]},
-	{"id": "scaffold", "out": "scaffold", "count": 2, "shape": [["plank"], ["plank"], ["plank"]]},
+	{"id": "scaffold", "out": "scaffold", "count": 8, "shape": [["plank"], ["plank"], ["plank"]]},
 	{"id": "iron_block", "out": "iron_block", "count": 1, "shape": [["iron", "iron", "iron"], ["iron", "iron", "iron"], ["iron", "iron", "iron"]]},
 	{"id": "stone_forge", "out": "stone_forge", "count": 1, "shape": [["stone_brick", "stone_brick", "stone_brick"], ["stone_brick", "coal", "stone_brick"], ["stone_brick", "stone_brick", "stone_brick"]]},
 	{"id": "fortified_brick", "out": "fortified_brick", "count": 4, "shape": [["stone_brick", "stone_brick", "stone_brick"], ["stone_brick", "", "stone_brick"], ["stone_brick", "stone_brick", "stone_brick"]]},

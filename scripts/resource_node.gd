@@ -2,7 +2,7 @@ extends StaticBody3D
 
 const ChipBurst = preload("res://scripts/chip_burst.gd")
 
-const Sfx = preload("res://scripts/sfx.gd")
+const Sfx = preload("res://scripts/core/sfx.gd")
 const STONE_TYPES := ["stone", "basalt", "diorite", "granite", "limestone", "sandstone", "stone_brick", "basalt_brick", "diorite_brick", "granite_brick", "limestone_brick", "fortified_brick", "ruined_brick", "stone_forge", "iron_block"]
 const CHOP_TYPES := ["wood", "plank", "scaffold", "door", "ladder", "chest", "workbench", "barricade"]
 
@@ -60,6 +60,8 @@ func _die() -> void:
 	if shake_tween:
 		shake_tween.kill()
 	harvested.emit(resource_type, resource_amount)
+	if is_in_group("tree"):
+		get_tree().call_group("missions", "on_event", "tree")
 	var world := get_tree().current_scene
 	if world != null and world.has_method("spawn_drop"):
 		world.spawn_drop(resource_type, resource_amount, global_position + Vector3(0.0, 0.9, 0.0))

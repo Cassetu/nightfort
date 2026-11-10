@@ -1,6 +1,6 @@
-extends "res://scripts/block.gd"
+extends "res://scripts/blocks/block.gd"
 
-const HeldItem = preload("res://scripts/held_item.gd")
+const HeldItem = preload("res://scripts/player/held_item.gd")
 const ITEM_SCALE := 1.3
 const ANVIL_SIDE := Vector3(1.0, 0.0, 0.0)
 const ITEM_POS := Vector3(1.0, 0.25, 0.0)

@@ -1,11 +1,14 @@
 extends CharacterBody3D
 
 const ChipBurst = preload("res://scripts/chip_burst.gd")
-const Sfx = preload("res://scripts/sfx.gd")
-const GloomParts = preload("res://scripts/gloom_parts.gd")
-const GloomAnims = preload("res://scripts/gloom_anims.gd")
+const Sfx = preload("res://scripts/core/sfx.gd")
+const GloomBake = preload("res://scripts/enemies/gloom_bake.gd")
 
 signal died(enemy)
+
+const ATTACKS := ["swipe_r", "swipe_l", "slam", "bite"]
+const BREAKS := ["bite", "bite", "slam", "swipe_r"]
+const ONE_SHOTS := ["swipe_r", "swipe_l", "slam", "bite"]
 
 const SPEED := 3.4
 const JUMP_VELOCITY := 6.2
@@ -64,7 +67,7 @@ var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 
 
 func _ready() -> void:
-	GloomParts.dress(self)
+	GloomBake.bake(self)
 	if wild:
 		add_to_group("wild_gloom")
 		_wild_look()
@@ -298,7 +301,7 @@ func _wild_look() -> void:
 	eye_mat.emission = Color(0.4, 0.9, 1.0)
 	eye_mat.emission_energy_multiplier = 3.0
 	var flesh_mat: StandardMaterial3D = null
-	var detail_mat: StandardMaterial3D = null
+	var tinted: Dictionary = {}
 	for node in find_children("*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
 		if mi.mesh == null:
@@ -309,11 +312,12 @@ func _wild_look() -> void:
 				continue
 			if base.emission_energy_multiplier > 2.0:
 				mi.set_surface_override_material(surface, eye_mat)
-			elif base.vertex_color_use_as_albedo:
-				if detail_mat == null:
-					detail_mat = base.duplicate() as StandardMaterial3D
-					detail_mat.albedo_color = Color(0.55, 0.85, 0.9)
-				mi.set_surface_override_material(surface, detail_mat)
+			elif base.resource_name.begins_with("detail"):
+				if not tinted.has(base):
+					var copy := base.duplicate() as StandardMaterial3D
+					copy.albedo_color = base.albedo_color * Color(0.55, 0.85, 0.9)
+					tinted[base] = copy
+				mi.set_surface_override_material(surface, tinted[base])
 			else:
 				if flesh_mat == null:
 					flesh_mat = base.duplicate() as StandardMaterial3D
@@ -329,7 +333,7 @@ func _animate(delta: float, facing: Vector3) -> void:
 		body.rotation.y = yaw
 
 	var current := anim.current_animation
-	if anim.is_playing() and GloomAnims.ONE_SHOTS.has(current):
+	if anim.is_playing() and ONE_SHOTS.has(current):
 		return
 
 	var speed := Vector2(velocity.x, velocity.z).length()
@@ -397,7 +401,7 @@ func _punch() -> void:
 func _lunge() -> void:
 	Sfx.play(self, "gloom_attack", global_position, 0.0)
 	anim.speed_scale = 1.0
-	anim.play(_pick_swing(GloomAnims.ATTACKS), 0.05)
+	anim.play(_pick_swing(ATTACKS), 0.05)
 
 
 func _pick_swing(options: Array) -> String:
@@ -410,7 +414,7 @@ func _pick_swing(options: Array) -> String:
 
 func _smash() -> void:
 	anim.speed_scale = 1.0
-	anim.play(_pick_swing(GloomAnims.BREAKS), 0.05)
+	anim.play(_pick_swing(BREAKS), 0.05)
 
 
 func _chips() -> void:

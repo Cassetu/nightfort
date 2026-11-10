@@ -32,7 +32,7 @@ static func drop(host: Node, pos: Vector3, start_velocity: Vector3 = Vector3.ZER
 	if host == null or not host.is_inside_tree():
 		return
 	var sack := Node3D.new()
-	sack.set_script(load("res://scripts/bile_sack.gd"))
+	sack.set_script(load("res://scripts/enemies/bile_sack.gd"))
 	host.get_tree().current_scene.add_child(sack)
 	sack.global_position = pos
 	sack.velocity = start_velocity

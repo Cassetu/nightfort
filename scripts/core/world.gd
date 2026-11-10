@@ -3,16 +3,16 @@ extends Node3D
 const BLOCK_SCENE_PATH := "res://scenes/block.tscn"
 const TORCH_SCENE_PATH := "res://scenes/torch.tscn"
 const DROP_SCENE_PATH := "res://scenes/item_drop.tscn"
-const Recipes = preload("res://scripts/recipes.gd")
+const Recipes = preload("res://scripts/player/recipes.gd")
 const ForgeUIScene = preload("res://scenes/forge_ui.tscn")
 const CreativeUIScene = preload("res://scenes/creative_ui.tscn")
 const RuinsScript = preload("res://scripts/ruins.gd")
 const RoofMapScript = preload("res://scripts/roof_map.gd")
-const AudioScript = preload("res://scripts/audio_manager.gd")
+const AudioScript = preload("res://scripts/core/audio_manager.gd")
 const OutpostsScript = preload("res://scripts/outposts.gd")
 const StabilityScript = preload("res://scripts/stability.gd")
-const WildSpawnerScript = preload("res://scripts/wild_spawner.gd")
-const WeatherScript = preload("res://scripts/weather.gd")
+const WildSpawnerScript = preload("res://scripts/enemies/wild_spawner.gd")
+const WeatherScript = preload("res://scripts/core/weather.gd")
 const TerritoryScript = preload("res://scripts/territory.gd")
 const TroopScene = preload("res://scenes/troop.tscn")
 const TroopScript = preload("res://scripts/troop.gd")
@@ -20,11 +20,12 @@ const MinimapScene = preload("res://scenes/minimap.tscn")
 const WetSurfacesScript = preload("res://scripts/wet_surfaces.gd")
 const BirdsScript = preload("res://scripts/birds.gd")
 const CoreUIScene = preload("res://scenes/core_ui.tscn")
-const GloomFogScript = preload("res://scripts/gloom_fog.gd")
+const GloomFogScript = preload("res://scripts/enemies/gloom_fog.gd")
 const FogOverlayScene = preload("res://scenes/fog_overlay.tscn")
 const AttackMarkerScene = preload("res://scenes/attack_marker.tscn")
-const Pool = preload("res://scripts/pool.gd")
+const Pool = preload("res://scripts/core/pool.gd")
 const BlockIndex = preload("res://scripts/block_index.gd")
+const MissionsScene = preload("res://scenes/missions_board.tscn")
 
 @onready var sun = $Sun
 @onready var terrain = $Terrain
@@ -42,6 +43,8 @@ var inventory_open: bool = false
 var territory
 var troops: Array = []
 var next_troop_id: int = 1
+var outposts: Array = []
+var missions
 
 
 func _ready() -> void:
@@ -78,6 +81,9 @@ func _ready() -> void:
 	var minimap = MinimapScene.instantiate()
 	add_child(minimap)
 	minimap.setup(player, core, terrain)
+	missions = MissionsScene.instantiate()
+	add_child(missions)
+	missions.setup(self, player)
 	var weather = Node.new()
 	weather.name = "Weather"
 	weather.set_script(WeatherScript)
@@ -285,6 +291,10 @@ func collect_state() -> Dictionary:
 		if is_instance_valid(t):
 			troop_data.append(t.export_state())
 
+	var outpost_data: Array = []
+	for o in outposts:
+		outpost_data.append([o.x, o.y, o.z])
+
 	return {
 		"troops": troop_data,
 		"sun": {"quat": [q.x, q.y, q.z, q.w], "phase": sun.day_phase},
@@ -295,6 +305,8 @@ func collect_state() -> Dictionary:
 		"blocks": blocks,
 		"waves": spawner.export_state(),
 		"drops": drops,
+		"outposts": outpost_data,
+		"missions": missions.export_state(),
 	}
 
 
@@ -317,6 +329,10 @@ func apply_state(d: Dictionary) -> void:
 	for td in d.get("troops", []):
 		spawn_troop(td)
 	Inventory.import_state(d.get("inventory", {}))
+	outposts.clear()
+	for o in d.get("outposts", []):
+		outposts.append(Vector3(o[0], o[1], o[2]))
+	missions.import_state(d.get("missions", {}))
 	spawner.import_state(d.get("waves", {}))
 	for dd in d.get("drops", []):
 		if Inventory.ITEMS.has(dd["id"]):

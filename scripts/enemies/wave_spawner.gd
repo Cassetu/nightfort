@@ -2,8 +2,8 @@ extends Node
 
 signal status_changed(text: String)
 
-const BirdScript = preload("res://scripts/gloom_bird.gd")
-const GloomNest = preload("res://scripts/gloom_nest.gd")
+const BirdScript = preload("res://scripts/enemies/gloom_bird.gd")
+const GloomNest = preload("res://scripts/enemies/gloom_nest.gd")
 const NEST_INTERVAL := 0.5
 
 @export var enemy_scene: PackedScene
@@ -65,6 +65,8 @@ func setup(t, f, c, p, s, root: Node3D) -> void:
 	player = p
 	sun = s
 	enemies_root = root
+	if enemy_scene == null:
+		enemy_scene = load("res://scenes/gloom.tscn")
 
 
 func wave_size(n: int) -> int:
@@ -157,7 +159,7 @@ func _sync_nests(delta: float) -> void:
 		var pos := Vector3(c.x + cos(a) * spawn_radius, 0.0, c.z + sin(a) * spawn_radius)
 		if not terrain.collision_ready(pos):
 			continue
-		pos.y = float(terrain.surface_y(floori(pos.x), floori(pos.z))) + 1.0
+		pos.y = float(terrain.surface_y(floori(pos.x), floori(pos.z))) - 0.1
 		var nest := Node3D.new()
 		nest.set_script(GloomNest)
 		nest.set_meta("ground_y", pos.y)
@@ -167,8 +169,20 @@ func _sync_nests(delta: float) -> void:
 		nests[key] = nest
 
 
+func _alive_count() -> int:
+	return get_tree().get_nodes_in_group("enemy").size() + _birds_alive()
+
+
+func _birds_alive() -> int:
+	var count := 0
+	for b in get_tree().get_nodes_in_group("gloom_bird"):
+		if is_instance_valid(b) and not b.dying:
+			count += 1
+	return count
+
+
 func _is_calmed() -> bool:
-	return night_active and total > 0 and spawned >= total and get_tree().get_nodes_in_group("enemy").is_empty()
+	return night_active and total > 0 and spawned >= total and birds_spawned >= birds_total and _alive_count() == 0
 
 
 func _spawn_curve(p: float) -> float:
@@ -268,7 +282,7 @@ func _update_status() -> void:
 	elif _is_calmed():
 		text = "The night has calmed."
 	elif night_active:
-		text = "Gloom attacking: %d/%d" % [get_tree().get_nodes_in_group("enemy").size(), maxi(total - spawned, 0)]
+		text = "Gloom attacking: %d/%d" % [_alive_count(), maxi(total - spawned, 0) + maxi(birds_total - birds_spawned, 0)]
 	else:
 		text = "Day  -  Night %d approaches" % (night + 1)
 	if text != last_status:

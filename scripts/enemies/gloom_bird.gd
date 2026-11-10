@@ -1,6 +1,6 @@
 extends StaticBody3D
 
-const BileSack = preload("res://scripts/bile_sack.gd")
+const BileSack = preload("res://scripts/enemies/bile_sack.gd")
 const TileArt = preload("res://scripts/tile_art.gd")
 
 const SPEED := 9.0
@@ -173,6 +173,12 @@ func _build() -> void:
 	cord.rings = 1
 	cord.material = flesh_material
 	_part(cord, self, Vector3(0.0, -0.3, 0.05))
+
+
+func motion() -> Vector3:
+	if dying:
+		return Vector3.ZERO
+	return heading * (DIVE_SPEED if diving else SPEED)
 
 
 func _animate(delta: float) -> void:
