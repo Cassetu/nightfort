@@ -9,6 +9,7 @@ const BILE := Color(0.36, 0.2, 0.46)
 
 var hp: int = MAX_HP
 var dead: bool = false
+var dying: bool = false
 var ring: int = 0
 var visual: MeshInstance3D
 var shape: CollisionShape3D
@@ -56,6 +57,7 @@ func take_damage(amount, from: Vector3 = Vector3.INF) -> void:
 
 func _collapse() -> void:
 	dead = true
+	dying = true
 	remove_from_group("enemy")
 	shape.set_deferred("disabled", true)
 	if is_instance_valid(rider):
@@ -93,6 +95,7 @@ func _regrow_later() -> void:
 		return
 	shape.set_deferred("disabled", false)
 	dead = false
+	dying = false
 	add_to_group("enemy")
 
 

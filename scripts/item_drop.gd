@@ -65,7 +65,7 @@ func _process(delta: float) -> void:
 
 func _physics_process(delta: float) -> void:
 	age += delta
-	if age > LIFETIME or global_position.y < -70.0:
+	if age > LIFETIME or global_position.y < -500.0:
 		_recycle()
 		return
 	if age < PICKUP_DELAY:

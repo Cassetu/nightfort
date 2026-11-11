@@ -33,7 +33,7 @@ static func drop(host: Node, pos: Vector3, start_velocity: Vector3 = Vector3.ZER
 	if host == null or not host.is_inside_tree():
 		return
 	var sack := Node3D.new()
-	sack.set_script(load("res://scripts/bile_sack.gd"))
+	sack.set_script(load("res://scripts/enemies/bile_sack.gd"))
 	host.get_tree().current_scene.add_child(sack)
 	sack.global_position = pos
 	sack.velocity = start_velocity
@@ -102,7 +102,7 @@ func _physics_process(delta: float) -> void:
 	if landed:
 		_puddle(delta)
 		return
-	if global_position.y < -70.0 or life > 12.0:
+	if global_position.y < -500.0 or life > 12.0:
 		queue_free()
 		return
 	velocity.y -= GRAVITY * delta
