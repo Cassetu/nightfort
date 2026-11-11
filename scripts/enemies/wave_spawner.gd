@@ -121,7 +121,7 @@ func _process(delta: float) -> void:
 		if spawn_timer <= 0.0 and spawned < target:
 			spawn_timer = swarm_interval if swarming else retry_interval
 			var cap := roundi(float(swarm_max_alive if swarming else max_alive) * Game.spawn_scale())
-			if get_tree().get_nodes_in_group("enemy").size() < cap and _spawn_one():
+			if get_tree().get_node_count_in_group("enemy") < cap and _spawn_one():
 				spawned += 1
 
 	if night_active and birds_spawned < birds_total and not _is_calmed():
@@ -170,7 +170,7 @@ func _sync_nests(delta: float) -> void:
 
 
 func _alive_count() -> int:
-	return get_tree().get_nodes_in_group("enemy").size() + _birds_alive()
+	return get_tree().get_node_count_in_group("enemy") + _birds_alive()
 
 
 func _birds_alive() -> int:

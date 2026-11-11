@@ -1,4 +1,4 @@
-extends "res://scripts/torch.gd"
+extends "res://scripts/blocks/torch.gd"
 
 const CAP_SIZE := Vector3(0.36, 0.1, 0.36)
 

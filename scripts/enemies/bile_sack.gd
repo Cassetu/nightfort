@@ -43,7 +43,7 @@ static func splash(host: Node, pos: Vector3, radius: float, block_damage: int, u
 	if host == null or not host.is_inside_tree():
 		return
 	var r2 := radius * radius
-	for b in BlockIndex.list.duplicate():
+	for b in BlockIndex.list:
 		if not is_instance_valid(b) or b.dying or not b.structural or b.is_in_group("torch"):
 			continue
 		if b.global_position.distance_squared_to(pos) <= r2:

@@ -63,10 +63,8 @@ func _supported() -> bool:
 	var w := global_position - wall_normal
 	if terrain != null and terrain.block_at(floori(w.x), floori(w.y), floori(w.z)) != 0:
 		return true
-	for n in BlockIndex.list:
-		if n != self and not n.dying and n.block_type != "torch" and n.covers(w):
-			return true
-	return false
+	var behind := BlockIndex.at(Vector3i(floori(w.x), floori(w.y), floori(w.z)))
+	return behind != null and behind != self and behind.block_type != "torch"
 
 
 func _play_death() -> void:

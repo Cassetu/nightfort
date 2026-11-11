@@ -27,7 +27,7 @@ func _process(delta: float) -> void:
 	if not wet:
 		if was_wet:
 			was_wet = false
-			for n in BlockIndex.list.duplicate():
+			for n in BlockIndex.list:
 				n.set_wet(false)
 		return
 	was_wet = true
@@ -38,7 +38,7 @@ func _process(delta: float) -> void:
 	list_timer -= delta
 	if list_timer <= 0.0 or cursor >= blocks.size():
 		list_timer = LIST_REFRESH
-		blocks = BlockIndex.list.duplicate()
+		blocks = BlockIndex.list
 		cursor = 0
 	var end := mini(cursor + PER_FRAME, blocks.size())
 	for i in range(cursor, end):

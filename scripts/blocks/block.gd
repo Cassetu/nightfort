@@ -3,6 +3,7 @@ extends "res://scripts/resource_node.gd"
 const TileArt = preload("res://scripts/tile_art.gd")
 const BlockIndex = preload("res://scripts/block_index.gd")
 const BlockBatch = preload("res://scripts/block_batch.gd")
+const BLOCK_SCRIPT := "res://scripts/blocks/block.gd"
 
 const SUPPORT_INTERVAL := 0.25
 const REINFORCE_HP := 2.5
@@ -16,6 +17,8 @@ const WET_COAT_ROUGHNESS := 0.3
 var block_type: String = "wood"
 var needs_support: bool = false
 var support_timer: float = 0.0
+var seen_version: int = -1
+var terrain_hooked: bool = false
 var terrain
 var structural: bool = true
 var falls: bool = false
@@ -54,6 +57,11 @@ func _configure() -> void:
 	weight = int(info.get("weight", 2))
 	max_load = int(info.get("max_load", 99))
 	_mark_stability()
+	_late_bump.call_deferred()
+
+
+func _late_bump() -> void:
+	BlockIndex.bump()
 
 
 func _build() -> void:
@@ -67,7 +75,8 @@ func _build() -> void:
 	var col := CollisionShape3D.new()
 	col.shape = BoxShape3D.new()
 	add_child(col)
-	if get_script().resource_path == "res://scripts/block.gd":
+	if get_script().resource_path == BLOCK_SCRIPT:
+		set_process(false)
 		_try_batch.call_deferred()
 
 
@@ -91,15 +100,22 @@ func take_damage(amount: int, hit_position: Vector3 = Vector3.INF) -> void:
 	super(amount, hit_position)
 
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
 	if not needs_support or dying:
 		return
-	support_timer += delta
-	if support_timer < SUPPORT_INTERVAL:
+	if not terrain_hooked:
+		terrain_hooked = true
+		if terrain != null:
+			terrain.block_broken.connect(_on_terrain_broken)
+	if seen_version == BlockIndex.version:
 		return
-	support_timer = 0.0
+	seen_version = BlockIndex.version
 	if not _supported():
 		take_damage(max_health)
+
+
+func _on_terrain_broken(_cell: Vector3i) -> void:
+	seen_version = -1
 
 
 func _supported() -> bool:
@@ -108,11 +124,8 @@ func _supported() -> bool:
 	var cz := floori(global_position.z)
 	if terrain != null and terrain.block_at(cx, cy - 1, cz) != 0:
 		return true
-	var below := Vector3(cx + 0.5, cy - 0.5, cz + 0.5)
-	for n in BlockIndex.list:
-		if n != self and not n.dying and n.covers(below):
-			return true
-	return false
+	var under := BlockIndex.at(Vector3i(cx, cy - 1, cz))
+	return under != null and under != self
 
 
 func cells() -> Array:
@@ -223,6 +236,7 @@ func _mark_stability() -> void:
 
 func _die() -> void:
 	super()
+	BlockIndex.bump()
 	_mark_stability()
 
 
@@ -275,6 +289,7 @@ func fall_to(target_cell: Vector3i) -> void:
 	if falling_now or dying:
 		return
 	falling_now = true
+	BlockIndex.bump()
 	_unbatch()
 	var core = get_tree().get_first_node_in_group("Core")
 	if core != null:
@@ -293,6 +308,7 @@ func fall_to(target_cell: Vector3i) -> void:
 
 func _landed() -> void:
 	falling_now = false
+	BlockIndex.bump()
 	if zone_break:
 		zone_break = false
 		take_damage(max_health + 1, global_position)

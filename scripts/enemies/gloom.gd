@@ -39,6 +39,8 @@ const ENGAGE_HEIGHT := 1.6
 const PLOW_RANGE := 3.2
 const STEP_HEIGHT := 1.0
 const PROBE_AHEAD := 0.95
+const NEAR_RANGE := 48.0
+const MID_RANGE := 110.0
 
 var wild: bool = false
 var surface: bool = false
@@ -60,6 +62,9 @@ var dying: bool = false
 var plowing: bool = false
 var last_swing: String = ""
 var smell_timer: float = 0.0
+var tick: int = 0
+var tick_offset: int = randi() % 8
+var carried: float = 0.0
 var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 
 @onready var body: Node3D = $Body
@@ -87,9 +92,31 @@ func setup(f, c, p, night: int) -> void:
 	health = BASE_HEALTH * (1.0 + 0.15 * float(night - 1))
 
 
+func _stride() -> int:
+	if not is_instance_valid(player):
+		return 1
+	var d2 := global_position.distance_squared_to(player.global_position)
+	if d2 < NEAR_RANGE * NEAR_RANGE:
+		return 1
+	if d2 < MID_RANGE * MID_RANGE:
+		return 2
+	return 4
+
+
 func _physics_process(delta: float) -> void:
 	if dying:
 		return
+	carried += delta
+	tick += 1
+	var stride := _stride()
+	if (tick + tick_offset) % stride != 0:
+		return
+	var step := carried
+	carried = 0.0
+	_step(step, stride)
+
+
+func _step(delta: float, stride: int) -> void:
 	if global_position.y < -70.0:
 		remove_from_group("enemy")
 		remove_from_group("wild_gloom")
@@ -123,7 +150,11 @@ func _physics_process(delta: float) -> void:
 	if is_on_floor() and desired != Vector3.ZERO and is_on_wall() and stun <= 0.0 and _can_hop(desired):
 		velocity.y = JUMP_VELOCITY
 
+	if stride > 1:
+		velocity *= float(stride)
 	move_and_slide()
+	if stride > 1:
+		velocity /= float(stride)
 
 	if attack_timer <= 0.0 and not wild:
 		for i in get_slide_collision_count():
@@ -137,7 +168,11 @@ func _physics_process(delta: float) -> void:
 				_smash()
 				break
 
-	_animate(delta, facing)
+	if stride >= 4:
+		if anim.is_playing() and not ONE_SHOTS.has(anim.current_animation):
+			anim.pause()
+	else:
+		_animate(delta, facing)
 
 
 func _ray_hits(from: Vector3, dir: Vector3) -> bool:
