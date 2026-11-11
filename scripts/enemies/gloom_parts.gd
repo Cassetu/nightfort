@@ -1,6 +1,6 @@
 extends RefCounted
 
-const GloomAnims = preload("res://scripts/gloom_anims.gd")
+const GloomAnims = preload("res://scripts/enemies/gloom_anims.gd")
 
 const BONE := Color(0.78, 0.72, 0.58)
 const BONE_DARK := Color(0.32, 0.27, 0.22)
