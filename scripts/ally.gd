@@ -21,12 +21,12 @@ const BOW_SPEED := 32.0
 const ARCHER_GAP := 9.0
 const INNER_MARGIN := 6.0
 const BILE := Color(0.36, 0.2, 0.46)
-const STEEL := Color(0.52, 0.54, 0.6)
-const DARK := Color(0.2, 0.2, 0.25)
-const TABARD := Color(0.42, 0.1, 0.12)
-const SKIN := Color(0.72, 0.56, 0.46)
-const WOOD := Color(0.42, 0.3, 0.2)
-const GOLD := Color(0.78, 0.6, 0.18)
+const MODELS := {
+	"soldier": preload("res://scenes/soldier.tscn"),
+	"archer": preload("res://scenes/archer.tscn"),
+	"commander": preload("res://scenes/commander.tscn"),
+}
+const HOLD_STOP := 2.0
 
 var role: String = "soldier"
 var arena
@@ -79,82 +79,18 @@ func setup(unit_role: String, world_arena) -> void:
 	_build_model()
 
 
-func _part(parent: Node3D, size: Vector3, pos: Vector3, color: Color, glow: float = 0.0) -> MeshInstance3D:
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.roughness = 0.7
-	if glow > 0.0:
-		mat.emission_enabled = true
-		mat.emission = color
-		mat.emission_energy_multiplier = glow
-	mesh.material = mat
-	var node := MeshInstance3D.new()
-	node.mesh = mesh
-	node.position = pos
-	parent.add_child(node)
-	return node
-
-
-func _pivot(parent: Node3D, pos: Vector3) -> Node3D:
-	var node := Node3D.new()
-	node.position = pos
-	parent.add_child(node)
-	return node
-
-
 func _build_model() -> void:
-	model = Node3D.new()
+	model = (MODELS[role] as PackedScene).instantiate()
 	add_child(model)
-	var cloth: Color = TABARD
-	var armor: Color = STEEL
-	if role == "archer":
-		cloth = Color(0.22, 0.3, 0.2)
-		armor = Color(0.34, 0.28, 0.2)
-	elif role == "commander":
-		cloth = Color(0.14, 0.14, 0.2)
-		armor = Color(0.62, 0.5, 0.22)
-	_part(model, Vector3(0.55, 0.7, 0.3), Vector3(0.0, 1.15, 0.0), armor)
-	_part(model, Vector3(0.57, 0.5, 0.32), Vector3(0.0, 0.78, 0.0), cloth)
-	var head := _part(model, Vector3(0.34, 0.34, 0.34), Vector3(0.0, 1.72, 0.0), SKIN)
-	if role == "archer":
-		_part(model, Vector3(0.4, 0.2, 0.4), Vector3(0.0, 1.84, 0.02), cloth)
-	else:
-		_part(model, Vector3(0.38, 0.22, 0.38), Vector3(0.0, 1.82, 0.0), armor)
-	if role == "commander":
-		_part(model, Vector3(0.06, 0.3, 0.16), Vector3(0.0, 2.06, 0.0), Color(0.7, 0.1, 0.12))
-		_part(model, Vector3(0.7, 1.1, 0.06), Vector3(0.0, 1.05, 0.2), Color(0.5, 0.06, 0.1))
-	head.name = "Head"
-	leg_r = _pivot(model, Vector3(0.14, 0.75, 0.0))
-	_part(leg_r, Vector3(0.2, 0.75, 0.22), Vector3(0.0, -0.37, 0.0), DARK)
-	leg_l = _pivot(model, Vector3(-0.14, 0.75, 0.0))
-	_part(leg_l, Vector3(0.2, 0.75, 0.22), Vector3(0.0, -0.37, 0.0), DARK)
-	arm_r = _pivot(model, Vector3(0.38, 1.42, 0.0))
-	_part(arm_r, Vector3(0.18, 0.62, 0.18), Vector3(0.0, -0.28, 0.0), armor)
-	arm_l = _pivot(model, Vector3(-0.38, 1.42, 0.0))
-	_part(arm_l, Vector3(0.18, 0.62, 0.18), Vector3(0.0, -0.28, 0.0), armor)
-	sword_node = _pivot(arm_r, Vector3(0.0, -0.6, -0.1))
-	_part(sword_node, Vector3(0.06, 0.08, 0.7), Vector3(0.0, 0.0, -0.4), Color(0.74, 0.76, 0.82))
-	_part(sword_node, Vector3(0.22, 0.05, 0.06), Vector3(0.0, 0.0, -0.05), GOLD)
-	pick_node = _pivot(arm_r, Vector3(0.0, -0.6, -0.1))
-	_part(pick_node, Vector3(0.05, 0.05, 0.8), Vector3(0.0, 0.0, -0.4), WOOD)
-	_part(pick_node, Vector3(0.05, 0.5, 0.1), Vector3(0.0, 0.0, -0.78), Color(0.5, 0.5, 0.55))
-	pick_node.visible = false
-	bow_node = _pivot(arm_l, Vector3(0.0, -0.6, -0.2))
-	_part(bow_node, Vector3(0.05, 0.9, 0.05), Vector3(0.0, 0.0, -0.1), WOOD)
-	_part(bow_node, Vector3(0.015, 0.9, 0.015), Vector3(0.0, 0.0, 0.0), Color(0.85, 0.85, 0.8))
-	if role == "soldier":
-		var shield := _pivot(arm_l, Vector3(-0.1, -0.4, -0.12))
-		_part(shield, Vector3(0.08, 0.8, 0.6), Vector3.ZERO, Color(0.3, 0.32, 0.4))
-		_part(shield, Vector3(0.1, 0.5, 0.35), Vector3.ZERO, TABARD)
-		bow_node.visible = false
-	elif role == "archer":
-		sword_node.visible = false
-	else:
-		bow_node.visible = false
-		var shield2 := _pivot(arm_l, Vector3(-0.1, -0.4, -0.12))
-		_part(shield2, Vector3(0.08, 0.7, 0.5), Vector3.ZERO, GOLD)
+	arm_r = model.get_node_or_null("ArmR")
+	arm_l = model.get_node_or_null("ArmL")
+	leg_r = model.get_node_or_null("LegR")
+	leg_l = model.get_node_or_null("LegL")
+	sword_node = model.get_node_or_null("ArmR/Sword")
+	pick_node = model.get_node_or_null("ArmR/Pick")
+	bow_node = model.get_node_or_null("ArmL/Bow")
+	if pick_node != null:
+		pick_node.visible = false
 
 
 func command() -> void:
@@ -251,18 +187,26 @@ func _soldier(delta: float) -> Vector3:
 		_set_weapon(false)
 		return _approach(foe.global_position, MELEE_REACH - 0.3, delta)
 	var ring: int = arena.ring_for(global_position)
-	if ring < 0:
+	if ring < 0 or ring >= 1:
 		_set_weapon(false)
-		return _approach(arena.heart_position + Vector3(0.0, 0.0, 14.0), 3.0, delta)
+		return _approach(arena.hold_point(global_position), HOLD_STOP, delta)
 	var wall = arena.nearest_wall(ring, global_position)
 	if wall == null:
 		return Vector3.ZERO
 	if wall.dead:
 		_set_weapon(false)
-		var inward: Vector3 = arena.heart_position - wall.global_position
-		inward.y = 0.0
-		var through: Vector3 = wall.global_position + inward.normalized() * INNER_MARGIN
-		return _approach(through, 0.8, delta)
+		var radial: Vector3 = wall.global_position - arena.heart_position
+		radial.y = 0.0
+		radial = radial.normalized()
+		var unit_d: float = arena.distance_from_heart(global_position)
+		var wall_d: float = arena.distance_from_heart(wall.global_position)
+		if unit_d > wall_d + 1.0:
+			var stage: Vector3 = wall.global_position + radial * 4.0
+			var gap := stage - global_position
+			gap.y = 0.0
+			if gap.length() > 1.5:
+				return _approach(stage, 1.0, delta)
+		return _approach(wall.global_position - radial * INNER_MARGIN, 0.8, delta)
 	var to_wall = wall.global_position - global_position
 	to_wall.y = 0.0
 	if to_wall.length() > WALL_STOP:
@@ -315,24 +259,34 @@ func _shoot(foe) -> void:
 
 
 func _set_weapon(pick: bool) -> void:
-	pick_node.visible = pick
-	if role == "soldier":
+	if pick_node != null:
+		pick_node.visible = pick
+	if role == "soldier" and sword_node != null:
 		sword_node.visible = not pick
+
+
+func _pose(node: Node3D, angle: float, delta: float = 0.0) -> void:
+	if node == null:
+		return
+	if delta > 0.0:
+		node.rotation.x = lerpf(node.rotation.x, angle, minf(8.0 * delta, 1.0))
+	else:
+		node.rotation.x = angle
 
 
 func _animate(delta: float, speed: float) -> void:
 	if speed > 0.3:
 		phase += delta * speed * 2.6
 		var s := sin(phase) * 0.7
-		leg_r.rotation.x = s
-		leg_l.rotation.x = -s
-		arm_l.rotation.x = s * 0.5
+		_pose(leg_r, s)
+		_pose(leg_l, -s)
+		_pose(arm_l, s * 0.5)
 	else:
-		leg_r.rotation.x = lerpf(leg_r.rotation.x, 0.0, minf(8.0 * delta, 1.0))
-		leg_l.rotation.x = lerpf(leg_l.rotation.x, 0.0, minf(8.0 * delta, 1.0))
-		arm_l.rotation.x = lerpf(arm_l.rotation.x, 0.0, minf(8.0 * delta, 1.0))
+		_pose(leg_r, 0.0, delta)
+		_pose(leg_l, 0.0, delta)
+		_pose(arm_l, 0.0, delta)
 	swing = maxf(swing - delta * 3.0, 0.0)
 	var raise := -0.5 if (mining or role == "archer") else 0.0
-	arm_r.rotation.x = raise - sin(swing * PI) * 1.6
+	_pose(arm_r, raise - sin(swing * PI) * 1.6)
 	if role == "archer":
-		arm_l.rotation.x = -1.3
+		_pose(arm_l, -1.3)

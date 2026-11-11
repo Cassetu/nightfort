@@ -15,7 +15,7 @@ const ARMY_BLEND := 72.0
 const POOL_LEVEL := -1.5
 const RIM_START := 245.0
 const RIM_HEIGHT := 48.0
-const RINGS := [120.0, 82.0, 48.0]
+const RINGS := [100.0, 68.0, 40.0]
 
 static var origin := Vector3.ZERO
 

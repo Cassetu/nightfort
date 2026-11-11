@@ -1,4 +1,4 @@
-extends "res://scripts/block.gd"
+extends "res://scripts/blocks/block.gd"
 
 const CLOSED_LAYER := 1
 const OPEN_LAYER := 8

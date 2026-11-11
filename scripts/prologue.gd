@@ -40,6 +40,7 @@ const HEAL_AMOUNT := 2.5
 const FALL_HEIGHT := 14.0
 const FALL_DROP_TIME := 1.5
 const BOSS_DISTANCE := 26.0
+const DOOM_SPAWN_DISTANCE := 9.0
 const LINES := [
 	["You", "Hello?.."],
 	["???", "Hush. You cannot perish now."],
@@ -72,6 +73,7 @@ var env: Environment
 var shake: float = 0.0
 var died_flag: bool = false
 var boss_awake: bool = false
+var doomed: bool = false
 var running: bool = false
 var swing_pressed: bool = false
 
@@ -175,6 +177,8 @@ func _enter() -> void:
 	world.add_child(root)
 	cave = CaveScript.build(root, world, origin)
 	world.minimap_node.set_blank(true)
+	world.core.marker_label.visible = false
+	world.core.set_process(false)
 	world.missions.visible = false
 	world.ui.set_prologue(true)
 	world.hud_node.get_node("TimeBar").visible = false
@@ -339,6 +343,9 @@ func _siege() -> bool:
 		var delta := get_process_delta_time()
 		if pit.alive_count() <= 0:
 			return true
+		if not player.dead and pit.doom_reached(player.global_position):
+			doomed = true
+			return true
 		heal_timer += delta
 		if heal_timer >= HEAL_INTERVAL:
 			heal_timer = 0.0
@@ -373,23 +380,32 @@ func _emerge() -> bool:
 	ui.hide_army()
 	shake = 3.0
 	pit.pulse_heart(9.0)
-	if not await _wait(1.6):
-		return false
-	var at: Vector3 = pit.heart_position
 	var from: Vector3 = player.global_position
 	var to_heart: Vector3 = pit.heart_position - from
 	to_heart.y = 0.0
-	if to_heart.length() > 40.0:
-		at = from + to_heart.normalized() * BOSS_DISTANCE
+	var at: Vector3 = pit.heart_position
+	if doomed:
+		pit.wipe_army()
+		if not await _wait(0.8):
+			return false
+		at = from + to_heart.normalized() * DOOM_SPAWN_DISTANCE
 		at.y = pit.origin.y + pit.gen.height(at.x - pit.origin.x, at.z - pit.origin.z) + 0.6
 	else:
-		at += Vector3(0.0, 6.0, 0.0)
+		if not await _wait(1.6):
+			return false
+		if to_heart.length() > 40.0:
+			at = from + to_heart.normalized() * BOSS_DISTANCE
+			at.y = pit.origin.y + pit.gen.height(at.x - pit.origin.x, at.z - pit.origin.z) + 0.6
+		else:
+			at += Vector3(0.0, 6.0, 0.0)
 	boss = BossScene.instantiate()
 	world.add_child(boss)
 	boss.global_position = at
 	boss.stomp.connect(_on_stomp)
 	boss.health_changed.connect(ui.set_boss)
 	boss.wake(player)
+	if doomed:
+		boss.rush()
 	boss_awake = true
 	ui.show_boss()
 	return await _until(func() -> bool: return died_flag)
@@ -510,6 +526,7 @@ func _exit() -> void:
 	world.missions.visible = true
 	world.missions.import_state({"done": 0})
 	world.minimap_node.set_blank(false)
+	world.core.set_process(true)
 	world.ui.set_prologue(false)
 	world.hud_node.get_node("TimeBar").visible = true
 	world.hud_node.get_node("Counts").visible = true

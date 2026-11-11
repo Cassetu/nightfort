@@ -13,6 +13,7 @@ const DAMAGE := 15
 const COOLDOWN := 1.3
 const TURN := 9.0
 const BILE := Color(0.36, 0.2, 0.46)
+const RETARGET := 0.35
 
 static var pressure: float = 0.0
 
@@ -25,6 +26,7 @@ var swing_left: bool = false
 var knock := Vector3.ZERO
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var speed_mult: float = 1.0
+var retarget: float = 0.0
 
 @onready var body: Node3D = $Body
 @onready var anim: AnimationPlayer = $Anim
@@ -95,7 +97,10 @@ func _physics_process(delta: float) -> void:
 	cooldown = maxf(cooldown - delta, 0.0)
 	knock = knock.move_toward(Vector3.ZERO, 14.0 * delta)
 	var move := Vector3.ZERO
-	target = _nearest_ally()
+	retarget -= delta
+	if retarget <= 0.0 or not is_instance_valid(target):
+		retarget = RETARGET + randf() * 0.15
+		target = _nearest_ally()
 	if target != null:
 		awake = true
 	if awake and target != null:

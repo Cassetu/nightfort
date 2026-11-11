@@ -26,6 +26,9 @@ const SWIPE_IMPACT := 0.65
 const SLAM_LENGTH := 1.5
 const SWIPE_LENGTH := 1.2
 const ROAR_TIME := 2.4
+const RUSH_ROAR := 0.9
+const RUSH_SPEED := 3.2
+const RUSH_TURN := 3.0
 const ATTACK_PAUSE := 0.8
 const STEP_TIMES := [0.4, 1.2]
 const KNOCKBACK := 9.0
@@ -45,6 +48,7 @@ var fight_time: float = 0.0
 var last_step_pos: float = 0.0
 var last_shown: int = -1
 var frozen: bool = false
+var rushing: bool = false
 var punch: Tween
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 
@@ -66,6 +70,11 @@ func wake(who: Node3D) -> void:
 	anim.play("roar")
 	stomp.emit(2.2)
 	health_changed.emit(health, MAX_HEALTH)
+
+
+func rush() -> void:
+	rushing = true
+	fight_time = LETHAL_AFTER + 1.0
 
 
 func freeze() -> void:
@@ -122,7 +131,7 @@ func _physics_process(delta: float) -> void:
 			state_time += delta
 			velocity.x = 0.0
 			velocity.z = 0.0
-			if state_time >= ROAR_TIME:
+			if state_time >= (RUSH_ROAR if rushing else ROAR_TIME):
 				_enter_chase()
 		"chase":
 			_chase(delta)
@@ -149,7 +158,8 @@ func _turn(delta: float) -> void:
 	if to.length() < 0.01:
 		return
 	var want := atan2(-to.x, -to.z)
-	rotation.y += clampf(angle_difference(rotation.y, want), -TURN_RATE * delta, TURN_RATE * delta)
+	var turn_rate := TURN_RATE * (RUSH_TURN if rushing else 1.0)
+	rotation.y += clampf(angle_difference(rotation.y, want), -turn_rate * delta, turn_rate * delta)
 
 
 func _chase(delta: float) -> void:
@@ -158,8 +168,9 @@ func _chase(delta: float) -> void:
 	var forward := -global_transform.basis.z
 	var moving := dist > STOP_DISTANCE
 	if moving:
-		velocity.x = forward.x * SPEED
-		velocity.z = forward.z * SPEED
+		var pace := SPEED * (RUSH_SPEED if rushing else 1.0)
+		velocity.x = forward.x * pace
+		velocity.z = forward.z * pace
 		if anim.current_animation != "walk":
 			anim.play("walk")
 			last_step_pos = 0.0
