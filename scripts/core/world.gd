@@ -26,6 +26,7 @@ const AttackMarkerScene = preload("res://scenes/attack_marker.tscn")
 const Pool = preload("res://scripts/core/pool.gd")
 const BlockIndex = preload("res://scripts/block_index.gd")
 const MissionsScene = preload("res://scenes/missions_board.tscn")
+const PrologueScript = preload("res://scripts/prologue.gd")
 
 @onready var sun = $Sun
 @onready var terrain = $Terrain
@@ -37,6 +38,7 @@ const MissionsScene = preload("res://scenes/missions_board.tscn")
 @onready var enemies = $Enemies
 @onready var intro = $Intro
 @onready var inv_ui = $InventoryUI
+@onready var hud_node = $HUD
 
 var intro_playing: bool = false
 var inventory_open: bool = false
@@ -45,6 +47,8 @@ var troops: Array = []
 var next_troop_id: int = 1
 var outposts: Array = []
 var missions
+var minimap_node
+var prologue_pending: bool = false
 
 
 func _ready() -> void:
@@ -80,6 +84,7 @@ func _ready() -> void:
 	gloom_fog.setup(spawner, core, player, terrain, fog_overlay)
 	var minimap = MinimapScene.instantiate()
 	add_child(minimap)
+	minimap_node = minimap
 	minimap.setup(player, core, terrain)
 	missions = MissionsScene.instantiate()
 	add_child(missions)
@@ -151,15 +156,19 @@ func _ready() -> void:
 		apply_state(state)
 		intro.queue_free()
 	elif Game.has_session:
-		intro_playing = true
-		player.frozen = true
-		intro.finished.connect(_on_intro_finished)
-		intro.play()
+		intro.queue_free()
+		prologue_pending = Game.gamemode != "creative"
 	else:
 		intro.queue_free()
 	if troops.is_empty():
 		spawn_troop({})
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	if prologue_pending:
+		var prologue := Node.new()
+		prologue.name = "Prologue"
+		prologue.set_script(PrologueScript)
+		add_child(prologue)
+		prologue.begin(self)
 
 
 func spawn_troop(data: Dictionary) -> Node:

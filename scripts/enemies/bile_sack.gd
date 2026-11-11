@@ -17,6 +17,7 @@ const TICK_UNIT := 2
 const TICK_PLAYER := 2
 const BILE := Color(0.36, 0.2, 0.46)
 
+static var unit_scale: float = 1.0
 static var sack_material: StandardMaterial3D
 static var puddle_material: StandardMaterial3D
 
@@ -32,7 +33,7 @@ static func drop(host: Node, pos: Vector3, start_velocity: Vector3 = Vector3.ZER
 	if host == null or not host.is_inside_tree():
 		return
 	var sack := Node3D.new()
-	sack.set_script(load("res://scripts/enemies/bile_sack.gd"))
+	sack.set_script(load("res://scripts/bile_sack.gd"))
 	host.get_tree().current_scene.add_child(sack)
 	sack.global_position = pos
 	sack.velocity = start_velocity
@@ -51,6 +52,9 @@ static func splash(host: Node, pos: Vector3, radius: float, block_damage: int, u
 	for t in tree.get_nodes_in_group("troop"):
 		if is_instance_valid(t) and t.global_position.distance_squared_to(pos) <= r2:
 			t.take_damage(unit_damage, pos)
+	for t in tree.get_nodes_in_group("ally_unit"):
+		if is_instance_valid(t) and t.global_position.distance_squared_to(pos) <= r2:
+			t.take_damage(maxi(1, roundi(unit_damage * unit_scale)), pos)
 	var player = tree.get_first_node_in_group("player")
 	if player != null and not player.dead:
 		if (player.global_position + Vector3(0.0, 0.9, 0.0)).distance_squared_to(pos) <= r2:

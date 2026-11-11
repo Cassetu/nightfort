@@ -1,0 +1,1796 @@
+[gd_scene load_steps=125 format=3]
+
+[ext_resource type="Script" path="res://scripts/dreadnaught.gd" id="1_boss"]
+[ext_resource type="Texture2D" path="res://art/tiles/gloom_flesh.png" id="2_skin"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_boss"]
+radius = 1.9
+height = 7.4
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_body"]
+resource_name = "flesh"
+albedo_color = Color(0.78, 0.66, 0.74, 1)
+albedo_texture = ExtResource("2_skin")
+texture_filter = 0
+roughness = 0.45
+emission_enabled = true
+emission = Color(0.16, 0.03, 0.09, 1)
+emission_energy_multiplier = 0.5
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_eye"]
+albedo_color = Color(1, 0.35, 0.15, 1)
+emission_enabled = true
+emission = Color(1, 0.3, 0.1, 1)
+emission_energy_multiplier = 4.5
+
+[sub_resource type="BoxMesh" id="BoxMesh_eye"]
+material = SubResource("StandardMaterial3D_eye")
+size = Vector3(0.2, 0.14, 0.05)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bone"]
+resource_name = "bone"
+albedo_color = Color(0.74, 0.68, 0.55, 1)
+roughness = 0.35
+metallic_specular = 0.7
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bone_dark"]
+resource_name = "bone_dark"
+albedo_color = Color(0.28, 0.24, 0.2, 1)
+roughness = 0.35
+metallic_specular = 0.7
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_viscera"]
+resource_name = "viscera"
+albedo_color = Color(0.4, 0.05, 0.08, 1)
+roughness = 0.35
+metallic_specular = 0.7
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_raw"]
+resource_name = "raw"
+albedo_color = Color(0.6, 0.12, 0.16, 1)
+roughness = 0.35
+metallic_specular = 0.7
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bruise"]
+resource_name = "bruise"
+albedo_color = Color(0.3, 0.16, 0.34, 1)
+roughness = 0.35
+metallic_specular = 0.7
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_void"]
+resource_name = "void"
+albedo_color = Color(0.02, 0, 0.02, 1)
+roughness = 0.35
+metallic_specular = 0.7
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bile"]
+resource_name = "bile"
+albedo_color = Color(0.36, 0.2, 0.48, 1)
+roughness = 0.35
+metallic_specular = 0.7
+emission_enabled = true
+emission = Color(0.3, 0.1, 0.45, 1)
+emission_energy_multiplier = 0.9
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bile_dark"]
+resource_name = "bile_dark"
+albedo_color = Color(0.2, 0.1, 0.28, 1)
+roughness = 0.35
+metallic_specular = 0.7
+emission_enabled = true
+emission = Color(0.15, 0.05, 0.25, 1)
+emission_energy_multiplier = 0.5
+
+[sub_resource type="BoxMesh" id="BoxMesh_1"]
+material = SubResource("StandardMaterial3D_body")
+size = Vector3(1.7, 1.5, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_2"]
+material = SubResource("StandardMaterial3D_body")
+size = Vector3(1.4, 0.9, 0.9)
+
+[sub_resource type="BoxMesh" id="BoxMesh_3"]
+material = SubResource("StandardMaterial3D_body")
+size = Vector3(1.3, 0.5, 0.9)
+
+[sub_resource type="BoxMesh" id="BoxMesh_4"]
+material = SubResource("StandardMaterial3D_body")
+size = Vector3(0.75, 0.65, 0.8)
+
+[sub_resource type="BoxMesh" id="BoxMesh_5"]
+material = SubResource("StandardMaterial3D_body")
+size = Vector3(0.75, 0.65, 0.8)
+
+[sub_resource type="BoxMesh" id="BoxMesh_6"]
+material = SubResource("StandardMaterial3D_body")
+size = Vector3(1.3, 0.9, 0.7)
+
+[sub_resource type="BoxMesh" id="BoxMesh_7"]
+material = SubResource("StandardMaterial3D_bone")
+size = Vector3(1.2, 0.07, 0.14)
+
+[sub_resource type="BoxMesh" id="BoxMesh_8"]
+material = SubResource("StandardMaterial3D_bone")
+size = Vector3(1.14, 0.07, 0.14)
+
+[sub_resource type="BoxMesh" id="BoxMesh_9"]
+material = SubResource("StandardMaterial3D_bone")
+size = Vector3(1.08, 0.07, 0.14)
+
+[sub_resource type="BoxMesh" id="BoxMesh_10"]
+material = SubResource("StandardMaterial3D_bone")
+size = Vector3(1.02, 0.07, 0.14)
+
+[sub_resource type="BoxMesh" id="BoxMesh_11"]
+material = SubResource("StandardMaterial3D_bone")
+size = Vector3(0.96, 0.07, 0.14)
+
+[sub_resource type="BoxMesh" id="BoxMesh_12"]
+material = SubResource("StandardMaterial3D_bone_dark")
+size = Vector3(0.1, 1.2, 0.08)
+
+[sub_resource type="BoxMesh" id="BoxMesh_13"]
+material = SubResource("StandardMaterial3D_viscera")
+size = Vector3(0.95, 0.7, 0.04)
+
+[sub_resource type="BoxMesh" id="BoxMesh_14"]
+material = SubResource("StandardMaterial3D_raw")
+size = Vector3(0.55, 0.4, 0.04)
+
+[sub_resource type="BoxMesh" id="BoxMesh_15"]
+material = SubResource("StandardMaterial3D_raw")
+size = Vector3(0.1, 0.5, 0.1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_16"]
+material = SubResource("StandardMaterial3D_viscera")
+size = Vector3(0.1, 0.7, 0.1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_17"]
+material = SubResource("StandardMaterial3D_raw")
+size = Vector3(0.1, 0.6, 0.1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_18"]
+material = SubResource("StandardMaterial3D_viscera")
+size = Vector3(0.1, 0.45, 0.1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_19"]
+material = SubResource("StandardMaterial3D_raw")
+size = Vector3(0.1, 0.35, 0.1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_20"]
+material = SubResource("StandardMaterial3D_bone_dark")
+size = Vector3(0.14, 0.5, 0.14)
+
+[sub_resource type="BoxMesh" id="BoxMesh_21"]
+material = SubResource("StandardMaterial3D_bone_dark")
+size = Vector3(0.14, 0.54, 0.14)
+
+[sub_resource type="BoxMesh" id="BoxMesh_22"]
+material = SubResource("StandardMaterial3D_bone_dark")
+size = Vector3(0.14, 0.58, 0.14)
+
+[sub_resource type="BoxMesh" id="BoxMesh_23"]
+material = SubResource("StandardMaterial3D_bone_dark")
+size = Vector3(0.14, 0.5, 0.14)
+
+[sub_resource type="BoxMesh" id="BoxMesh_24"]
+material = SubResource("StandardMaterial3D_bone_dark")
+size = Vector3(0.14, 0.54, 0.14)
+
+[sub_resource type="BoxMesh" id="BoxMesh_25"]
+material = SubResource("StandardMaterial3D_bone_dark")
+size = Vector3(0.14, 0.58, 0.14)
+
+[sub_resource type="BoxMesh" id="BoxMesh_26"]
+material = SubResource("StandardMaterial3D_bone_dark")
+size = Vector3(0.14, 0.5, 0.14)
+
+[sub_resource type="BoxMesh" id="BoxMesh_27"]
+material = SubResource("StandardMaterial3D_bruise")
+size = Vector3(0.4, 0.35, 0.04)
+
+[sub_resource type="SphereMesh" id="SphereMesh_28"]
+material = SubResource("StandardMaterial3D_bile")
+radius = 0.55
+height = 1.1
+radial_segments = 14
+rings = 8
+
+[sub_resource type="SphereMesh" id="SphereMesh_29"]
+material = SubResource("StandardMaterial3D_bile_dark")
+radius = 0.45
+height = 0.9
+radial_segments = 14
+rings = 8
+
+[sub_resource type="SphereMesh" id="SphereMesh_30"]
+material = SubResource("StandardMaterial3D_bile")
+radius = 0.4
+height = 0.8
+radial_segments = 14
+rings = 8
+
+[sub_resource type="SphereMesh" id="SphereMesh_31"]
+material = SubResource("StandardMaterial3D_bile")
+radius = 0.5
+height = 1
+radial_segments = 14
+rings = 8
+
+[sub_resource type="SphereMesh" id="SphereMesh_32"]
+material = SubResource("StandardMaterial3D_bile_dark")
+radius = 0.38
+height = 0.76
+radial_segments = 14
+rings = 8
+
+[sub_resource type="BoxMesh" id="BoxMesh_33"]
+material = SubResource("StandardMaterial3D_bile")
+size = Vector3(0.07, 0.5, 0.07)
+
+[sub_resource type="BoxMesh" id="BoxMesh_34"]
+material = SubResource("StandardMaterial3D_bile")
+size = Vector3(0.07, 0.55, 0.07)
+
+[sub_resource type="BoxMesh" id="BoxMesh_35"]
+material = SubResource("StandardMaterial3D_bile")
+size = Vector3(0.07, 0.45, 0.07)
+
+[sub_resource type="BoxMesh" id="BoxMesh_36"]
+material = SubResource("StandardMaterial3D_bile")
+size = Vector3(0.07, 0.5, 0.07)
+
+[sub_resource type="BoxMesh" id="BoxMesh_37"]
+material = SubResource("StandardMaterial3D_body")
+size = Vector3(1.05, 0.8, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_38"]
+material = SubResource("StandardMaterial3D_body")
+size = Vector3(0.85, 0.32, 0.5)
+
+[sub_resource type="BoxMesh" id="BoxMesh_39"]
+material = SubResource("StandardMaterial3D_body")
+size = Vector3(0.8, 0.2, 0.75)
+
+[sub_resource type="BoxMesh" id="BoxMesh_40"]
+material = SubResource("StandardMaterial3D_void")
+size = Vector3(0.7, 0.12, 0.08)
+
+[sub_resource type="BoxMesh" id="BoxMesh_41"]
+material = SubResource("StandardMaterial3D_bone")
+size = Vector3(0.07, 0.2, 0.07)
+
+[sub_resource type="BoxMesh" id="BoxMesh_42"]
+material = SubResource("StandardMaterial3D_bone")
+size = Vector3(0.07, 0.27, 0.07)
+
+[sub_resource type="BoxMesh" id="BoxMesh_43"]
+material = SubResource("StandardMaterial3D_bone")
+size = Vector3(0.07, 0.2, 0.07)
+
+[sub_resource type="BoxMesh" id="BoxMesh_44"]
+material = SubResource("StandardMaterial3D_bone")
+size = Vector3(0.07, 0.27, 0.07)
+
+[sub_resource type="BoxMesh" id="BoxMesh_45"]
+material = SubResource("StandardMaterial3D_bone")
+size = Vector3(0.07, 0.2, 0.07)
+
+[sub_resource type="BoxMesh" id="BoxMesh_46"]
+material = SubResource("StandardMaterial3D_bone")
+size = Vector3(0.07, 0.27, 0.07)
+
+[sub_resource type="BoxMesh" id="BoxMesh_47"]
+material = SubResource("StandardMaterial3D_bone")
+size = Vector3(0.065, 0.16, 0.065)
+
+[sub_resource type="BoxMesh" id="BoxMesh_48"]
+material = SubResource("StandardMaterial3D_bone")
+size = Vector3(0.065, 0.21, 0.065)
+
+[sub_resource type="BoxMesh" id="BoxMesh_49"]
+material = SubResource("StandardMaterial3D_bone")
+size = Vector3(0.065, 0.16, 0.065)
+
+[sub_resource type="BoxMesh" id="BoxMesh_50"]
+material = SubResource("StandardMaterial3D_bone")
+size = Vector3(0.065, 0.21, 0.065)
+
+[sub_resource type="BoxMesh" id="BoxMesh_51"]
+material = SubResource("StandardMaterial3D_bone")
+size = Vector3(0.065, 0.16, 0.065)
+
+[sub_resource type="BoxMesh" id="BoxMesh_52"]
+material = SubResource("StandardMaterial3D_void")
+size = Vector3(0.3, 0.22, 0.05)
+
+[sub_resource type="BoxMesh" id="BoxMesh_53"]
+material = SubResource("StandardMaterial3D_void")
+size = Vector3(0.3, 0.22, 0.05)
+
+[sub_resource type="BoxMesh" id="BoxMesh_54"]
+material = SubResource("StandardMaterial3D_void")
+size = Vector3(0.16, 0.12, 0.05)
+
+[sub_resource type="BoxMesh" id="BoxMesh_55"]
+material = SubResource("StandardMaterial3D_void")
+size = Vector3(0.16, 0.12, 0.05)
+
+[sub_resource type="BoxMesh" id="BoxMesh_56"]
+material = SubResource("StandardMaterial3D_viscera")
+size = Vector3(1, 0.14, 0.1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_57"]
+material = SubResource("StandardMaterial3D_bone")
+size = Vector3(0.2, 0.6, 0.2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_58"]
+material = SubResource("StandardMaterial3D_bone")
+size = Vector3(0.14, 0.5, 0.14)
+
+[sub_resource type="BoxMesh" id="BoxMesh_59"]
+material = SubResource("StandardMaterial3D_bone")
+size = Vector3(0.2, 0.6, 0.2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_60"]
+material = SubResource("StandardMaterial3D_bone")
+size = Vector3(0.14, 0.5, 0.14)
+
+[sub_resource type="BoxMesh" id="BoxMesh_61"]
+material = SubResource("StandardMaterial3D_bone_dark")
+size = Vector3(0.1, 0.3, 0.1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_62"]
+material = SubResource("StandardMaterial3D_bone_dark")
+size = Vector3(0.1, 0.4, 0.1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_63"]
+material = SubResource("StandardMaterial3D_bone_dark")
+size = Vector3(0.1, 0.3, 0.1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_64"]
+material = SubResource("StandardMaterial3D_bone_dark")
+size = Vector3(0.1, 0.4, 0.1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_65"]
+material = SubResource("StandardMaterial3D_bone_dark")
+size = Vector3(0.1, 0.3, 0.1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_66"]
+material = SubResource("StandardMaterial3D_raw")
+size = Vector3(0.14, 0.14, 0.14)
+
+[sub_resource type="BoxMesh" id="BoxMesh_67"]
+material = SubResource("StandardMaterial3D_bile")
+size = Vector3(0.06, 0.55, 0.06)
+
+[sub_resource type="SphereMesh" id="SphereMesh_68"]
+material = SubResource("StandardMaterial3D_bile")
+radius = 0.18
+height = 0.36
+radial_segments = 14
+rings = 8
+
+[sub_resource type="BoxMesh" id="BoxMesh_69"]
+material = SubResource("StandardMaterial3D_body")
+size = Vector3(0.7, 1.5, 0.7)
+
+[sub_resource type="BoxMesh" id="BoxMesh_70"]
+material = SubResource("StandardMaterial3D_body")
+size = Vector3(1, 0.6, 0.95)
+
+[sub_resource type="BoxMesh" id="BoxMesh_71"]
+material = SubResource("StandardMaterial3D_bone")
+size = Vector3(0.12, 0.55, 0.12)
+
+[sub_resource type="BoxMesh" id="BoxMesh_72"]
+material = SubResource("StandardMaterial3D_body")
+size = Vector3(0.85, 1.3, 0.85)
+
+[sub_resource type="BoxMesh" id="BoxMesh_73"]
+material = SubResource("StandardMaterial3D_body")
+size = Vector3(1.05, 0.75, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_74"]
+material = SubResource("StandardMaterial3D_bone_dark")
+size = Vector3(0.1, 0.55, 0.1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_75"]
+material = SubResource("StandardMaterial3D_bone_dark")
+size = Vector3(0.1, 0.55, 0.1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_76"]
+material = SubResource("StandardMaterial3D_bone_dark")
+size = Vector3(0.1, 0.55, 0.1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_77"]
+material = SubResource("StandardMaterial3D_raw")
+size = Vector3(0.5, 0.5, 0.04)
+
+[sub_resource type="BoxMesh" id="BoxMesh_78"]
+material = SubResource("StandardMaterial3D_bruise")
+size = Vector3(0.5, 0.3, 0.04)
+
+[sub_resource type="SphereMesh" id="SphereMesh_79"]
+material = SubResource("StandardMaterial3D_bile")
+radius = 0.32
+height = 0.64
+radial_segments = 14
+rings = 8
+
+[sub_resource type="BoxMesh" id="BoxMesh_80"]
+material = SubResource("StandardMaterial3D_body")
+size = Vector3(0.7, 1.5, 0.7)
+
+[sub_resource type="BoxMesh" id="BoxMesh_81"]
+material = SubResource("StandardMaterial3D_body")
+size = Vector3(1, 0.6, 0.95)
+
+[sub_resource type="BoxMesh" id="BoxMesh_82"]
+material = SubResource("StandardMaterial3D_bone")
+size = Vector3(0.12, 0.55, 0.12)
+
+[sub_resource type="BoxMesh" id="BoxMesh_83"]
+material = SubResource("StandardMaterial3D_body")
+size = Vector3(0.85, 1.3, 0.85)
+
+[sub_resource type="BoxMesh" id="BoxMesh_84"]
+material = SubResource("StandardMaterial3D_body")
+size = Vector3(1.05, 0.75, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_85"]
+material = SubResource("StandardMaterial3D_bone_dark")
+size = Vector3(0.1, 0.55, 0.1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_86"]
+material = SubResource("StandardMaterial3D_bone_dark")
+size = Vector3(0.1, 0.55, 0.1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_87"]
+material = SubResource("StandardMaterial3D_bone_dark")
+size = Vector3(0.1, 0.55, 0.1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_88"]
+material = SubResource("StandardMaterial3D_viscera")
+size = Vector3(0.5, 0.5, 0.04)
+
+[sub_resource type="BoxMesh" id="BoxMesh_89"]
+material = SubResource("StandardMaterial3D_bruise")
+size = Vector3(0.5, 0.3, 0.04)
+
+[sub_resource type="SphereMesh" id="SphereMesh_90"]
+material = SubResource("StandardMaterial3D_bile")
+radius = 0.32
+height = 0.64
+radial_segments = 14
+rings = 8
+
+[sub_resource type="BoxMesh" id="BoxMesh_91"]
+material = SubResource("StandardMaterial3D_body")
+size = Vector3(0.8, 0.85, 0.8)
+
+[sub_resource type="BoxMesh" id="BoxMesh_92"]
+material = SubResource("StandardMaterial3D_body")
+size = Vector3(0.65, 0.8, 0.65)
+
+[sub_resource type="BoxMesh" id="BoxMesh_93"]
+material = SubResource("StandardMaterial3D_body")
+size = Vector3(0.9, 0.2, 1.05)
+
+[sub_resource type="BoxMesh" id="BoxMesh_94"]
+material = SubResource("StandardMaterial3D_bone_dark")
+size = Vector3(0.1, 0.12, 0.2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_95"]
+material = SubResource("StandardMaterial3D_bone_dark")
+size = Vector3(0.1, 0.12, 0.2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_96"]
+material = SubResource("StandardMaterial3D_bone_dark")
+size = Vector3(0.1, 0.12, 0.2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_97"]
+material = SubResource("StandardMaterial3D_viscera")
+size = Vector3(0.5, 0.4, 0.04)
+
+[sub_resource type="BoxMesh" id="BoxMesh_98"]
+material = SubResource("StandardMaterial3D_body")
+size = Vector3(0.8, 0.85, 0.8)
+
+[sub_resource type="BoxMesh" id="BoxMesh_99"]
+material = SubResource("StandardMaterial3D_body")
+size = Vector3(0.65, 0.8, 0.65)
+
+[sub_resource type="BoxMesh" id="BoxMesh_100"]
+material = SubResource("StandardMaterial3D_body")
+size = Vector3(0.9, 0.2, 1.05)
+
+[sub_resource type="BoxMesh" id="BoxMesh_101"]
+material = SubResource("StandardMaterial3D_bone_dark")
+size = Vector3(0.1, 0.12, 0.2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_102"]
+material = SubResource("StandardMaterial3D_bone_dark")
+size = Vector3(0.1, 0.12, 0.2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_103"]
+material = SubResource("StandardMaterial3D_bone_dark")
+size = Vector3(0.1, 0.12, 0.2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_104"]
+material = SubResource("StandardMaterial3D_raw")
+size = Vector3(0.5, 0.4, 0.04)
+
+[sub_resource type="Animation" id="Animation_idle"]
+resource_name = "idle"
+length = 3.2
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Model/Body/ArmL:rotation:x")
+tracks/0/interp = 2
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 1.6, 3.2),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [0.15, 0.22, 0.15]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Model/Body/ArmL:rotation:z")
+tracks/1/interp = 2
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 1.6, 3.2),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [-0.12, -0.2, -0.12]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Model/Body/ArmR:rotation:x")
+tracks/2/interp = 2
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 1.6, 3.2),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [0.18, 0.1, 0.18]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Model/Body/ArmR:rotation:z")
+tracks/3/interp = 2
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 1.6, 3.2),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [0.12, 0.2, 0.12]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Model/Body/LegL:rotation:x")
+tracks/4/interp = 2
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0, 3.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0, 0]
+}
+tracks/5/type = "value"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("Model/Body/LegR:rotation:x")
+tracks/5/interp = 2
+tracks/5/loop_wrap = true
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 3.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0, 0]
+}
+tracks/6/type = "value"
+tracks/6/imported = false
+tracks/6/enabled = true
+tracks/6/path = NodePath("Model/Body/Head:rotation:x")
+tracks/6/interp = 2
+tracks/6/loop_wrap = true
+tracks/6/keys = {
+"times": PackedFloat32Array(0, 1.6, 3.2),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [0.35, 0.42, 0.35]
+}
+tracks/7/type = "value"
+tracks/7/imported = false
+tracks/7/enabled = true
+tracks/7/path = NodePath("Model/Body/Head:rotation:z")
+tracks/7/interp = 2
+tracks/7/loop_wrap = true
+tracks/7/keys = {
+"times": PackedFloat32Array(0, 1.1, 2.2, 3.2),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [0, 0.08, -0.06, 0]
+}
+tracks/8/type = "value"
+tracks/8/imported = false
+tracks/8/enabled = true
+tracks/8/path = NodePath("Model/Body:position:y")
+tracks/8/interp = 2
+tracks/8/loop_wrap = true
+tracks/8/keys = {
+"times": PackedFloat32Array(0, 1.6, 3.2),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [0, -0.04, 0]
+}
+tracks/9/type = "value"
+tracks/9/imported = false
+tracks/9/enabled = true
+tracks/9/path = NodePath("Model/Body:rotation:x")
+tracks/9/interp = 2
+tracks/9/loop_wrap = true
+tracks/9/keys = {
+"times": PackedFloat32Array(0, 3.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0, 0]
+}
+tracks/10/type = "value"
+tracks/10/imported = false
+tracks/10/enabled = true
+tracks/10/path = NodePath("Model/Body:rotation:y")
+tracks/10/interp = 2
+tracks/10/loop_wrap = true
+tracks/10/keys = {
+"times": PackedFloat32Array(0, 3.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0, 0]
+}
+tracks/11/type = "value"
+tracks/11/imported = false
+tracks/11/enabled = true
+tracks/11/path = NodePath("Model/Body:rotation:z")
+tracks/11/interp = 2
+tracks/11/loop_wrap = true
+tracks/11/keys = {
+"times": PackedFloat32Array(0, 3.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0, 0]
+}
+
+[sub_resource type="Animation" id="Animation_walk"]
+resource_name = "walk"
+length = 1.6
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Model/Body/ArmL:rotation:x")
+tracks/0/interp = 2
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.4, 0.8, 1.2, 1.6),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [0.15, -0.25, 0.15, 0.5, 0.15]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Model/Body/ArmL:rotation:z")
+tracks/1/interp = 2
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 1.6),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [-0.12, -0.12]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Model/Body/ArmR:rotation:x")
+tracks/2/interp = 2
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.4, 0.8, 1.2, 1.6),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [0.15, 0.5, 0.15, -0.25, 0.15]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Model/Body/ArmR:rotation:z")
+tracks/3/interp = 2
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 1.6),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0.12, 0.12]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Model/Body/LegL:rotation:x")
+tracks/4/interp = 2
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0, 0.4, 0.8, 1.2, 1.6),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [0, 0.55, 0, -0.55, 0]
+}
+tracks/5/type = "value"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("Model/Body/LegR:rotation:x")
+tracks/5/interp = 2
+tracks/5/loop_wrap = true
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 0.4, 0.8, 1.2, 1.6),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [0, -0.55, 0, 0.55, 0]
+}
+tracks/6/type = "value"
+tracks/6/imported = false
+tracks/6/enabled = true
+tracks/6/path = NodePath("Model/Body/Head:rotation:x")
+tracks/6/interp = 2
+tracks/6/loop_wrap = true
+tracks/6/keys = {
+"times": PackedFloat32Array(0, 0.4, 0.8, 1.2, 1.6),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [0.35, 0.42, 0.35, 0.42, 0.35]
+}
+tracks/7/type = "value"
+tracks/7/imported = false
+tracks/7/enabled = true
+tracks/7/path = NodePath("Model/Body/Head:rotation:z")
+tracks/7/interp = 2
+tracks/7/loop_wrap = true
+tracks/7/keys = {
+"times": PackedFloat32Array(0, 1.6),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0, 0]
+}
+tracks/8/type = "value"
+tracks/8/imported = false
+tracks/8/enabled = true
+tracks/8/path = NodePath("Model/Body:position:y")
+tracks/8/interp = 2
+tracks/8/loop_wrap = true
+tracks/8/keys = {
+"times": PackedFloat32Array(0, 0.2, 0.4, 0.6, 0.8, 1, 1.2, 1.4, 1.6),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [0, 0.08, -0.05, 0.08, 0, 0.08, -0.05, 0.08, 0]
+}
+tracks/9/type = "value"
+tracks/9/imported = false
+tracks/9/enabled = true
+tracks/9/path = NodePath("Model/Body:rotation:x")
+tracks/9/interp = 2
+tracks/9/loop_wrap = true
+tracks/9/keys = {
+"times": PackedFloat32Array(0, 1.6),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0, 0]
+}
+tracks/10/type = "value"
+tracks/10/imported = false
+tracks/10/enabled = true
+tracks/10/path = NodePath("Model/Body:rotation:y")
+tracks/10/interp = 2
+tracks/10/loop_wrap = true
+tracks/10/keys = {
+"times": PackedFloat32Array(0, 1.6),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0, 0]
+}
+tracks/11/type = "value"
+tracks/11/imported = false
+tracks/11/enabled = true
+tracks/11/path = NodePath("Model/Body:rotation:z")
+tracks/11/interp = 2
+tracks/11/loop_wrap = true
+tracks/11/keys = {
+"times": PackedFloat32Array(0, 0.4, 0.8, 1.2, 1.6),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [0, 0.05, 0, -0.05, 0]
+}
+
+[sub_resource type="Animation" id="Animation_slam"]
+resource_name = "slam"
+length = 1.5
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Model/Body/ArmL:rotation:x")
+tracks/0/interp = 1
+tracks/0/loop_wrap = false
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.7, 0.9, 1.5),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [0.15, -2.5, 1.2, 0.15]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Model/Body/ArmL:rotation:z")
+tracks/1/interp = 1
+tracks/1/loop_wrap = false
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 1.5),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [-0.12, -0.12]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Model/Body/ArmR:rotation:x")
+tracks/2/interp = 1
+tracks/2/loop_wrap = false
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.7, 0.9, 1.5),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [0.15, -2.5, 1.2, 0.15]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Model/Body/ArmR:rotation:z")
+tracks/3/interp = 1
+tracks/3/loop_wrap = false
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 1.5),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0.12, 0.12]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Model/Body/LegL:rotation:x")
+tracks/4/interp = 1
+tracks/4/loop_wrap = false
+tracks/4/keys = {
+"times": PackedFloat32Array(0, 1.5),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0, 0]
+}
+tracks/5/type = "value"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("Model/Body/LegR:rotation:x")
+tracks/5/interp = 1
+tracks/5/loop_wrap = false
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 1.5),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0, 0]
+}
+tracks/6/type = "value"
+tracks/6/imported = false
+tracks/6/enabled = true
+tracks/6/path = NodePath("Model/Body/Head:rotation:x")
+tracks/6/interp = 1
+tracks/6/loop_wrap = false
+tracks/6/keys = {
+"times": PackedFloat32Array(0, 0.7, 0.9, 1.5),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [0.35, -0.1, 0.8, 0.35]
+}
+tracks/7/type = "value"
+tracks/7/imported = false
+tracks/7/enabled = true
+tracks/7/path = NodePath("Model/Body/Head:rotation:z")
+tracks/7/interp = 1
+tracks/7/loop_wrap = false
+tracks/7/keys = {
+"times": PackedFloat32Array(0, 1.5),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0, 0]
+}
+tracks/8/type = "value"
+tracks/8/imported = false
+tracks/8/enabled = true
+tracks/8/path = NodePath("Model/Body:position:y")
+tracks/8/interp = 1
+tracks/8/loop_wrap = false
+tracks/8/keys = {
+"times": PackedFloat32Array(0, 0.7, 0.9, 1.5),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [0, 0.15, -0.2, 0]
+}
+tracks/9/type = "value"
+tracks/9/imported = false
+tracks/9/enabled = true
+tracks/9/path = NodePath("Model/Body:rotation:x")
+tracks/9/interp = 1
+tracks/9/loop_wrap = false
+tracks/9/keys = {
+"times": PackedFloat32Array(0, 0.7, 0.9, 1.5),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [0, -0.25, 0.35, 0]
+}
+tracks/10/type = "value"
+tracks/10/imported = false
+tracks/10/enabled = true
+tracks/10/path = NodePath("Model/Body:rotation:y")
+tracks/10/interp = 1
+tracks/10/loop_wrap = false
+tracks/10/keys = {
+"times": PackedFloat32Array(0, 1.5),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0, 0]
+}
+tracks/11/type = "value"
+tracks/11/imported = false
+tracks/11/enabled = true
+tracks/11/path = NodePath("Model/Body:rotation:z")
+tracks/11/interp = 1
+tracks/11/loop_wrap = false
+tracks/11/keys = {
+"times": PackedFloat32Array(0, 1.5),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0, 0]
+}
+
+[sub_resource type="Animation" id="Animation_swipe"]
+resource_name = "swipe"
+length = 1.2
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Model/Body/ArmL:rotation:x")
+tracks/0/interp = 1
+tracks/0/loop_wrap = false
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.65, 1.2),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [0.15, 0.5, 0.15]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Model/Body/ArmL:rotation:z")
+tracks/1/interp = 1
+tracks/1/loop_wrap = false
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 1.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [-0.12, -0.12]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Model/Body/ArmR:rotation:x")
+tracks/2/interp = 1
+tracks/2/loop_wrap = false
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.45, 0.65, 1.2),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [0.15, -1, 0.9, 0.15]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Model/Body/ArmR:rotation:z")
+tracks/3/interp = 1
+tracks/3/loop_wrap = false
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.45, 0.65, 1.2),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [0.12, 1.1, -0.7, 0.12]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Model/Body/LegL:rotation:x")
+tracks/4/interp = 1
+tracks/4/loop_wrap = false
+tracks/4/keys = {
+"times": PackedFloat32Array(0, 1.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0, 0]
+}
+tracks/5/type = "value"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("Model/Body/LegR:rotation:x")
+tracks/5/interp = 1
+tracks/5/loop_wrap = false
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 1.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0, 0]
+}
+tracks/6/type = "value"
+tracks/6/imported = false
+tracks/6/enabled = true
+tracks/6/path = NodePath("Model/Body/Head:rotation:x")
+tracks/6/interp = 1
+tracks/6/loop_wrap = false
+tracks/6/keys = {
+"times": PackedFloat32Array(0, 0.65, 1.2),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [0.35, 0.6, 0.35]
+}
+tracks/7/type = "value"
+tracks/7/imported = false
+tracks/7/enabled = true
+tracks/7/path = NodePath("Model/Body/Head:rotation:z")
+tracks/7/interp = 1
+tracks/7/loop_wrap = false
+tracks/7/keys = {
+"times": PackedFloat32Array(0, 1.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0, 0]
+}
+tracks/8/type = "value"
+tracks/8/imported = false
+tracks/8/enabled = true
+tracks/8/path = NodePath("Model/Body:position:y")
+tracks/8/interp = 1
+tracks/8/loop_wrap = false
+tracks/8/keys = {
+"times": PackedFloat32Array(0, 1.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0, 0]
+}
+tracks/9/type = "value"
+tracks/9/imported = false
+tracks/9/enabled = true
+tracks/9/path = NodePath("Model/Body:rotation:x")
+tracks/9/interp = 1
+tracks/9/loop_wrap = false
+tracks/9/keys = {
+"times": PackedFloat32Array(0, 1.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0, 0]
+}
+tracks/10/type = "value"
+tracks/10/imported = false
+tracks/10/enabled = true
+tracks/10/path = NodePath("Model/Body:rotation:y")
+tracks/10/interp = 1
+tracks/10/loop_wrap = false
+tracks/10/keys = {
+"times": PackedFloat32Array(0, 0.45, 0.65, 1.2),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [0, 0.55, -0.65, 0]
+}
+tracks/11/type = "value"
+tracks/11/imported = false
+tracks/11/enabled = true
+tracks/11/path = NodePath("Model/Body:rotation:z")
+tracks/11/interp = 1
+tracks/11/loop_wrap = false
+tracks/11/keys = {
+"times": PackedFloat32Array(0, 1.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0, 0]
+}
+
+[sub_resource type="Animation" id="Animation_roar"]
+resource_name = "roar"
+length = 2.4
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Model/Body/ArmL:rotation:x")
+tracks/0/interp = 1
+tracks/0/loop_wrap = false
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.6, 1.8, 2.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [0.15, -0.5, -0.5, 0.15]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Model/Body/ArmL:rotation:z")
+tracks/1/interp = 1
+tracks/1/loop_wrap = false
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.6, 1.8, 2.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [-0.12, -1, -1, -0.12]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Model/Body/ArmR:rotation:x")
+tracks/2/interp = 1
+tracks/2/loop_wrap = false
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.6, 1.8, 2.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [0.15, -0.5, -0.5, 0.15]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Model/Body/ArmR:rotation:z")
+tracks/3/interp = 1
+tracks/3/loop_wrap = false
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.6, 1.8, 2.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [0.12, 1, 1, 0.12]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Model/Body/LegL:rotation:x")
+tracks/4/interp = 1
+tracks/4/loop_wrap = false
+tracks/4/keys = {
+"times": PackedFloat32Array(0, 2.4),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0, 0]
+}
+tracks/5/type = "value"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("Model/Body/LegR:rotation:x")
+tracks/5/interp = 1
+tracks/5/loop_wrap = false
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 2.4),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0, 0]
+}
+tracks/6/type = "value"
+tracks/6/imported = false
+tracks/6/enabled = true
+tracks/6/path = NodePath("Model/Body/Head:rotation:x")
+tracks/6/interp = 1
+tracks/6/loop_wrap = false
+tracks/6/keys = {
+"times": PackedFloat32Array(0, 0.6, 1.8, 2.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [0.35, -0.5, -0.5, 0.35]
+}
+tracks/7/type = "value"
+tracks/7/imported = false
+tracks/7/enabled = true
+tracks/7/path = NodePath("Model/Body/Head:rotation:z")
+tracks/7/interp = 1
+tracks/7/loop_wrap = false
+tracks/7/keys = {
+"times": PackedFloat32Array(0, 2.4),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0, 0]
+}
+tracks/8/type = "value"
+tracks/8/imported = false
+tracks/8/enabled = true
+tracks/8/path = NodePath("Model/Body:position:y")
+tracks/8/interp = 1
+tracks/8/loop_wrap = false
+tracks/8/keys = {
+"times": PackedFloat32Array(0, 0.6, 1.8, 2.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [0, 0.12, 0.12, 0]
+}
+tracks/9/type = "value"
+tracks/9/imported = false
+tracks/9/enabled = true
+tracks/9/path = NodePath("Model/Body:rotation:x")
+tracks/9/interp = 1
+tracks/9/loop_wrap = false
+tracks/9/keys = {
+"times": PackedFloat32Array(0, 0.6, 1.8, 2.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [0, -0.3, -0.3, 0]
+}
+tracks/10/type = "value"
+tracks/10/imported = false
+tracks/10/enabled = true
+tracks/10/path = NodePath("Model/Body:rotation:y")
+tracks/10/interp = 1
+tracks/10/loop_wrap = false
+tracks/10/keys = {
+"times": PackedFloat32Array(0, 2.4),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0, 0]
+}
+tracks/11/type = "value"
+tracks/11/imported = false
+tracks/11/enabled = true
+tracks/11/path = NodePath("Model/Body:rotation:z")
+tracks/11/interp = 1
+tracks/11/loop_wrap = false
+tracks/11/keys = {
+"times": PackedFloat32Array(0, 2.4),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0, 0]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_boss"]
+_data = {
+&"idle": SubResource("Animation_idle"),
+&"roar": SubResource("Animation_roar"),
+&"slam": SubResource("Animation_slam"),
+&"swipe": SubResource("Animation_swipe"),
+&"walk": SubResource("Animation_walk")
+}
+
+
+[node name="Dreadnaught" type="CharacterBody3D"]
+collision_layer = 3
+script = ExtResource("1_boss")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+position = Vector3(0, 3.7, 0)
+shape = SubResource("CapsuleShape3D_boss")
+
+[node name="Model" type="Node3D" parent="."]
+position = Vector3(0, 3.63, 0)
+scale = Vector3(2.2, 2.2, 2.2)
+
+[node name="Body" type="Node3D" parent="Model"]
+
+[node name="Torso" type="Node3D" parent="Model/Body"]
+position = Vector3(0, 0.9, -0.1)
+rotation = Vector3(0.5, 0, 0)
+
+[node name="Chest" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(0, 0.25, 0)
+mesh = SubResource("BoxMesh_1")
+
+[node name="Belly" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(0, -0.7, -0.14)
+mesh = SubResource("BoxMesh_2")
+
+[node name="Hips" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(0, -1.2, 0)
+mesh = SubResource("BoxMesh_3")
+
+[node name="ShoulderL" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(-1, 0.8, 0.05)
+rotation = Vector3(0.2, 0.3, 0.4)
+mesh = SubResource("BoxMesh_4")
+
+[node name="ShoulderR" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(1, 0.8, 0.05)
+rotation = Vector3(0.2, -0.3, -0.4)
+mesh = SubResource("BoxMesh_5")
+
+[node name="BackHump" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(0, 0.95, 0.55)
+mesh = SubResource("BoxMesh_6")
+
+[node name="Rib1" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(0, 0.65, -0.53)
+mesh = SubResource("BoxMesh_7")
+
+[node name="Rib2" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(0, 0.45, -0.53)
+mesh = SubResource("BoxMesh_8")
+
+[node name="Rib3" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(0, 0.25, -0.53)
+mesh = SubResource("BoxMesh_9")
+
+[node name="Rib4" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(0, 0.05, -0.53)
+mesh = SubResource("BoxMesh_10")
+
+[node name="Rib5" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(0, -0.15, -0.53)
+mesh = SubResource("BoxMesh_11")
+
+[node name="SpineFront" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(0, 0.2, -0.52)
+mesh = SubResource("BoxMesh_12")
+
+[node name="GutWound" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(0, -0.7, -0.6)
+mesh = SubResource("BoxMesh_13")
+
+[node name="GutRaw" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(0.1, -0.75, -0.62)
+mesh = SubResource("BoxMesh_14")
+
+[node name="Entrail1" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(-0.3, -1, -0.6)
+rotation = Vector3(0.1, 0, -0.16)
+mesh = SubResource("BoxMesh_15")
+
+[node name="Entrail2" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(-0.1, -1.15, -0.6)
+rotation = Vector3(0.1, 0, -0.08)
+mesh = SubResource("BoxMesh_16")
+
+[node name="Entrail3" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(0.15, -1, -0.6)
+rotation = Vector3(0.1, 0, 0)
+mesh = SubResource("BoxMesh_17")
+
+[node name="Entrail4" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(0.35, -1.2, -0.6)
+rotation = Vector3(0.1, 0, 0.08)
+mesh = SubResource("BoxMesh_18")
+
+[node name="Entrail5" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(0, -1.35, -0.6)
+rotation = Vector3(0.1, 0, 0.16)
+mesh = SubResource("BoxMesh_19")
+
+[node name="BackSpike1" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(0, 1.2, 0.95)
+rotation = Vector3(0.55, 0, 0)
+mesh = SubResource("BoxMesh_20")
+
+[node name="BackSpike2" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(0, 0.88, 1)
+rotation = Vector3(0.55, 0, 0)
+mesh = SubResource("BoxMesh_21")
+
+[node name="BackSpike3" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(0, 0.56, 1.05)
+rotation = Vector3(0.55, 0, 0)
+mesh = SubResource("BoxMesh_22")
+
+[node name="BackSpike4" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(0, 0.24, 1.1)
+rotation = Vector3(0.55, 0, 0)
+mesh = SubResource("BoxMesh_23")
+
+[node name="BackSpike5" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(0, -0.08, 1.15)
+rotation = Vector3(0.55, 0, 0)
+mesh = SubResource("BoxMesh_24")
+
+[node name="BackSpike6" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(0, -0.4, 1.2)
+rotation = Vector3(0.55, 0, 0)
+mesh = SubResource("BoxMesh_25")
+
+[node name="BackSpike7" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(0, -0.72, 1.25)
+rotation = Vector3(0.55, 0, 0)
+mesh = SubResource("BoxMesh_26")
+
+[node name="BruiseL" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(-0.6, 0.3, -0.52)
+rotation = Vector3(0, 0, 0.3)
+mesh = SubResource("BoxMesh_27")
+
+[node name="SackBackL" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(-0.6, 0.5, 1)
+mesh = SubResource("SphereMesh_28")
+
+[node name="SackBackR" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(0.55, 0.1, 1.05)
+mesh = SubResource("SphereMesh_29")
+
+[node name="SackFlankL" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(-1, -0.4, 0.3)
+mesh = SubResource("SphereMesh_30")
+
+[node name="SackFlankR" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(1, -0.3, 0.2)
+mesh = SubResource("SphereMesh_31")
+
+[node name="SackBelly" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(0, -1, -0.55)
+mesh = SubResource("SphereMesh_32")
+
+[node name="Drip1" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(-0.6, 0, 1)
+mesh = SubResource("BoxMesh_33")
+
+[node name="Drip2" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(0.55, -0.4, 1.05)
+mesh = SubResource("BoxMesh_34")
+
+[node name="Drip3" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(-1, -0.9, 0.3)
+mesh = SubResource("BoxMesh_35")
+
+[node name="Drip4" type="MeshInstance3D" parent="Model/Body/Torso"]
+position = Vector3(1, -0.9, 0.2)
+mesh = SubResource("BoxMesh_36")
+
+[node name="Head" type="Node3D" parent="Model/Body"]
+position = Vector3(0, 2, -0.7)
+rotation = Vector3(0.35, 0, 0)
+
+[node name="Skull" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(0, 0.1, 0)
+mesh = SubResource("BoxMesh_37")
+
+[node name="Snout" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(0, -0.2, -0.58)
+mesh = SubResource("BoxMesh_38")
+
+[node name="Jaw" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(0, -0.52, -0.45)
+rotation = Vector3(0.3, 0, 0)
+mesh = SubResource("BoxMesh_39")
+
+[node name="Mouth" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(0, -0.36, -0.72)
+mesh = SubResource("BoxMesh_40")
+
+[node name="Tooth1" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(-0.31, -0.34, -0.82)
+mesh = SubResource("BoxMesh_41")
+
+[node name="Tooth2" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(-0.186, -0.34, -0.82)
+mesh = SubResource("BoxMesh_42")
+
+[node name="Tooth3" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(-0.062, -0.34, -0.82)
+mesh = SubResource("BoxMesh_43")
+
+[node name="Tooth4" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(0.062, -0.34, -0.82)
+mesh = SubResource("BoxMesh_44")
+
+[node name="Tooth5" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(0.186, -0.34, -0.82)
+mesh = SubResource("BoxMesh_45")
+
+[node name="Tooth6" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(0.31, -0.34, -0.82)
+mesh = SubResource("BoxMesh_46")
+
+[node name="LowerTooth1" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(-0.25, -0.46, -0.78)
+rotation = Vector3(0.3, 0, 0)
+mesh = SubResource("BoxMesh_47")
+
+[node name="LowerTooth2" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(-0.125, -0.46, -0.78)
+rotation = Vector3(0.3, 0, 0)
+mesh = SubResource("BoxMesh_48")
+
+[node name="LowerTooth3" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(0, -0.46, -0.78)
+rotation = Vector3(0.3, 0, 0)
+mesh = SubResource("BoxMesh_49")
+
+[node name="LowerTooth4" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(0.125, -0.46, -0.78)
+rotation = Vector3(0.3, 0, 0)
+mesh = SubResource("BoxMesh_50")
+
+[node name="LowerTooth5" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(0.25, -0.46, -0.78)
+rotation = Vector3(0.3, 0, 0)
+mesh = SubResource("BoxMesh_51")
+
+[node name="SocketL" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(-0.3, 0.18, -0.5)
+mesh = SubResource("BoxMesh_52")
+
+[node name="SocketR" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(0.3, 0.18, -0.5)
+mesh = SubResource("BoxMesh_53")
+
+[node name="SocketL2" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(-0.16, 0.36, -0.5)
+mesh = SubResource("BoxMesh_54")
+
+[node name="SocketR2" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(0.16, 0.36, -0.5)
+mesh = SubResource("BoxMesh_55")
+
+[node name="EyeL" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(-0.3, 0.18, -0.54)
+scale = Vector3(1, 0.7, 1)
+mesh = SubResource("BoxMesh_eye")
+
+[node name="EyeR" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(0.3, 0.18, -0.54)
+scale = Vector3(1, 0.7, 1)
+mesh = SubResource("BoxMesh_eye")
+
+[node name="EyeL2" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(-0.16, 0.36, -0.54)
+scale = Vector3(0.6, 0.5, 1)
+mesh = SubResource("BoxMesh_eye")
+
+[node name="EyeR2" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(0.16, 0.36, -0.54)
+scale = Vector3(0.6, 0.5, 1)
+mesh = SubResource("BoxMesh_eye")
+
+[node name="Brow" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(0, 0.52, -0.5)
+mesh = SubResource("BoxMesh_56")
+
+[node name="HornBaseL" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(-0.5, 0.6, 0.05)
+rotation = Vector3(0, 0, 0.45)
+mesh = SubResource("BoxMesh_57")
+
+[node name="HornTipL" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(-0.86, 1.05, 0.05)
+rotation = Vector3(0, 0, 0.85)
+mesh = SubResource("BoxMesh_58")
+
+[node name="HornBaseR" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(0.5, 0.6, 0.05)
+rotation = Vector3(0, 0, -0.45)
+mesh = SubResource("BoxMesh_59")
+
+[node name="HornTipR" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(0.86, 1.05, 0.05)
+rotation = Vector3(0, 0, -0.85)
+mesh = SubResource("BoxMesh_60")
+
+[node name="Crown1" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(-0.36, 0.55, 0.1)
+mesh = SubResource("BoxMesh_61")
+
+[node name="Crown2" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(-0.18, 0.6, 0.1)
+mesh = SubResource("BoxMesh_62")
+
+[node name="Crown3" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(0, 0.55, 0.1)
+mesh = SubResource("BoxMesh_63")
+
+[node name="Crown4" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(0.18, 0.6, 0.1)
+mesh = SubResource("BoxMesh_64")
+
+[node name="Crown5" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(0.36, 0.55, 0.1)
+mesh = SubResource("BoxMesh_65")
+
+[node name="HornWound" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(-0.55, 0.35, 0.2)
+mesh = SubResource("BoxMesh_66")
+
+[node name="MouthDrip" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(0.1, -0.8, -0.8)
+mesh = SubResource("BoxMesh_67")
+
+[node name="MouthSack" type="MeshInstance3D" parent="Model/Body/Head"]
+position = Vector3(-0.2, -0.62, -0.62)
+mesh = SubResource("SphereMesh_68")
+
+[node name="ArmL" type="Node3D" parent="Model/Body"]
+position = Vector3(-1.25, 2, 0.05)
+rotation = Vector3(0.15, 0, -0.12)
+
+[node name="Mesh" type="Node3D" parent="Model/Body/ArmL"]
+position = Vector3(0, -0.8, 0)
+
+[node name="Upper" type="MeshInstance3D" parent="Model/Body/ArmL/Mesh"]
+position = Vector3(0, 0.25, 0)
+mesh = SubResource("BoxMesh_69")
+
+[node name="Cap" type="MeshInstance3D" parent="Model/Body/ArmL/Mesh"]
+position = Vector3(0, 1.05, 0)
+rotation = Vector3(0, 0.4, 0)
+mesh = SubResource("BoxMesh_70")
+
+[node name="ElbowSpike" type="MeshInstance3D" parent="Model/Body/ArmL/Mesh"]
+position = Vector3(0.45, 0.1, 0.1)
+rotation = Vector3(0, 0, -0.9)
+mesh = SubResource("BoxMesh_71")
+
+[node name="Fore" type="MeshInstance3D" parent="Model/Body/ArmL/Mesh"]
+position = Vector3(0, -0.85, -0.05)
+mesh = SubResource("BoxMesh_72")
+
+[node name="Fist" type="MeshInstance3D" parent="Model/Body/ArmL/Mesh"]
+position = Vector3(0, -1.75, -0.05)
+mesh = SubResource("BoxMesh_73")
+
+[node name="Claw1" type="MeshInstance3D" parent="Model/Body/ArmL/Mesh"]
+position = Vector3(-0.32, -2.3, -0.05)
+rotation = Vector3(0, 0, -0.16)
+mesh = SubResource("BoxMesh_74")
+
+[node name="Claw2" type="MeshInstance3D" parent="Model/Body/ArmL/Mesh"]
+position = Vector3(0, -2.3, -0.05)
+mesh = SubResource("BoxMesh_75")
+
+[node name="Claw3" type="MeshInstance3D" parent="Model/Body/ArmL/Mesh"]
+position = Vector3(0.32, -2.3, -0.05)
+rotation = Vector3(0, 0, 0.16)
+mesh = SubResource("BoxMesh_76")
+
+[node name="Wound" type="MeshInstance3D" parent="Model/Body/ArmL/Mesh"]
+position = Vector3(0, 0.3, -0.37)
+mesh = SubResource("BoxMesh_77")
+
+[node name="Bruise" type="MeshInstance3D" parent="Model/Body/ArmL/Mesh"]
+position = Vector3(0, -0.8, -0.5)
+mesh = SubResource("BoxMesh_78")
+
+[node name="Sack" type="MeshInstance3D" parent="Model/Body/ArmL/Mesh"]
+position = Vector3(0.5, -0.7, 0.35)
+mesh = SubResource("SphereMesh_79")
+
+[node name="ArmR" type="Node3D" parent="Model/Body"]
+position = Vector3(1.25, 2, 0.05)
+rotation = Vector3(0.15, 0, 0.12)
+
+[node name="Mesh" type="Node3D" parent="Model/Body/ArmR"]
+position = Vector3(0, -0.8, 0)
+
+[node name="Upper" type="MeshInstance3D" parent="Model/Body/ArmR/Mesh"]
+position = Vector3(0, 0.25, 0)
+mesh = SubResource("BoxMesh_80")
+
+[node name="Cap" type="MeshInstance3D" parent="Model/Body/ArmR/Mesh"]
+position = Vector3(0, 1.05, 0)
+rotation = Vector3(0, 0.4, 0)
+mesh = SubResource("BoxMesh_81")
+
+[node name="ElbowSpike" type="MeshInstance3D" parent="Model/Body/ArmR/Mesh"]
+position = Vector3(-0.45, 0.1, 0.1)
+rotation = Vector3(0, 0, 0.9)
+mesh = SubResource("BoxMesh_82")
+
+[node name="Fore" type="MeshInstance3D" parent="Model/Body/ArmR/Mesh"]
+position = Vector3(0, -0.85, -0.05)
+mesh = SubResource("BoxMesh_83")
+
+[node name="Fist" type="MeshInstance3D" parent="Model/Body/ArmR/Mesh"]
+position = Vector3(0, -1.75, -0.05)
+mesh = SubResource("BoxMesh_84")
+
+[node name="Claw1" type="MeshInstance3D" parent="Model/Body/ArmR/Mesh"]
+position = Vector3(-0.32, -2.3, -0.05)
+rotation = Vector3(0, 0, -0.16)
+mesh = SubResource("BoxMesh_85")
+
+[node name="Claw2" type="MeshInstance3D" parent="Model/Body/ArmR/Mesh"]
+position = Vector3(0, -2.3, -0.05)
+mesh = SubResource("BoxMesh_86")
+
+[node name="Claw3" type="MeshInstance3D" parent="Model/Body/ArmR/Mesh"]
+position = Vector3(0.32, -2.3, -0.05)
+rotation = Vector3(0, 0, 0.16)
+mesh = SubResource("BoxMesh_87")
+
+[node name="Wound" type="MeshInstance3D" parent="Model/Body/ArmR/Mesh"]
+position = Vector3(0, 0.3, -0.37)
+mesh = SubResource("BoxMesh_88")
+
+[node name="Bruise" type="MeshInstance3D" parent="Model/Body/ArmR/Mesh"]
+position = Vector3(0, -0.8, -0.5)
+mesh = SubResource("BoxMesh_89")
+
+[node name="Sack" type="MeshInstance3D" parent="Model/Body/ArmR/Mesh"]
+position = Vector3(-0.5, -0.7, 0.35)
+mesh = SubResource("SphereMesh_90")
+
+[node name="LegL" type="Node3D" parent="Model/Body"]
+position = Vector3(-0.55, -0.1, 0)
+
+[node name="Mesh" type="Node3D" parent="Model/Body/LegL"]
+position = Vector3(0, -0.7, 0)
+
+[node name="Thigh" type="MeshInstance3D" parent="Model/Body/LegL/Mesh"]
+position = Vector3(0, 0.35, 0)
+mesh = SubResource("BoxMesh_91")
+
+[node name="Shin" type="MeshInstance3D" parent="Model/Body/LegL/Mesh"]
+position = Vector3(0, -0.3, 0)
+mesh = SubResource("BoxMesh_92")
+
+[node name="Foot" type="MeshInstance3D" parent="Model/Body/LegL/Mesh"]
+position = Vector3(0, -0.75, -0.12)
+mesh = SubResource("BoxMesh_93")
+
+[node name="Toe1" type="MeshInstance3D" parent="Model/Body/LegL/Mesh"]
+position = Vector3(-0.28, -0.75, -0.68)
+mesh = SubResource("BoxMesh_94")
+
+[node name="Toe2" type="MeshInstance3D" parent="Model/Body/LegL/Mesh"]
+position = Vector3(0, -0.75, -0.68)
+mesh = SubResource("BoxMesh_95")
+
+[node name="Toe3" type="MeshInstance3D" parent="Model/Body/LegL/Mesh"]
+position = Vector3(0.28, -0.75, -0.68)
+mesh = SubResource("BoxMesh_96")
+
+[node name="Wound" type="MeshInstance3D" parent="Model/Body/LegL/Mesh"]
+position = Vector3(0, 0.3, -0.42)
+mesh = SubResource("BoxMesh_97")
+
+[node name="LegR" type="Node3D" parent="Model/Body"]
+position = Vector3(0.55, -0.1, 0)
+
+[node name="Mesh" type="Node3D" parent="Model/Body/LegR"]
+position = Vector3(0, -0.7, 0)
+
+[node name="Thigh" type="MeshInstance3D" parent="Model/Body/LegR/Mesh"]
+position = Vector3(0, 0.35, 0)
+mesh = SubResource("BoxMesh_98")
+
+[node name="Shin" type="MeshInstance3D" parent="Model/Body/LegR/Mesh"]
+position = Vector3(0, -0.3, 0)
+mesh = SubResource("BoxMesh_99")
+
+[node name="Foot" type="MeshInstance3D" parent="Model/Body/LegR/Mesh"]
+position = Vector3(0, -0.75, -0.12)
+mesh = SubResource("BoxMesh_100")
+
+[node name="Toe1" type="MeshInstance3D" parent="Model/Body/LegR/Mesh"]
+position = Vector3(-0.28, -0.75, -0.68)
+mesh = SubResource("BoxMesh_101")
+
+[node name="Toe2" type="MeshInstance3D" parent="Model/Body/LegR/Mesh"]
+position = Vector3(0, -0.75, -0.68)
+mesh = SubResource("BoxMesh_102")
+
+[node name="Toe3" type="MeshInstance3D" parent="Model/Body/LegR/Mesh"]
+position = Vector3(0.28, -0.75, -0.68)
+mesh = SubResource("BoxMesh_103")
+
+[node name="Wound" type="MeshInstance3D" parent="Model/Body/LegR/Mesh"]
+position = Vector3(0, 0.3, -0.42)
+mesh = SubResource("BoxMesh_104")
+
+[node name="Anim" type="AnimationPlayer" parent="."]
+libraries = {
+"": SubResource("AnimationLibrary_boss")
+}

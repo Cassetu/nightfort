@@ -30,6 +30,7 @@ var death_left: float = 0.0
 var dead: bool = false
 var game_over: bool = false
 var pause_view: String = "none"
+var prologue: bool = false
 
 
 func _ready() -> void:
@@ -104,8 +105,15 @@ func on_wave_status(text: String) -> void:
 	wave_label.text = text
 
 
+func set_prologue(on: bool) -> void:
+	prologue = on
+	core_bar.visible = not on
+	wave_label.visible = not on
+	%SaveGame.disabled = on
+
+
 func on_player_died() -> void:
-	if game_over:
+	if game_over or prologue:
 		return
 	dead = true
 	death_left = DEATH_DELAY

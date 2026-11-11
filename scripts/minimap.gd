@@ -34,6 +34,11 @@ var incomplete: bool = false
 var evict_timer: float = 0.0
 
 
+func set_blank(on: bool) -> void:
+	map.modulate.a = 0.0 if on else 1.0
+	set_process(not on)
+
+
 func setup(p, c, t) -> void:
 	player = p
 	core = c

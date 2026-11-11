@@ -24,6 +24,7 @@ var settings := {
 }
 
 var has_session: bool = false
+var prologue_active: bool = false
 var in_world: bool = false
 var world_seed: int = 1337
 var pending: Dictionary = {}
@@ -141,6 +142,7 @@ func take_pending() -> Dictionary:
 
 
 func go_to_menu() -> void:
+	prologue_active = false
 	in_world = false
 	has_session = false
 	pending = {}
@@ -207,7 +209,7 @@ func save_game(slot: int) -> bool:
 
 func autosave() -> bool:
 	var scene := get_tree().current_scene
-	if scene == null or get_tree().paused:
+	if scene == null or get_tree().paused or prologue_active:
 		return false
 	var hero = scene.get("player")
 	if hero != null and hero.get("dead") == true:
