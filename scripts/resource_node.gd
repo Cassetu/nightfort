@@ -14,6 +14,7 @@ signal harvested(resource_type: String, amount: int)
 
 var current_health: int = 0
 var dying: bool = false
+var by_enemy: bool = false
 var chip_color: Color = Color(0.5, 0.5, 0.5)
 var chip_tile: String = ""
 var visual: Node3D
@@ -60,7 +61,7 @@ func _die() -> void:
 	if shake_tween:
 		shake_tween.kill()
 	harvested.emit(resource_type, resource_amount)
-	if is_in_group("tree"):
+	if is_in_group("tree") and not by_enemy:
 		get_tree().call_group("missions", "on_event", "tree")
 	var world := get_tree().current_scene
 	if world != null and world.has_method("spawn_drop"):

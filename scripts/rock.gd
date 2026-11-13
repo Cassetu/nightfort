@@ -2,6 +2,9 @@ extends "res://scripts/resource_node.gd"
 
 const TileArt = preload("res://scripts/tile_art.gd")
 
+const VIEW_END: float = 72.0
+const VIEW_MARGIN: float = 10.0
+
 const GOLDEN := 1.618034
 
 const CORNERS := [
@@ -98,6 +101,9 @@ func _build() -> void:
 
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
+	mi.visibility_range_end = VIEW_END
+	mi.visibility_range_end_margin = VIEW_MARGIN
+	mi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 	visual.add_child(mi)
 
 	var shape := CollisionShape3D.new()

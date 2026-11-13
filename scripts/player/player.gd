@@ -24,7 +24,8 @@ const LEDGE_LOOK = 0.15
 const LEDGE_DROP = 0.55
 const CLIMB_SPEED = 3.0
 const LADDER_TURN = 0.35
-const JUMP_VELOCITY = 4.5
+const GRAVITY_SCALE = 1.25
+const JUMP_VELOCITY = 5.15
 const MINE_REACH = 3.5
 const PLACE_REACH = 5.0
 const MINE_DAMAGE = 1
@@ -41,8 +42,9 @@ const SHOVEL_BLOCKS = [1, 2, 5, 6]
 const MINE_COOLDOWN = 0.35
 const PLANT_COOLDOWN = 0.18
 const CACTUS_PUNCH_DAMAGE = 3
-const AIR_ACCEL = 7.0
-const AIR_DRAG = 1.5
+const AIR_ACCEL = 15.0
+const AIR_DRAG = 2.5
+const AIR_TURN_BOOST = 1.5
 const FALL_TRIGGER_DROP = 2.9
 const LAND_STUN_DROP = 3.0
 const LAND_STUN_MIN = 0.18
@@ -55,7 +57,7 @@ const REGEN_RATE = 3.0
 
 @export var max_health: int = 100
 
-var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
+var gravity = float(ProjectSettings.get_setting("physics/3d/default_gravity")) * GRAVITY_SCALE
 var mine_timer = 0.0
 var attack_timer = 0.0
 var frozen = false
@@ -293,7 +295,11 @@ func _physics_process(delta):
 	if not is_on_floor():
 		var flat := Vector2(velocity.x, velocity.z)
 		if direction:
-			flat = flat.move_toward(Vector2(direction.x, direction.z) * speed_now, AIR_ACCEL * delta)
+			var wish := Vector2(direction.x, direction.z)
+			var accel := AIR_ACCEL
+			if flat.dot(wish) < 0.0:
+				accel *= AIR_TURN_BOOST
+			flat = flat.move_toward(wish * speed_now, accel * delta)
 		else:
 			flat = flat.move_toward(Vector2.ZERO, AIR_DRAG * delta)
 		velocity.x = flat.x

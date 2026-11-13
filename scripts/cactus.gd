@@ -1,6 +1,8 @@
 extends "res://scripts/resource_node.gd"
 
 const TileArt = preload("res://scripts/tile_art.gd")
+const VIEW_END: float = 72.0
+const VIEW_MARGIN: float = 10.0
 const TOUCH_DAMAGE := 2
 const TOUCH_INTERVAL := 0.7
 const TOUCH_MARGIN := Vector3(0.5, 0.95, 0.5)
@@ -43,6 +45,9 @@ func _part(pos: Vector3, size: Vector3, material: Material) -> void:
 	var mi := MeshInstance3D.new()
 	mi.mesh = TileArt.box_mesh(size, material)
 	mi.position = pos
+	mi.visibility_range_end = VIEW_END
+	mi.visibility_range_end_margin = VIEW_MARGIN
+	mi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 	visual.add_child(mi)
 	var box := BoxShape3D.new()
 	box.size = size

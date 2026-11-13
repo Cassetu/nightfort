@@ -19,9 +19,9 @@ const CRACK_CENTER := Vector3(9.5, 11.0, 66.0)
 const CRACK_LENGTH := 9.0
 const CAVE_PILLARS := [Vector3i(4, 5, 2), Vector3i(16, 5, 2), Vector3i(5, 15, 2), Vector3i(15, 14, 2), Vector3i(10, 10, 2)]
 const BEDROCK_TINT := Color(0.62, 0.62, 0.7)
+const AO_LEVELS := [0.55, 0.72, 0.87, 1.0]
 const SHAPE_POWER := 3.0
 const SHAPE_NOISE := 0.24
-const WALL_WOBBLE := 0.38
 const KEEP_CLEAR := [
 	{"min": Vector2(7.0, 12.0), "max": Vector2(14.0, 22.0)},
 	{"min": Vector2(8.0, 29.0), "max": Vector2(13.0, 44.0)},
@@ -86,6 +86,7 @@ static func build(root: Node3D, world: Node3D, origin: Vector3) -> Dictionary:
 		torch.wall_normal = normal
 		root.add_child(torch)
 		torch.global_position = origin + Vector3(cell) + Vector3(0.5, 0.5, 0.5)
+		torch.shadow_locked = true
 		torch.light.shadow_enabled = false
 
 	var stones: Array = []
@@ -157,11 +158,7 @@ static func _make_crack(root: Node3D, pos: Vector3) -> void:
 
 
 static func _material() -> StandardMaterial3D:
-	var base := TileArt.block_material("bedrock", Color(0.12, 0.12, 0.14))
-	var m := base.duplicate() as StandardMaterial3D
-	m.albedo_color = BEDROCK_TINT
-	m.vertex_color_use_as_albedo = true
-	return m
+	return TileArt.uv_material("bedrock", Color(0.12, 0.12, 0.14), Vector3.ONE, true)
 
 
 static func _carve(air: Dictionary, box: Dictionary) -> void:
@@ -269,11 +266,20 @@ static func _ray_torch(air: Dictionary, out: Array, from: Vector3, dir: Vector3)
 		if not air.has(cell):
 			break
 		last = cell
+	var sx := int(signf(dir.x))
+	var sz := int(signf(dir.z))
+	var options: Array = [Vector3i(sx, 0, 0), Vector3i(0, 0, sz)]
+	if absf(dir.x) < absf(dir.z):
+		options = [Vector3i(0, 0, sz), Vector3i(sx, 0, 0)]
 	var axis := Vector3.ZERO
-	if absf(dir.x) >= absf(dir.z):
-		axis.x = -signf(dir.x)
-	else:
-		axis.z = -signf(dir.z)
+	var found := false
+	for o: Vector3i in options:
+		if o != Vector3i.ZERO and not air.has(last + o):
+			axis = -Vector3(o)
+			found = true
+			break
+	if not found:
+		return
 	for t in out:
 		if Vector3i(t["cell"]).distance_squared_to(last) < 16:
 			return
@@ -286,112 +292,75 @@ static func _ring_torches(air: Dictionary, out: Array, center: Vector3, count: i
 		_ray_torch(air, out, center, Vector3(cos(a), 0.0, sin(a)))
 
 
-static func _corner_air(air: Dictionary, base: Vector3i, bits: int) -> bool:
-	return air.has(base + Vector3i(bits & 1, (bits >> 1) & 1, (bits >> 2) & 1))
+static func _solid(air: Dictionary, cell: Vector3i) -> bool:
+	return not air.has(cell)
 
 
-static func _cube_vertex(air: Dictionary, base: Vector3i, index: Dictionary, positions: PackedVector3Array) -> int:
-	if index.has(base):
-		return index[base]
-	var sum := Vector3.ZERO
-	var count := 0
-	for bits in 8:
-		var a := _corner_air(air, base, bits)
-		for axis in 3:
-			if (bits >> axis) & 1 == 1:
-				continue
-			var other := bits | (1 << axis)
-			if a != _corner_air(air, base, other):
-				var da := Vector3(float(bits & 1), float((bits >> 1) & 1), float((bits >> 2) & 1))
-				var db := Vector3(float(other & 1), float((other >> 1) & 1), float((other >> 2) & 1))
-				sum += (da + db) * 0.5
-				count += 1
-	var pos := Vector3(base) + Vector3(0.5, 0.5, 0.5)
-	if count > 0:
-		pos += sum / float(count)
-	positions.append(pos)
-	index[base] = positions.size() - 1
-	return positions.size() - 1
+static func _hash01(cell: Vector3i, face: int) -> float:
+	var h: int = (cell.x * 73856093) ^ (cell.y * 19349663) ^ (cell.z * 83492791) ^ (face * 2654435)
+	return float(h & 1023) / 1023.0
 
 
 static func _mesh(air: Dictionary) -> ArrayMesh:
-	var index: Dictionary = {}
-	var positions := PackedVector3Array()
-	var tris := PackedInt32Array()
-	var corners := [Vector2i(-1, -1), Vector2i(0, -1), Vector2i(0, 0), Vector2i(-1, 0)]
+	var tint := FastNoiseLite.new()
+	tint.seed = 17
+	tint.noise_type = FastNoiseLite.TYPE_SIMPLEX
+	tint.frequency = 0.12
+	tint.fractal_octaves = 3
+	var verts := PackedVector3Array()
+	var norms := PackedVector3Array()
+	var cols := PackedColorArray()
+	var uvs := PackedVector2Array()
+	var idx := PackedInt32Array()
+	var corner_ab := [Vector2i(0, 0), Vector2i(1, 0), Vector2i(1, 1), Vector2i(0, 1)]
 	for cell: Vector3i in air:
-		for n: Vector3i in DIRS:
-			var other := cell + n
-			if air.has(other):
+		for f in DIRS.size():
+			var n: Vector3i = DIRS[f]
+			if air.has(cell + n):
 				continue
 			var axis := 0
 			if n.y != 0:
 				axis = 1
 			elif n.z != 0:
 				axis = 2
-			var edge_min := Vector3i(mini(cell.x, other.x), mini(cell.y, other.y), mini(cell.z, other.z))
-			var ids: Array = []
-			for c: Vector2i in corners:
-				var off := Vector3i.ZERO
-				if axis == 0:
-					off = Vector3i(0, c.x, c.y)
-				elif axis == 1:
-					off = Vector3i(c.y, 0, c.x)
-				else:
-					off = Vector3i(c.x, c.y, 0)
-				ids.append(_cube_vertex(air, edge_min + off, index, positions))
-			var p0: Vector3 = positions[ids[0]]
-			var p1: Vector3 = positions[ids[1]]
-			var p2: Vector3 = positions[ids[2]]
-			var flip := (p1 - p0).cross(p2 - p0).dot(Vector3(n)) < 0.0
-			if flip:
-				ids.reverse()
-			tris.append_array(PackedInt32Array([ids[0], ids[1], ids[2], ids[0], ids[2], ids[3]]))
-	var normals := _normals(positions, tris)
-	var wobble := FastNoiseLite.new()
-	wobble.seed = 91
-	wobble.noise_type = FastNoiseLite.TYPE_SIMPLEX
-	wobble.frequency = 0.75
-	var tint := FastNoiseLite.new()
-	tint.seed = 17
-	tint.noise_type = FastNoiseLite.TYPE_SIMPLEX
-	tint.frequency = 0.22
-	tint.fractal_octaves = 3
-	var colors := PackedColorArray()
-	colors.resize(positions.size())
-	for i in positions.size():
-		var p := positions[i]
-		var weight: float = 1.0 - clampf(normals[i].y * 1.4, 0.0, 1.0)
-		var push := Vector3(wobble.get_noise_3d(p.x, p.y, p.z), wobble.get_noise_3d(p.y + 31.0, p.z, p.x), wobble.get_noise_3d(p.z, p.x + 57.0, p.y))
-		positions[i] = p + push * WALL_WOBBLE * weight
-		var shade: float = lerpf(0.55, 1.0, tint.get_noise_3d(p.x, p.y, p.z) * 0.5 + 0.5)
-		colors[i] = Color(shade, shade, shade)
-	normals = _normals(positions, tris)
+			var ua := (axis + 1) % 3
+			var va := (axis + 2) % 3
+			var u := Vector3i.ZERO
+			u[ua] = 1
+			var v := Vector3i.ZERO
+			v[va] = 1
+			var base := Vector3(cell)
+			if n[axis] > 0:
+				base[axis] += 1.0
+			var shade: float = (0.9 + 0.2 * _hash01(cell, f)) * lerpf(0.7, 1.0, tint.get_noise_3d(float(cell.x), float(cell.y), float(cell.z)) * 0.5 + 0.5)
+			if n.y > 0:
+				shade *= 0.8
+			var o := verts.size()
+			var order: Array = [0, 1, 2, 3]
+			if n[axis] < 0:
+				order = [0, 3, 2, 1]
+			for k: int in order:
+				var ab: Vector2i = corner_ab[k]
+				var su := u if ab.x == 1 else -u
+				var sv := v if ab.y == 1 else -v
+				var s1 := 1 if _solid(air, cell + su) else 0
+				var s2 := 1 if _solid(air, cell + sv) else 0
+				var c := 1 if _solid(air, cell + su + sv) else 0
+				var level := 0 if (s1 == 1 and s2 == 1) else 3 - (s1 + s2 + c)
+				var k2: float = shade * AO_LEVELS[level]
+				verts.append(base + Vector3(u) * float(ab.x) + Vector3(v) * float(ab.y))
+				norms.append(-Vector3(n))
+				cols.append(Color(BEDROCK_TINT.r * k2, BEDROCK_TINT.g * k2, BEDROCK_TINT.b * k2))
+				uvs.append(Vector2(float(ab.x), 1.0 - float(ab.y)))
+			idx.append_array(PackedInt32Array([o, o + 1, o + 2, o, o + 2, o + 3]))
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = positions
-	arrays[Mesh.ARRAY_NORMAL] = normals
-	arrays[Mesh.ARRAY_COLOR] = colors
-	arrays[Mesh.ARRAY_INDEX] = tris
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = norms
+	arrays[Mesh.ARRAY_COLOR] = cols
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = idx
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	mesh.surface_set_material(0, _material())
 	return mesh
-
-
-static func _normals(positions: PackedVector3Array, tris: PackedInt32Array) -> PackedVector3Array:
-	var out := PackedVector3Array()
-	out.resize(positions.size())
-	var i := 0
-	while i < tris.size():
-		var a := tris[i]
-		var b := tris[i + 1]
-		var c := tris[i + 2]
-		var face := (positions[b] - positions[a]).cross(positions[c] - positions[a])
-		out[a] -= face
-		out[b] -= face
-		out[c] -= face
-		i += 3
-	for j in out.size():
-		out[j] = out[j].normalized()
-	return out

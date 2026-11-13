@@ -98,6 +98,10 @@ const FACE_DCOL := [1, -1, 0, 0, PAD, -PAD]
 @export_group("Streaming")
 @export var view_distance: int = 7
 @export var collision_distance: int = 3
+const TREE_REAL_DISTANCE: int = 2
+const TREE_FAR_DISTANCE: int = 3
+const SHADOW_CHUNK_DISTANCE: int = 5
+var tree_center: Vector2i = Vector2i.ZERO
 @export var detail_distance: int = 5
 @export var frame_budget_ms: float = 4.0
 @export var max_in_flight: int = 6
@@ -179,6 +183,9 @@ class Chunk:
 	var cacti: Array
 	var plants: Dictionary = {}
 	var plant_nodes: Dictionary = {}
+	var tree_far: Node3D
+	var trees_real: bool = false
+	var shadowed: bool = true
 	var occluder: OccluderInstance3D
 
 class MeshBuf:
@@ -259,6 +266,7 @@ func _ready() -> void:
 	_setup_crack()
 
 	var center := _chunk_of(spawn)
+	tree_center = center
 	for dz in range(-1, 2):
 		for dx in range(-1, 2):
 			var coord := center + Vector2i(dx, dz)
@@ -674,6 +682,8 @@ func _release_support(cell: Vector3i) -> void:
 	_remove_plants(chunk, cell)
 	if chunk.objects == null:
 		return
+	if not chunk.trees_real:
+		_set_trees(chunk, false)
 	for child in chunk.objects.get_children():
 		if not child.is_in_group("resource") or child.dying:
 			continue
@@ -704,6 +714,7 @@ func _in_world(coord: Vector2i) -> bool:
 
 
 func _refresh(center: Vector2i) -> void:
+	tree_center = center
 	var unload2 := (view_distance + 1) * (view_distance + 1)
 	var drop_collision2 := (collision_distance + 1) * (collision_distance + 1)
 	var drop_objects2 := (detail_distance + 1) * (detail_distance + 1)
@@ -716,12 +727,15 @@ func _refresh(center: Vector2i) -> void:
 			chunk.root.queue_free()
 			chunks.erase(coord)
 			continue
+		_update_shadow(chunk, d)
 		if chunk.body != null and d > drop_collision2 and not pinned:
 			chunk.body.queue_free()
 			chunk.body = null
 		if chunk.objects != null and d > drop_objects2:
 			chunk.objects.queue_free()
 			chunk.objects = null
+			chunk.tree_far = null
+			chunk.trees_real = false
 
 	wants.clear()
 	want_index = 0
@@ -819,7 +833,7 @@ func _consume(center: Vector2i) -> bool:
 func _upgrade_one(center: Vector2i) -> bool:
 	var best: Chunk = null
 	var best_d := 1 << 30
-	var wants_collision := false
+	var action := 0
 	var c2 := collision_distance * collision_distance
 	var o2 := detail_distance * detail_distance
 
@@ -827,22 +841,45 @@ func _upgrade_one(center: Vector2i) -> bool:
 		var d := _dist2(chunk.coord, center)
 		if d >= best_d:
 			continue
-		var need_collision := chunk.body == null and (d <= c2 or _pinned(chunk.coord))
-		var need_objects := chunk.objects == null and d <= o2
-		if need_collision or need_objects:
+		var todo := 0
+		if chunk.body == null and (d <= c2 or _pinned(chunk.coord)):
+			todo = 1
+		elif chunk.objects == null and d <= o2:
+			todo = 2
+		elif chunk.objects != null and _trees_swap_due(chunk, d):
+			todo = 3
+		if todo != 0:
 			best = chunk
 			best_d = d
-			wants_collision = need_collision
+			action = todo
 
 	if best == null:
 		levels_dirty = false
 		return false
 
-	if wants_collision:
+	if action == 1:
 		_add_collision(best)
-	else:
+	elif action == 2:
 		_add_objects(best)
+	else:
+		_set_trees(best, not best.trees_real)
 	return true
+
+
+func _update_shadow(chunk: Chunk, d: int) -> void:
+	var want := d <= SHADOW_CHUNK_DISTANCE * SHADOW_CHUNK_DISTANCE
+	if want == chunk.shadowed:
+		return
+	chunk.shadowed = want
+	chunk.mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if want else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+func _trees_swap_due(chunk: Chunk, d: int) -> bool:
+	if _pinned(chunk.coord):
+		return not chunk.trees_real
+	if chunk.trees_real:
+		return d > TREE_FAR_DISTANCE * TREE_FAR_DISTANCE
+	return d <= TREE_REAL_DISTANCE * TREE_REAL_DISTANCE
 
 
 func _make_mesh(data: Dictionary) -> ArrayMesh:
@@ -880,6 +917,7 @@ func _finalize(coord: Vector2i, data: Dictionary) -> Chunk:
 	mi.mesh = _make_mesh(data)
 	root.add_child(mi)
 	chunk.mi = mi
+	_update_shadow(chunk, _dist2(coord, tree_center))
 
 	if OCCLUDERS and data.has("heights") and not edit_chunks.has(coord):
 		_add_occluder(chunk, data["heights"])
@@ -972,18 +1010,8 @@ func _add_objects(chunk: Chunk) -> void:
 	_prune_plants(chunk)
 	_spawn_plants(chunk)
 
-	for i in chunk.trees.size():
-		var key := Vector3i(chunk.coord.x, chunk.coord.y, i)
-		var d: Dictionary = chunk.trees[i]
-		if depleted.has(key) or _support_gone(chunk.coord, d):
-			continue
-		var tree = TreeScript.new()
-		tree.size_factor = d["size"]
-		tree.variant = d["variant"]
-		tree.position = Vector3(d["x"], d["y"], d["z"])
-		tree.rotation.y = d["rot"]
-		tree.harvested.connect(_on_depleted.bind(key))
-		holder.add_child(tree)
+	var near := _dist2(chunk.coord, tree_center) <= TREE_REAL_DISTANCE * TREE_REAL_DISTANCE
+	_set_trees(chunk, near or _pinned(chunk.coord))
 
 	for i in chunk.rocks.size():
 		var key := Vector3i(chunk.coord.x, chunk.coord.y, 1000 + i)
@@ -1010,6 +1038,64 @@ func _add_objects(chunk: Chunk) -> void:
 		cactus.rotation.y = d["rot"]
 		cactus.harvested.connect(_on_depleted.bind(key))
 		holder.add_child(cactus)
+
+
+func _set_trees(chunk: Chunk, real: bool) -> void:
+	var holder: Node3D = chunk.objects
+	for child in holder.get_children():
+		if child.is_in_group("tree"):
+			child.queue_free()
+	if chunk.tree_far != null:
+		chunk.tree_far.queue_free()
+		chunk.tree_far = null
+	chunk.trees_real = real
+
+	if real:
+		for i in chunk.trees.size():
+			var key := Vector3i(chunk.coord.x, chunk.coord.y, i)
+			var d: Dictionary = chunk.trees[i]
+			if depleted.has(key) or _support_gone(chunk.coord, d):
+				continue
+			var tree = TreeScript.new()
+			tree.size_factor = d["size"]
+			tree.variant = d["variant"]
+			tree.position = Vector3(d["x"], d["y"], d["z"])
+			tree.rotation.y = d["rot"]
+			tree.harvested.connect(_on_depleted.bind(key))
+			holder.add_child(tree)
+		return
+
+	var count: int = TreeScript.mesh_count()
+	var buckets: Dictionary = {}
+	for i in chunk.trees.size():
+		var key := Vector3i(chunk.coord.x, chunk.coord.y, i)
+		var d: Dictionary = chunk.trees[i]
+		if depleted.has(key) or _support_gone(chunk.coord, d):
+			continue
+		var slot: int = int(d["variant"]) % count
+		if not buckets.has(slot):
+			buckets[slot] = []
+		buckets[slot].append(d)
+	if buckets.is_empty():
+		return
+
+	var far := Node3D.new()
+	far.name = "FarTrees"
+	holder.add_child(far)
+	chunk.tree_far = far
+	for slot: int in buckets:
+		var list: Array = buckets[slot]
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = TreeScript.far_mesh(slot)
+		mm.instance_count = list.size()
+		for j in list.size():
+			var d: Dictionary = list[j]
+			var basis := Basis(Vector3.UP, float(d["rot"])).scaled(Vector3.ONE * float(d["size"]))
+			mm.set_instance_transform(j, Transform3D(basis, Vector3(d["x"], d["y"], d["z"])))
+		var inst := MultiMeshInstance3D.new()
+		inst.multimesh = mm
+		far.add_child(inst)
 
 
 func _setup_plants() -> void:

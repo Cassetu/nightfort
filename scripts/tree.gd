@@ -64,6 +64,16 @@ func _play_death() -> void:
 	tween.tween_callback(queue_free)
 
 
+static func mesh_count() -> int:
+	_ensure_meshes()
+	return _meshes.size()
+
+
+static func far_mesh(index: int) -> ArrayMesh:
+	_ensure_meshes()
+	return _meshes[index % _meshes.size()]
+
+
 static func _ensure_meshes() -> void:
 	if not _meshes.is_empty():
 		return

@@ -12,6 +12,8 @@ var fixture: bool = false
 var wall_normal: Vector3 = Vector3.ZERO
 var mount: Node3D
 var time: float = 0.0
+var near: bool = true
+var shadow_locked: bool = false
 
 @onready var light: OmniLight3D = %Light
 @onready var fill: OmniLight3D = %Fill
@@ -71,9 +73,18 @@ func _play_death() -> void:
 	queue_free()
 
 
+func set_shadowed(on: bool) -> void:
+	if shadow_locked or light == null:
+		return
+	if light.shadow_enabled != on:
+		light.shadow_enabled = on
+
+
 func _process(delta: float) -> void:
 	super(delta)
 	time += delta
+	if not near:
+		return
 	light.light_energy = base_energy * (1.0 + 0.12 * sin(time * 9.0) + 0.08 * sin(time * 23.0))
 	fill.light_energy = fill_energy * (1.0 + 0.06 * sin(time * 9.0) + 0.04 * sin(time * 23.0))
 	var t := Time.get_ticks_msec() / 1000.0

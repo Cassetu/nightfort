@@ -160,7 +160,10 @@ func _step(delta: float, stride: int) -> void:
 		for i in get_slide_collision_count():
 			var hit := get_slide_collision(i)
 			var other = hit.get_collider()
-			if other != null and other.is_in_group("block"):
+			if other != null and (other.is_in_group("block") or other.is_in_group("tree") or other.is_in_group("rock") or other.is_in_group("cactus")):
+				if other.dying:
+					continue
+				other.by_enemy = true
 				if other.current_health <= BLOCK_DAMAGE:
 					other.resource_amount = 0
 				other.take_damage(BLOCK_DAMAGE, hit.get_position())

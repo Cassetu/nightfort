@@ -1,5 +1,7 @@
 extends DirectionalLight3D
 
+const LightBudget := preload("res://scripts/core/light_budget.gd")
+const SHADOW_DISTANCE: float = 70.0
 const DAY_TOP := Color(0.27, 0.36, 0.45)
 const DAY_HORIZON := Color(0.50, 0.56, 0.54)
 const DUSK_TOP := Color(0.20, 0.22, 0.42)
@@ -37,6 +39,10 @@ var elevation: float = 1.0
 
 
 func _ready():
+	directional_shadow_max_distance = SHADOW_DISTANCE
+	var budget: Node = LightBudget.new()
+	budget.name = "LightBudget"
+	add_child(budget)
 	_calibrate_warp()
 	var dir = -global_transform.basis.z
 	var psi = atan2(dir.z, dir.y)
@@ -47,6 +53,7 @@ func _ready():
 	moon.light_color = MOON_LIGHT
 	moon.light_energy = 0.0
 	moon.shadow_enabled = true
+	moon.directional_shadow_max_distance = SHADOW_DISTANCE
 	moon.rotation = Vector3(0.0, PI + deg_to_rad(25.0), 0.0)
 	add_child(moon)
 
