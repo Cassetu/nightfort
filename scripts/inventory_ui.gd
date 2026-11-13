@@ -538,6 +538,7 @@ func _take_result() -> void:
 		if int(item["count"]) <= 0:
 			craft_items[i] = {}
 	Inventory.discover(out_id)
+	Inventory.item_added.emit(out_id, n)
 	_craft_changed()
 
 
