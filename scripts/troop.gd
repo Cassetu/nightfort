@@ -2,6 +2,7 @@ extends CharacterBody3D
 
 const PathScript = preload("res://scripts/allies/troop_path.gd")
 const ArrowScript = preload("res://scripts/arrow.gd")
+const BlockIndex = preload("res://scripts/block_index.gd")
 const Sfx = preload("res://scripts/core/sfx.gd")
 
 const NAMES := ["Garrick", "Mina", "Torvald", "Edda", "Bram", "Isolde", "Corwin", "Hesper", "Dunstan", "Wren", "Alaric", "Odette", "Rurik", "Nessa", "Osric", "Tamsin", "Leofric", "Maren", "Cael", "Brigid", "Ansel", "Verity", "Hollis", "Sabine"]
@@ -12,6 +13,9 @@ const JUMP_VELOCITY := 5.2
 const BASE_RANGE := 20.0
 const WILD_RANGE := 13.0
 const BIRD_RANGE_SCALE := 1.5
+const MERLON_RANGE := 1.35
+const MERLON_CHECK := 0.5
+const MERLON_DIRS := [Vector3i(1, 0, 0), Vector3i(-1, 0, 0), Vector3i(0, 0, 1), Vector3i(0, 0, -1)]
 const BASE_DAMAGE := 2
 const BASE_COOLDOWN := 1.5
 const EYE_HEIGHT := 1.5
@@ -25,6 +29,8 @@ const REGEN_DELAY := 6.0
 const REGEN_RATE := 1.0
 
 var troop_id: int = 0
+var merlon_timer: float = 0.0
+var merlon_scale: float = 1.0
 var display_name: String = ""
 var mood: float = 0.65
 var equipment: Dictionary = {}
@@ -262,6 +268,10 @@ func _physics_process(delta: float) -> void:
 	if terrain == null or not terrain.collision_ready(global_position):
 		return
 	_update_mood(delta)
+	merlon_timer -= delta
+	if merlon_timer <= 0.0:
+		merlon_timer = MERLON_CHECK
+		merlon_scale = _merlon_scale()
 	since_hit += delta
 	if since_hit > REGEN_DELAY and health < MAX_HEALTH:
 		health = minf(health + REGEN_RATE * delta, MAX_HEALTH)
@@ -273,6 +283,15 @@ func _physics_process(delta: float) -> void:
 	_shoot(delta)
 	recoil = maxf(recoil - delta * 4.0, 0.0)
 	bow_node.position.z = -0.45 + recoil * 0.08
+
+
+func _merlon_scale() -> float:
+	var cell := Vector3i(floori(global_position.x), floori(global_position.y + 0.1), floori(global_position.z))
+	for d: Vector3i in MERLON_DIRS:
+		var b = BlockIndex.at(cell + d)
+		if b != null and is_instance_valid(b) and not b.dying and b.block_type == "merlon":
+			return MERLON_RANGE
+	return 1.0
 
 
 func _update_mood(delta: float) -> void:
@@ -401,7 +420,7 @@ func _nearest_target() -> Dictionary:
 	var best_bird = null
 	var best_bird_d := INF
 	var weapon := weapon_info()
-	var reach: float = float(weapon.get("range", BASE_RANGE))
+	var reach: float = float(weapon.get("range", BASE_RANGE)) * merlon_scale
 	var eye := global_position + Vector3(0.0, EYE_HEIGHT, 0.0)
 	var any_close := false
 	for group in ["enemy", "wild_gloom", "gloom_bird"]:

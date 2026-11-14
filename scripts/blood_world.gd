@@ -8,6 +8,7 @@ const PitGloom = preload("res://scripts/pit_gloom.gd")
 const PitSpitter = preload("res://scripts/pit_spitter.gd")
 const BoneBarricade = preload("res://scripts/enemies/bone_barricade.gd")
 const PitFlora = preload("res://scripts/pit_flora.gd")
+const MerlonMesh = preload("res://scripts/blocks/merlon_mesh.gd")
 const Ally = preload("res://scripts/ally.gd")
 const BileSack = preload("res://scripts/enemies/bile_sack.gd")
 const GloomScene = preload("res://scenes/gloom.tscn")
@@ -178,7 +179,10 @@ func _build_heart() -> void:
 	add_child(body)
 	heart = body
 	heart_mat = StandardMaterial3D.new()
-	heart_mat.albedo_color = Color(0.5, 0.05, 0.1)
+	heart_mat.albedo_color = Color(0.85, 0.7, 0.7)
+	heart_mat.albedo_texture = TileArt.mip_texture("blood", Color(0.5, 0.05, 0.1))
+	heart_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
+	heart_mat.uv1_scale = Vector3(5.0, 4.0, 1.0)
 	heart_mat.roughness = 0.3
 	heart_mat.emission_enabled = true
 	heart_mat.emission = Color(0.6, 0.05, 0.1)
@@ -275,9 +279,9 @@ func _ring_cells(r: float, lo: float, hi: float) -> Array:
 	return cells
 
 
-func _spawn_wall_block(ring: int, column_index: int, layer: int, depth: int, slot: int, pos: Vector3):
+func _spawn_wall_block(ring: int, column_index: int, layer: int, depth: int, slot: int, pos: Vector3, batch: MultiMesh = null):
 	var block = FleshBlock.new()
-	block.setup(wall_shape, wall_meshes[ring], slot, ring, column_index, layer)
+	block.setup(wall_shape, batch if batch != null else wall_meshes[ring], slot, ring, column_index, layer)
 	block.depth = depth
 	block.on_break = _on_wall_break
 	add_child(block)
@@ -286,6 +290,8 @@ func _spawn_wall_block(ring: int, column_index: int, layer: int, depth: int, slo
 
 
 func _on_wall_break(broken) -> void:
+	if broken.layer >= LAYERS:
+		return
 	var list: Array = pending[broken.ring][broken.layer]
 	for desc: Dictionary in list:
 		if desc["depth"] != broken.depth + 1:
@@ -294,12 +300,15 @@ func _on_wall_break(broken) -> void:
 			continue
 		if desc["block"] == null:
 			desc["block"] = _spawn_wall_block(broken.ring, desc["column"], broken.layer, desc["depth"], desc["slot"], desc["pos"])
+			if desc.has("rider"):
+				desc["block"].rider = desc["rider"]
 		if broken.next_block == null and is_instance_valid(desc["block"]) and not desc["block"].dead:
 			broken.next_block = desc["block"]
 
 
 func _build_walls() -> void:
 	var mesh := _block_mesh()
+	var merlon_mesh := MerlonMesh.build(TileArt.uv_material(WALL_TILE, FLESH, Vector3.ONE, true))
 	wall_shape = BoxShape3D.new()
 	wall_shape.size = Vector3.ONE * BLOCK
 	var rng := RandomNumberGenerator.new()
@@ -323,6 +332,14 @@ func _build_walls() -> void:
 		var holder := MultiMeshInstance3D.new()
 		holder.multimesh = mm
 		add_child(holder)
+		var merlon_mm := MultiMesh.new()
+		merlon_mm.transform_format = MultiMesh.TRANSFORM_3D
+		merlon_mm.use_colors = true
+		merlon_mm.mesh = merlon_mesh
+		merlon_mm.instance_count = (count + 1) / 2
+		var merlon_holder := MultiMeshInstance3D.new()
+		merlon_holder.multimesh = merlon_mm
+		add_child(merlon_holder)
 		for i in count:
 			var cell: Vector2i = cells[i]
 			var column: Array = []
@@ -333,12 +350,14 @@ func _build_walls() -> void:
 				var tone := rng.randf_range(0.8, 1.15)
 				mm.set_instance_color(slot, Color(tone, tone * rng.randf_range(0.85, 1.05), tone))
 				column.append(_spawn_wall_block(ring, i, layer, 0, slot, pos))
+			if i % 2 == 0:
+				var mslot := i / 2
+				var mpos := Vector3(float(cell.x) + 0.5, floor_y + BLOCK * (float(LAYERS) + 0.5), float(cell.y) + 0.5)
+				merlon_mm.set_instance_transform(mslot, Transform3D(Basis.IDENTITY, mpos))
+				var mtone := rng.randf_range(0.85, 1.1)
+				merlon_mm.set_instance_color(mslot, Color(mtone, mtone * rng.randf_range(0.85, 1.05), mtone))
+				column.append(_spawn_wall_block(ring, i, LAYERS, 0, mslot, mpos, merlon_mm))
 			columns[ring][cell] = column
-			if i % SPITTER_EVERY == 0:
-				var spitter = PitSpitter.new()
-				add_child(spitter)
-				spitter.position = Vector3(float(cell.x) + 0.5, floor_y + BLOCK * float(LAYERS), float(cell.y) + 0.5)
-				column[LAYERS - 1].rider = spitter
 		for j in inner.size():
 			var icell: Vector2i = inner[j]
 			var d := Vector2(float(icell.x) + 0.5, float(icell.y) + 0.5).length()
@@ -350,12 +369,36 @@ func _build_walls() -> void:
 				var tone2 := rng.randf_range(0.7, 1.0)
 				mm.set_instance_color(slot2, Color(tone2, tone2 * rng.randf_range(0.85, 1.05), tone2))
 				pending[ring][layer].append({"pos": pos2, "depth": depth, "slot": slot2, "column": j, "block": null})
+		for i in range(0, count, SPITTER_EVERY):
+			var ocell: Vector2i = cells[i]
+			var ocenter := Vector2(float(ocell.x) + 0.5, float(ocell.y) + 0.5)
+			var behind := ocenter - ocenter.normalized() * BLOCK
+			var best_j := -1
+			var best_d := INF
+			for j in inner.size():
+				var jc: Vector2i = inner[j]
+				var jp := Vector2(float(jc.x) + 0.5, float(jc.y) + 0.5)
+				var jd := Vector2(jp.length() - (r - 1.0), 0.0).length()
+				if jd > 0.5:
+					continue
+				var dist := jp.distance_squared_to(behind)
+				if dist < best_d:
+					best_d = dist
+					best_j = j
+			if best_j < 0:
+				continue
+			var bc: Vector2i = inner[best_j]
+			var spitter = PitSpitter.new()
+			add_child(spitter)
+			spitter.position = Vector3(float(bc.x) + 0.5, floor_y + BLOCK * float(LAYERS), float(bc.y) + 0.5)
+			spitter.covered = true
+			for desc: Dictionary in pending[ring][LAYERS - 1]:
+				if desc["column"] == best_j:
+					desc["rider"] = spitter
 
 
 func _bone_mesh() -> ArrayMesh:
-	var material := StandardMaterial3D.new()
-	material.albedo_color = BONE_COLOR
-	material.roughness = 0.85
+	var material := TileArt.block_material("bone", BONE_COLOR)
 	var spike := CylinderMesh.new()
 	spike.top_radius = 0.0
 	spike.bottom_radius = 0.09
@@ -543,7 +586,7 @@ func _spike_mesh() -> ArrayMesh:
 	var idx := PackedInt32Array()
 	BloodTerrain.append_box(v, n, c, idx, Vector3(0.0, 1.8, 0.0), Vector3(0.22, 1.8, 0.22), Basis.from_euler(Vector3(0.12, 0.0, 0.1)), Color(0.88, 0.84, 0.74))
 	BloodTerrain.append_box(v, n, c, idx, Vector3(0.0, 3.4, 0.0), Vector3(0.1, 0.9, 0.1), Basis.from_euler(Vector3(0.12, 0.0, 0.2)), Color(0.92, 0.88, 0.78))
-	return BloodTerrain.to_mesh(v, n, c, idx, BloodTerrain.detail_material("stone"))
+	return BloodTerrain.to_mesh(v, n, c, idx, BloodTerrain.detail_material("bone"))
 
 
 func _mound_mesh() -> ArrayMesh:
@@ -553,7 +596,7 @@ func _mound_mesh() -> ArrayMesh:
 	var idx := PackedInt32Array()
 	BloodTerrain.append_box(v, n, c, idx, Vector3(0.0, 0.3, 0.0), Vector3(1.6, 0.5, 1.4), Basis.IDENTITY, Color(0.6, 0.14, 0.18))
 	BloodTerrain.append_box(v, n, c, idx, Vector3(0.2, 0.8, 0.1), Vector3(0.9, 0.4, 0.8), Basis.from_euler(Vector3(0.0, 0.5, 0.0)), Color(0.74, 0.26, 0.3))
-	return BloodTerrain.to_mesh(v, n, c, idx, BloodTerrain.detail_material("gloom_flesh"))
+	return BloodTerrain.to_mesh(v, n, c, idx, BloodTerrain.detail_material("blood"))
 
 
 func _spot(rng: RandomNumberGenerator, min_heart: float) -> Vector3:

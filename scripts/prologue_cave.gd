@@ -16,7 +16,47 @@ const STAIR_BASE_Y := 4
 const END_TUNNEL := {"min": Vector3i(10, 13, 53), "max": Vector3i(11, 15, 56)}
 const ARENA := {"min": Vector3i(0, 11, 54), "max": Vector3i(19, 21, 75)}
 const CRACK_CENTER := Vector3(9.5, 11.0, 66.0)
-const CRACK_LENGTH := 9.0
+const CRACK_LENGTH := 15.0
+const CRACK_HALF_MIN := 0.8
+const CRACK_HALF_MAX := 2.5
+const CRACK_TOP_Y := 10
+const CRACK_DEPTH := 16
+const DECK_DEPTH := 34.0
+const DECK_SIZE := 1200.0
+const CLOUD_SHADER := """
+shader_type spatial;
+render_mode unshaded, cull_disabled;
+uniform vec3 deep : source_color = vec3(0.03, 0.0, 0.05);
+uniform vec3 mid : source_color = vec3(0.3, 0.04, 0.1);
+uniform vec3 lit : source_color = vec3(0.9, 0.24, 0.2);
+varying vec3 wpos;
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+float fbm(vec2 p) {
+	float v = 0.0;
+	float a = 0.5;
+	for (int i = 0; i < 5; i++) {
+		v += a * noise(p);
+		p = p * 2.02 + vec2(17.3, 9.1);
+		a *= 0.5;
+	}
+	return v;
+}
+void vertex() { wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz; }
+void fragment() {
+	vec2 p = wpos.xz * 0.02;
+	vec2 w = vec2(TIME * 0.015, TIME * 0.01);
+	float c = fbm(p + w + fbm(p * 1.7 - w) * 0.8);
+	vec3 col = mix(deep, mid, smoothstep(0.3, 0.75, c));
+	col = mix(col, lit, smoothstep(0.62, 0.9, c) * 0.75);
+	ALBEDO = col;
+}
+"""
 const CAVE_PILLARS := [Vector3i(4, 5, 2), Vector3i(16, 5, 2), Vector3i(5, 15, 2), Vector3i(15, 14, 2), Vector3i(10, 10, 2)]
 const BEDROCK_TINT := Color(0.62, 0.62, 0.7)
 const AO_LEVELS := [0.55, 0.72, 0.87, 1.0]
@@ -49,6 +89,7 @@ static func build(root: Node3D, world: Node3D, origin: Vector3) -> Dictionary:
 			for y in range(STAIR_BASE_Y + k, STAIR_BASE_Y + k + 3):
 				air[Vector3i(x, y, STAIR_Z + k)] = true
 	_carve(air, END_TUNNEL)
+	var open_bottom := _crack_shaft(air, rng)
 	for p in CAVE_PILLARS:
 		_column(air, Vector2(float(p.x) + float(p.z) * 0.5, float(p.y) + float(p.z) * 0.5), float(p.z) * 0.8, CAVE_ONE["min"].y, shape_noise)
 	_formations(air, CAVE_ONE, rng, 9, 14)
@@ -59,7 +100,7 @@ static func build(root: Node3D, world: Node3D, origin: Vector3) -> Dictionary:
 	body.name = "Bedrock"
 	root.add_child(body)
 	body.global_position = origin
-	var mesh := _mesh(air)
+	var mesh := _mesh(air, open_bottom)
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	body.add_child(mi)
@@ -99,7 +140,7 @@ static func build(root: Node3D, world: Node3D, origin: Vector3) -> Dictionary:
 					stones.append(block)
 
 	var crack_pos := origin + CRACK_CENTER
-	_make_crack(root, crack_pos)
+	_make_crack(root, crack_pos, origin)
 	return {
 		"spawn": origin + Vector3(11.0, 1.0, 3.5),
 		"stones": stones,
@@ -108,53 +149,58 @@ static func build(root: Node3D, world: Node3D, origin: Vector3) -> Dictionary:
 	}
 
 
-static func _make_crack(root: Node3D, pos: Vector3) -> void:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 4410
-	var steps := 14
-	var verts := PackedVector3Array()
-	var norms := PackedVector3Array()
-	var idx := PackedInt32Array()
+static func _crack_shaft(air: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
+	var bottom: Dictionary = {}
+	var shape := FastNoiseLite.new()
+	shape.seed = 4410
+	shape.frequency = 0.35
+	var z_min := floori(CRACK_CENTER.z - CRACK_LENGTH * 0.5)
+	var z_max := floori(CRACK_CENTER.z + CRACK_LENGTH * 0.5)
 	var sway := 0.0
-	for i in steps + 1:
-		var z := -CRACK_LENGTH * 0.5 + CRACK_LENGTH * float(i) / float(steps)
-		var taper := sin(PI * float(i) / float(steps))
-		var width := (0.25 + rng.randf() * 0.5) * (0.4 + taper) * 0.5
-		sway += rng.randf_range(-0.3, 0.3)
-		sway = clampf(sway, -0.9, 0.9)
-		verts.append(Vector3(sway - width, 0.04, z))
-		verts.append(Vector3(sway + width, 0.04, z))
-		norms.append(Vector3.UP)
-		norms.append(Vector3.UP)
-	for i in steps:
-		var a := i * 2
-		idx.append_array(PackedInt32Array([a, a + 1, a + 2, a + 1, a + 3, a + 2]))
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = verts
-	arrays[Mesh.ARRAY_NORMAL] = norms
-	arrays[Mesh.ARRAY_INDEX] = idx
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.05, 0.0, 0.0)
-	mat.emission_enabled = true
-	mat.emission = Color(1.0, 0.12, 0.08)
-	mat.emission_energy_multiplier = 4.0
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	mesh.surface_set_material(0, mat)
-	var node := MeshInstance3D.new()
-	node.name = "Crack"
-	node.mesh = mesh
-	root.add_child(node)
-	node.global_position = pos
-	var light := OmniLight3D.new()
-	light.light_color = Color(1.0, 0.15, 0.1)
-	light.light_energy = 3.0
-	light.omni_range = 14.0
-	light.shadow_enabled = false
-	root.add_child(light)
-	light.global_position = pos + Vector3(0.0, 1.2, 0.0)
+	for z in range(z_min, z_max + 1):
+		var t := float(z - z_min) / float(maxi(z_max - z_min, 1))
+		var taper := sin(PI * t)
+		sway = clampf(sway + rng.randf_range(-0.45, 0.45), -1.8, 1.8)
+		var half := lerpf(CRACK_HALF_MIN, CRACK_HALF_MAX, taper) + shape.get_noise_2d(float(z), 3.0) * 0.5
+		var cx := CRACK_CENTER.x + sway
+		for x in range(floori(cx - half - 1.0), ceili(cx + half + 1.0)):
+			var edge := half + shape.get_noise_2d(float(x), float(z)) * 0.45
+			if absf(float(x) + 0.5 - cx) > edge:
+				continue
+			for y in range(CRACK_TOP_Y - CRACK_DEPTH + 1, CRACK_TOP_Y + 1):
+				air[Vector3i(x, y, z)] = true
+			bottom[Vector3i(x, CRACK_TOP_Y - CRACK_DEPTH + 1, z)] = true
+	return bottom
+
+
+static func _make_crack(root: Node3D, pos: Vector3, origin: Vector3) -> void:
+	var shader := Shader.new()
+	shader.code = CLOUD_SHADER
+	var deck_mat := ShaderMaterial.new()
+	deck_mat.shader = shader
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(DECK_SIZE, DECK_SIZE)
+	plane.material = deck_mat
+	var deck := MeshInstance3D.new()
+	deck.name = "CloudDeck"
+	deck.mesh = plane
+	deck.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(deck)
+	deck.global_position = Vector3(pos.x, origin.y - DECK_DEPTH, pos.z)
+	var glow := OmniLight3D.new()
+	glow.light_color = Color(1.0, 0.18, 0.12)
+	glow.light_energy = 3.5
+	glow.omni_range = 16.0
+	glow.shadow_enabled = false
+	root.add_child(glow)
+	glow.global_position = pos + Vector3(0.0, -6.0, 0.0)
+	var top := OmniLight3D.new()
+	top.light_color = Color(1.0, 0.15, 0.1)
+	top.light_energy = 1.6
+	top.omni_range = 12.0
+	top.shadow_enabled = false
+	root.add_child(top)
+	top.global_position = pos + Vector3(0.0, 1.5, 0.0)
 
 
 static func _material() -> StandardMaterial3D:
@@ -301,7 +347,7 @@ static func _hash01(cell: Vector3i, face: int) -> float:
 	return float(h & 1023) / 1023.0
 
 
-static func _mesh(air: Dictionary) -> ArrayMesh:
+static func _mesh(air: Dictionary, open_bottom: Dictionary = {}) -> ArrayMesh:
 	var tint := FastNoiseLite.new()
 	tint.seed = 17
 	tint.noise_type = FastNoiseLite.TYPE_SIMPLEX
@@ -317,6 +363,8 @@ static func _mesh(air: Dictionary) -> ArrayMesh:
 		for f in DIRS.size():
 			var n: Vector3i = DIRS[f]
 			if air.has(cell + n):
+				continue
+			if n.y < 0 and open_bottom.has(cell):
 				continue
 			var axis := 0
 			if n.y != 0:

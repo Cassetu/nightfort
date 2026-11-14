@@ -8,6 +8,7 @@ const ARCHER_SCENE = preload("res://scenes/archer.tscn")
 const MAX_HEALTH := 30
 const RANGE := 52.0
 const MIN_RANGE := 8.0
+const MERLON_RANGE := 1.35
 const COOLDOWN := 4.0
 const FLIGHT := 1.3
 const GRAVITY := 22.0
@@ -24,6 +25,7 @@ var health: int = MAX_HEALTH
 var dying: bool = false
 var timer: float = 0.0
 var maw: MeshInstance3D
+var covered: bool = false
 var model: Node3D
 var arm_r: Node3D
 var arm_l: Node3D
@@ -52,17 +54,16 @@ func _flesh_material() -> StandardMaterial3D:
 
 
 func _rag_material() -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_color = RAG
+	var m: StandardMaterial3D = TileArt.block_material("rags", RAG).duplicate()
+	m.albedo_color = Color(0.85, 0.8, 0.85)
 	m.roughness = 1.0
 	m.emission_enabled = true
-	m.emission = Color(0.05, 0.02, 0.06)
+	m.emission = Color(0.03, 0.01, 0.04)
 	return m
 
 
 func _glow_material() -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.3, 0.12, 0.4)
+	var m: StandardMaterial3D = TileArt.block_material("bile", Color(0.3, 0.12, 0.4)).duplicate()
 	m.emission_enabled = true
 	m.emission = BILE
 	m.emission_energy_multiplier = 2.5
@@ -108,7 +109,7 @@ func _build_model() -> void:
 	_skin(model, "ArmL/Mesh", flesh)
 	_skin(model, "Body/Tabard", rag)
 	_skin(model, "Body/Hood", rag)
-	_skin(model, "ArmL/Bow/Limb", flesh)
+	_skin(model, "ArmL/Bow/Limb", TileArt.block_material("bone", Color(0.8, 0.76, 0.64)))
 	_skin(model, "ArmL/Bow/String", glow)
 	var tabard := _mesh_of(model, "Body/Tabard")
 	if tabard != null:
@@ -185,9 +186,14 @@ func _physics_process(delta: float) -> void:
 	_lob(target)
 
 
+static var player_claim = null
+static var player_claim_until: float = 0.0
+
+
 func _pick() -> Node3D:
 	var best: Node3D = null
-	var best_d := RANGE * RANGE
+	var reach := RANGE * (MERLON_RANGE if covered else 1.0)
+	var best_d := reach * reach
 	var from := global_position
 	for a in get_tree().get_nodes_in_group("ally_unit"):
 		if not is_instance_valid(a):
@@ -196,6 +202,15 @@ func _pick() -> Node3D:
 		if d < best_d and d > MIN_RANGE * MIN_RANGE:
 			best_d = d
 			best = a
+	var p = get_tree().get_first_node_in_group("player")
+	if p != null and is_instance_valid(p) and not p.dead:
+		var pd := from.distance_squared_to(p.global_position)
+		var now := float(Time.get_ticks_msec()) / 1000.0
+		var open: bool = player_claim == null or not is_instance_valid(player_claim) or player_claim == self or player_claim.dying or now > player_claim_until
+		if open and pd < best_d and pd > MIN_RANGE * MIN_RANGE:
+			best = p
+			player_claim = self
+			player_claim_until = now + COOLDOWN * 1.6
 	return best
 
 

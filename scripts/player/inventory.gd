@@ -34,6 +34,7 @@ var BLOCK_TYPES := {
 	"basalt_brick": {"name": "Basalt Bricks", "resource": "basalt_brick", "tile": "basalt_brick", "health": 11, "color": Color(0.20, 0.20, 0.23)},
 	"limestone": {"name": "Limestone", "resource": "limestone", "tile": "limestone", "health": 4, "color": Color(0.72, 0.68, 0.58)},
 	"limestone_brick": {"name": "Limestone Bricks", "resource": "limestone_brick", "tile": "limestone_brick", "health": 7, "color": Color(0.72, 0.68, 0.58)},
+	"merlon": {"name": "Merlon", "resource": "merlon", "tile": "stone_brick", "weight": 2, "health": 8, "color": Color(0.55, 0.55, 0.6), "scene": "res://scenes/blocks/merlon.tscn"},
 	"door": {"name": "Door", "resource": "door", "weight": 1, "health": 6, "color": Color(0.45, 0.3, 0.17), "scene": "res://scenes/door.tscn", "height": 2, "needs_support": true},
 	"sand": {"name": "Sand Block", "resource": "sand", "tile": "sand", "falls": true, "weight": 2, "health": 2, "color": Color(0.76, 0.68, 0.45)},
 	"ruined_brick": {"name": "Ruined Bricks", "resource": "stone", "tile": "ruined_brick", "weight": 3, "health": 3, "color": Color(0.36, 0.38, 0.33)},
@@ -49,6 +50,7 @@ var BLOCK_TYPES := {
 
 var ITEMS := {
 	"sword": {"name": "Sword", "kind": "weapon", "max_stack": 1, "damage": 3, "cooldown": 0.45, "reach": 2.6, "color": Color(0.78, 0.84, 0.92)},
+	"spear": {"name": "Spear", "kind": "weapon", "thrust": true, "max_stack": 1, "damage": 2, "cooldown": 0.6, "reach": 4.4, "knockback": 0.4, "color": Color(0.7, 0.62, 0.45)},
 	"scythe": {"name": "Scythe", "kind": "weapon", "sweep": true, "max_stack": 1, "damage": 3, "cooldown": 0.75, "reach": 3.4, "color": Color(0.55, 0.57, 0.52)},
 	"wood": {"name": "Wood", "kind": "block", "tile": "wood", "color": Color(0.58, 0.40, 0.22)},
 	"stone": {"name": "Stone", "kind": "block", "tile": "stone", "color": Color(0.62, 0.62, 0.65)},
@@ -72,6 +74,7 @@ var ITEMS := {
 	"basalt_brick": {"name": "Basalt Bricks", "kind": "block", "tile": "basalt_brick", "color": Color(0.20, 0.20, 0.23)},
 	"limestone": {"name": "Limestone", "kind": "block", "tile": "limestone", "color": Color(0.72, 0.68, 0.58)},
 	"limestone_brick": {"name": "Limestone Bricks", "kind": "block", "tile": "limestone_brick", "color": Color(0.72, 0.68, 0.58)},
+	"merlon": {"name": "Merlon", "kind": "block", "tile": "stone_brick", "color": Color(0.55, 0.55, 0.6)},
 	"door": {"name": "Door", "kind": "block", "color": Color(0.45, 0.3, 0.17)},
 	"barricade": {"name": "Spiked Barricade", "kind": "block", "color": Color(0.5, 0.36, 0.2)},
 	"scaffold": {"name": "Scaffold", "kind": "block", "tile": "plank", "color": Color(0.72, 0.55, 0.32)},

@@ -1,6 +1,7 @@
 extends Node
 
 const SFX_DIR := "res://audio/sfx/"
+const RAIN_FADE_IN := 5.0
 const RAIN_PATH := "res://audio/rain.mp3"
 const SFX_BUS := "SFX"
 const RAIN_BUS := "Rain"
@@ -65,6 +66,7 @@ var rain_timer: float = 0.0
 var shelter: float = 1.0
 var shelter_target: float = 1.0
 var rain_on: bool = false
+var rain_fade: float = 0.0
 var wind_a: AudioStreamPlayer
 var wind_b: AudioStreamPlayer
 var wind_on: bool = false
@@ -301,9 +303,11 @@ func _rain(delta: float) -> void:
 		return
 	if not rain_on:
 		rain_on = true
+		rain_fade = 0.0
 		rain_a.play(randf() * 4.0)
 		rain_b.play(10.7 + randf() * 4.0)
 	rain_clock += delta
+	rain_fade = move_toward(rain_fade, 1.0, delta / RAIN_FADE_IN)
 	rain_timer -= delta
 	if rain_timer <= 0.0:
 		rain_timer = RAIN_UPDATE
@@ -313,8 +317,9 @@ func _rain(delta: float) -> void:
 	var shelter_db := linear_to_db(clampf(shelter, 0.005, 1.0))
 	var wobble_a := sin(rain_clock * 0.23) * 1.6 + sin(rain_clock * 0.61 + 1.3) * 0.8
 	var wobble_b := sin(rain_clock * 0.19 + 2.1) * 1.6 + sin(rain_clock * 0.53 + 4.0) * 0.8
-	rain_a.volume_db = base + shelter_db + wobble_a
-	rain_b.volume_db = base + shelter_db + wobble_b
+	var fade_db := linear_to_db(maxf(rain_fade * rain_fade, 0.0001))
+	rain_a.volume_db = base + shelter_db + wobble_a + fade_db
+	rain_b.volume_db = base + shelter_db + wobble_b + fade_db
 	rain_a.pitch_scale = 1.0 + 0.012 * sin(rain_clock * 0.17)
 	rain_b.pitch_scale = 1.0 + 0.012 * sin(rain_clock * 0.14 + 2.0)
 	if rain_filter != null:

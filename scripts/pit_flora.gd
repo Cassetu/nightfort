@@ -95,14 +95,7 @@ static func _mesh_for(id: String) -> ArrayMesh:
 
 
 static func _glow_material() -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.vertex_color_use_as_albedo = true
-	m.albedo_color = Color(1, 1, 1)
-	m.emission_enabled = true
-	m.emission = BILE
-	m.emission_energy_multiplier = 1.8
-	m.roughness = 0.4
-	return m
+	return BloodTerrain.glow_material("bile", Color(0.3, 0.16, 0.4), BILE, 1.8)
 
 
 class Buf:
@@ -153,7 +146,7 @@ static func _tuft(variant: int) -> ArrayMesh:
 		var base := Vector3(cos(a), 0.0, -sin(a)) * rng.randf_range(0.04, 0.12)
 		_chain(buf, base, a, rng.randf_range(0.15, 0.55), rng.randf_range(0.18, 0.36), rng.randf_range(0.35, 0.85), 0.03, 3, Color(0.34, 0.06, 0.1), tip)
 	var mesh := ArrayMesh.new()
-	buf.commit(mesh, BloodTerrain.detail_material("gloom_flesh"))
+	buf.commit(mesh, BloodTerrain.detail_material("blood"))
 	return mesh
 
 
@@ -170,7 +163,7 @@ static func _bloom() -> ArrayMesh:
 		flesh.box(top + Vector3(cos(a), 0.02, -sin(a)) * 0.17, Vector3(0.12, 0.02, 0.07), basis, Color(0.6, 0.16, 0.22))
 	glow.box(top + Vector3(0.0, 0.3, 0.0), Vector3(0.09, 0.05, 0.09), Basis.from_euler(Vector3(0.1, 0.4, 0.15)), Color(0.62, 0.4, 0.85))
 	var mesh := ArrayMesh.new()
-	flesh.commit(mesh, BloodTerrain.detail_material("gloom_flesh"))
+	flesh.commit(mesh, BloodTerrain.detail_material("blood"))
 	glow.commit(mesh, _glow_material())
 	return mesh
 
@@ -189,8 +182,8 @@ static func _bush() -> ArrayMesh:
 		var basis := Basis(Vector3.UP, a2) * Basis(Vector3.BACK, -0.35)
 		flesh.box(Vector3(cos(a2), 0.0, -sin(a2)) * 0.2 + Vector3(0.0, 0.55, 0.0), Vector3(0.32, 0.012, 0.22), basis, Color(0.55, 0.12, 0.18))
 	var mesh := ArrayMesh.new()
-	bone.commit(mesh, BloodTerrain.detail_material("stone"))
-	flesh.commit(mesh, BloodTerrain.detail_material("gloom_flesh"))
+	bone.commit(mesh, BloodTerrain.detail_material("bone"))
+	flesh.commit(mesh, BloodTerrain.detail_material("blood"))
 	return mesh
 
 
@@ -209,7 +202,7 @@ static func _pustule() -> ArrayMesh:
 		flesh.box(center, half, basis, Color(0.62, 0.2, 0.26))
 		glow.box(center + Vector3(0.0, half.y, 0.0), Vector3(half.x * 0.45, 0.04, half.z * 0.45), basis, Color(0.6, 0.38, 0.82))
 	var mesh := ArrayMesh.new()
-	flesh.commit(mesh, BloodTerrain.detail_material("gloom_flesh"))
+	flesh.commit(mesh, BloodTerrain.detail_material("blood"))
 	glow.commit(mesh, _glow_material())
 	return mesh
 
@@ -232,5 +225,5 @@ static func _arch() -> ArrayMesh:
 		var a := PI * float(k) / float(steps)
 		bone.box(Vector3(cos(a) * radius, sin(a) * radius - 0.3, 0.0), Vector3(0.05, 0.05, 0.72), Basis.IDENTITY, Color(0.8, 0.74, 0.64))
 	var mesh := ArrayMesh.new()
-	bone.commit(mesh, BloodTerrain.detail_material("stone"))
+	bone.commit(mesh, BloodTerrain.detail_material("bone"))
 	return mesh

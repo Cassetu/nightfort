@@ -330,7 +330,10 @@ func build(parent: Node3D) -> StaticBody3D:
 	var pool := PlaneMesh.new()
 	pool.size = Vector2(HALF * 2.0, HALF * 2.0)
 	var pool_mat := StandardMaterial3D.new()
-	pool_mat.albedo_color = Color(0.32, 0.015, 0.04, 0.88)
+	pool_mat.albedo_color = Color(0.7, 0.45, 0.5, 0.9)
+	pool_mat.albedo_texture = TileArt.mip_texture("blood", Color(0.32, 0.015, 0.04))
+	pool_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
+	pool_mat.uv1_scale = Vector3(HALF / 3.0, HALF / 3.0, 1.0)
 	pool_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	pool_mat.roughness = 0.1
 	pool_mat.metallic = 0.3
@@ -354,6 +357,15 @@ static func detail_material(tile: String) -> StandardMaterial3D:
 	var m := base.duplicate() as StandardMaterial3D
 	m.vertex_color_use_as_albedo = true
 	m.albedo_color = Color(1, 1, 1)
+	return m
+
+
+static func glow_material(tile: String, fallback: Color, emission: Color, energy: float) -> StandardMaterial3D:
+	var m := detail_material(tile)
+	m.emission_enabled = true
+	m.emission = emission
+	m.emission_energy_multiplier = energy
+	m.roughness = 0.45
 	return m
 
 

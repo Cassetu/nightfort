@@ -4,8 +4,8 @@ const RADIUS := 10
 const WALL_HEIGHT := 3
 const TOWER_HEIGHT := 5
 const TOWER_SIZE := 5
-const FLOOR_LAYER := 2
-const LADDER_TOP := 3
+const FLOOR_LAYER := 4
+const LADDER_TOP := 5
 const GATE_HALF := 1
 const INTACT_CHANCE := 0.3
 

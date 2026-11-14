@@ -4,13 +4,8 @@ const ChipBurst = preload("res://scripts/chip_burst.gd")
 
 const MAX_HP := 8
 const BILE := Color(0.36, 0.2, 0.46)
-const CRACK_STAGES := 10
-const CRACK_WALKERS := 7
-const CRACK_STEPS := 18
-const CRACK_SIZE := 1.012
+const CrackOverlay = preload("res://scripts/crack_overlay.gd")
 
-static var crack_materials: Array = []
-static var crack_mesh: BoxMesh
 
 var hp: int = MAX_HP
 var dead: bool = false
@@ -61,50 +56,8 @@ func take_damage(amount, from: Vector3 = Vector3.INF) -> void:
 		_show_crack()
 
 
-static func _ensure_cracks() -> void:
-	if not crack_materials.is_empty():
-		return
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 8808
-	var ordered: Array = []
-	var walkers: Array = []
-	for w in CRACK_WALKERS:
-		walkers.append([Vector2i(rng.randi_range(2, 13), rng.randi_range(2, 13)), Vector2i(rng.randi_range(-1, 1), rng.randi_range(-1, 1))])
-	for step in CRACK_STEPS:
-		for walker: Array in walkers:
-			var pos: Vector2i = walker[0]
-			var dir: Vector2i = walker[1]
-			if dir == Vector2i.ZERO or rng.randf() < 0.35:
-				dir = Vector2i(rng.randi_range(-1, 1), rng.randi_range(-1, 1))
-			pos = Vector2i(clampi(pos.x + dir.x, 0, 15), clampi(pos.y + dir.y, 0, 15))
-			walker[0] = pos
-			walker[1] = dir
-			ordered.append(pos)
-	for stage in CRACK_STAGES:
-		var img := Image.create(16, 16, false, Image.FORMAT_RGBA8)
-		var shown := int(float(ordered.size()) * float(stage + 1) / float(CRACK_STAGES))
-		for i in shown:
-			var px: Vector2i = ordered[i]
-			img.set_pixelv(px, Color(0.03, 0.0, 0.03, 0.9))
-		var mat := StandardMaterial3D.new()
-		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		mat.albedo_texture = ImageTexture.create_from_image(img)
-		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-		crack_materials.append(mat)
-	crack_mesh = BoxMesh.new()
-	crack_mesh.size = Vector3.ONE * CRACK_SIZE
-
-
 func _show_crack() -> void:
-	_ensure_cracks()
-	var stage := clampi(int((1.0 - float(hp) / float(MAX_HP)) * float(CRACK_STAGES)), 0, CRACK_STAGES - 1)
-	if crack == null:
-		crack = MeshInstance3D.new()
-		crack.mesh = crack_mesh
-		crack.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(crack)
-	crack.material_override = crack_materials[stage]
+	crack = CrackOverlay.show(self, crack, 1.0 - float(hp) / float(MAX_HP))
 
 
 func _break() -> void:

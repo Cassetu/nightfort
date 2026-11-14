@@ -15,6 +15,7 @@ const TICK := 0.5
 const TICK_BLOCK := 1
 const TICK_UNIT := 2
 const TICK_PLAYER := 2
+const TileArt = preload("res://scripts/tile_art.gd")
 const BILE := Color(0.36, 0.2, 0.46)
 const MAX_SKIPS := 4
 
@@ -70,13 +71,17 @@ static func _ensure_materials() -> void:
 	if sack_material != null:
 		return
 	sack_material = StandardMaterial3D.new()
-	sack_material.albedo_color = Color(0.2, 0.1, 0.26)
+	sack_material.albedo_color = Color(0.7, 0.6, 0.8)
+	sack_material.albedo_texture = TileArt.mip_texture("bile", Color(0.2, 0.1, 0.26))
+	sack_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
 	sack_material.emission_enabled = true
 	sack_material.emission = BILE
 	sack_material.emission_energy_multiplier = 0.7
 	sack_material.roughness = 0.3
 	puddle_material = StandardMaterial3D.new()
-	puddle_material.albedo_color = Color(0.14, 0.06, 0.2, 0.85)
+	puddle_material.albedo_color = Color(0.6, 0.5, 0.7, 0.85)
+	puddle_material.albedo_texture = TileArt.mip_texture("bile", Color(0.14, 0.06, 0.2))
+	puddle_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
 	puddle_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	puddle_material.emission_enabled = true
 	puddle_material.emission = BILE

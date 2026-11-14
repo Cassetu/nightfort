@@ -392,7 +392,9 @@ func take_damage(amount, from_pos = Vector3.INF) -> void:
 		var away: Vector3 = global_position - from_pos
 		away.y = 0.0
 		if away.length() > 0.01:
-			knock = away.normalized() * KNOCKBACK
+			var knock_scale: float = float(get_meta("knock_scale", 1.0))
+			remove_meta("knock_scale")
+			knock = away.normalized() * KNOCKBACK * knock_scale
 	if is_on_floor():
 		velocity.y = 3.5
 	stun = 0.25

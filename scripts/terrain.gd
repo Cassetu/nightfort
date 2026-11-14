@@ -5,6 +5,7 @@ const RockScript = preload("res://scripts/rock.gd")
 const CactusScript = preload("res://scripts/cactus.gd")
 const TileArt = preload("res://scripts/tile_art.gd")
 const ChipBurst = preload("res://scripts/chip_burst.gd")
+const CrackOverlay = preload("res://scripts/crack_overlay.gd")
 
 signal block_broken(cell: Vector3i)
 
@@ -570,21 +571,7 @@ func _delta(v: Vector3i) -> int:
 
 
 func _setup_crack() -> void:
-	for stage in 10:
-		var img := Image.create(16, 16, false, Image.FORMAT_RGBA8)
-		var threshold := 0.05 + 0.065 * float(stage)
-		for py in 16:
-			for px in 16:
-				if _hash3(px, py, 77) < threshold:
-					img.set_pixel(px, py, Color(0.0, 0.0, 0.0, 0.7))
-				else:
-					img.set_pixel(px, py, Color(0.0, 0.0, 0.0, 0.0))
-		var mat := StandardMaterial3D.new()
-		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		mat.albedo_texture = ImageTexture.create_from_image(img)
-		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-		crack_materials.append(mat)
+	crack_materials = CrackOverlay.materials()
 
 	crack = MeshInstance3D.new()
 	crack.name = "Crack"

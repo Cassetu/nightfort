@@ -3,6 +3,7 @@ extends "res://scripts/resource_node.gd"
 const TileArt = preload("res://scripts/tile_art.gd")
 const BlockIndex = preload("res://scripts/block_index.gd")
 const BlockBatch = preload("res://scripts/block_batch.gd")
+const CrackOverlay = preload("res://scripts/crack_overlay.gd")
 const BLOCK_SCRIPT := "res://scripts/blocks/block.gd"
 
 const SUPPORT_INTERVAL := 0.25
@@ -32,6 +33,7 @@ var wet: bool = false
 var base_health: int = 0
 var body_mesh: MeshInstance3D
 var decal_mesh: MeshInstance3D
+var crack_mesh: MeshInstance3D
 
 static var _materials: Dictionary = {}
 static var _dark_materials: Dictionary = {}
@@ -98,6 +100,12 @@ func _unbatch() -> void:
 func take_damage(amount: int, hit_position: Vector3 = Vector3.INF) -> void:
 	_unbatch()
 	super(amount, hit_position)
+	if not dying and current_health > 0 and _shows_cracks():
+		crack_mesh = CrackOverlay.show(visual, crack_mesh, 1.0 - float(current_health) / float(maxi(max_health, 1)))
+
+
+func _shows_cracks() -> bool:
+	return not Inventory.BLOCK_TYPES[block_type].has("scene")
 
 
 func _process(_delta: float) -> void:

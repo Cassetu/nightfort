@@ -763,6 +763,9 @@ func swing(weapon):
 	if weapon.get("sweep", false):
 		sweep(weapon)
 		return
+	if weapon.get("thrust", false):
+		_thrust(weapon)
+		return
 	attack_timer = weapon["cooldown"]
 	Sfx.play(self, "sword_swing", global_position, -2.0)
 
@@ -782,6 +785,33 @@ func swing(weapon):
 			continue
 		struck[target] = true
 		target.take_damage(weapon["damage"], global_position)
+
+
+func _thrust(weapon) -> void:
+	attack_timer = weapon["cooldown"]
+	Sfx.play(self, "sword_swing", global_position, -2.0)
+	held.play_swing()
+	var reach: float = weapon["reach"]
+	var forward: Vector3 = -camera.global_transform.basis.z
+	var shape := CapsuleShape3D.new()
+	shape.radius = 0.55
+	shape.height = reach
+	var basis := Basis.looking_at(forward, Vector3.UP) * Basis(Vector3.RIGHT, PI * 0.5)
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = shape
+	query.collision_mask = 2
+	query.transform = Transform3D(basis, camera.global_position + forward * reach * 0.5)
+	var found = get_world_3d().direct_space_state.intersect_shape(query, 8)
+	var struck = {}
+	for entry in found:
+		var target = entry["collider"]
+		if struck.has(target) or not (target.is_in_group("enemy") or target.is_in_group("wild_gloom") or target.is_in_group("gloom_bird") or target.is_in_group("boss")):
+			continue
+		struck[target] = true
+		target.set_meta("knock_scale", float(weapon.get("knockback", 1.0)))
+		target.take_damage(weapon["damage"], global_position)
+		if is_instance_valid(target) and target.has_meta("knock_scale"):
+			target.remove_meta("knock_scale")
 
 
 func try_place(hit):

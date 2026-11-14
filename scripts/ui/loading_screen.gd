@@ -17,6 +17,14 @@ const TIPS := [
 	"Caves may be scary, but the ore inside is too good to pass up.",
 	"Barricades cost lots of wood, but are crucial for good base defense!",
 	"Don't stray too far from the core, otherwise when night comes, you cannot protect it.",
+	"Put a lantern in your bauble slot for light that doesn’t require holding!",
+	"To beat the forge minigame, just hit the orange circles!",
+	"Inventory filled up? Build a chest!",
+	"The rain is so calming… the thunder is so frightening!!",
+	"Use ladders for quick and easy access to the top of your walls.",
+	"Wanna just build an awesome fort without mining for eternity? Try creative mode!",
+	"Remember to station all your troops.",
+	"You can walk through the core!!",
 ]
 
 @onready var root: Control = $Root
@@ -99,10 +107,10 @@ func _finish() -> void:
 	releasing = true
 	if terrain != null and is_instance_valid(terrain):
 		terrain.frame_budget_ms = saved_budget
-	if player != null and is_instance_valid(player):
-		player.frozen = saved_frozen
 	var tween := create_tween()
 	tween.tween_property(root, "modulate:a", 0.0, FADE_OUT)
 	await tween.finished
+	if player != null and is_instance_valid(player):
+		player.frozen = saved_frozen
 	finished.emit()
 	queue_free()

@@ -93,6 +93,13 @@ static func uv_material(tile_name: String, fallback: Color, uv_scale: Vector3, v
 	return m
 
 
+static func mip_texture(tile_name: String, fallback: Color) -> ImageTexture:
+	var img := Image.new()
+	img.copy_from(tile_image(tile_name, fallback))
+	img.generate_mipmaps()
+	return ImageTexture.create_from_image(img)
+
+
 static func texture(tile_name: String, fallback: Color) -> ImageTexture:
 	return ImageTexture.create_from_image(tile_image(tile_name, fallback))
 

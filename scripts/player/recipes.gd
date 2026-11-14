@@ -15,6 +15,7 @@ const LIST := [
 	{"id": "door", "out": "door", "count": 1, "shape": [["plank", "plank"], ["plank", "plank"], ["plank", "plank"]]},
 	{"id": "stick", "out": "stick", "count": 8, "shape": [["plank"], ["plank"]]},
 	{"id": "ladder", "out": "ladder", "count": 3, "shape": [["stick"], ["stick"], ["stick"]]},
+	{"id": "spear", "out": "spear", "count": 1, "shape": [["stone"], ["stick"], ["stick"]]},
 	{"id": "bow", "out": "bow", "count": 1, "shapeless": ["stick", "stick", "stick", "plank"]},
 	{"id": "arrow", "out": "arrow", "count": 4, "shape": [["stone"], ["stick"]]},
 	{"id": "wooden_pickaxe", "out": "wooden_pickaxe", "count": 1, "shape": [["plank", "plank", "plank"], ["fiber", "stick", "fiber"], ["", "stick", ""]]},
@@ -34,6 +35,7 @@ const LIST := [
 	{"id": "scaffold", "out": "scaffold", "count": 8, "shape": [["plank"], ["plank"], ["plank"]]},
 	{"id": "iron_block", "out": "iron_block", "count": 1, "shape": [["iron", "iron", "iron"], ["iron", "iron", "iron"], ["iron", "iron", "iron"]]},
 	{"id": "stone_forge", "out": "stone_forge", "count": 1, "shape": [["stone_brick", "stone_brick", "stone_brick"], ["stone_brick", "coal", "stone_brick"], ["stone_brick", "stone_brick", "stone_brick"]]},
+	{"id": "merlon", "out": "merlon", "count": 4, "shape": [["stone_brick", "", "stone_brick"], ["stone_brick", "stone_brick", "stone_brick"]]},
 	{"id": "fortified_brick", "out": "fortified_brick", "count": 4, "shape": [["stone_brick", "stone_brick", "stone_brick"], ["stone_brick", "", "stone_brick"], ["stone_brick", "stone_brick", "stone_brick"]]},
 ]
 

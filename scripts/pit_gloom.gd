@@ -56,7 +56,9 @@ func take_damage(amount, from: Vector3 = Vector3.INF) -> void:
 	if from.is_finite():
 		var away := global_position - from
 		away.y = 0.0
-		knock = away.normalized() * 4.0
+		var knock_scale: float = float(get_meta("knock_scale", 1.0))
+		remove_meta("knock_scale")
+		knock = away.normalized() * 4.0 * knock_scale
 	ChipBurst.spawn(self, global_position + Vector3(0.0, 1.0, 0.0), "gloom_flesh", BILE, 6, 0.1, 0.5, 80.0, 2.0, 4.5, 10.0)
 	if health <= 0.0:
 		_die()
@@ -95,6 +97,14 @@ func _nearest_ally() -> Node3D:
 			continue
 		best_d = d
 		best = a
+	var p = get_tree().get_first_node_in_group("player")
+	if p != null and is_instance_valid(p) and not p.dead:
+		var pd := global_position.distance_squared_to(p.global_position)
+		if pd < best_d:
+			if my_band == -2:
+				my_band = BloodTerrain.band(global_position)
+			if BloodTerrain.band(p.global_position) == my_band:
+				best = p
 	return best
 
 
@@ -166,6 +176,8 @@ func _strike() -> void:
 	anim.play("swipe_l" if swing_left else "swipe_r")
 	await get_tree().create_timer(0.3).timeout
 	if dying or not is_inside_tree() or not is_instance_valid(target):
+		return
+	if "dead" in target and target.dead:
 		return
 	if target.global_position.distance_to(global_position) <= REACH + 0.9:
 		target.take_damage(roundi(DAMAGE * (1.0 + pressure * 0.4)), global_position)

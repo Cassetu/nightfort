@@ -33,7 +33,7 @@ const LANDING_LINES := [
 ]
 const LEAVE_LINE := "I can't abandon the fight now."
 const COMMAND_PROMPT := "F: Command Attack"
-const CRACK_RADIUS := 2.4
+const FALL_TRIGGER := 9.0
 const LEAVE_RADIUS := 235.0
 const BACKUP_DISTANCE := 22.0
 const HEAL_INTERVAL := 0.5
@@ -117,10 +117,16 @@ func _wait(seconds: float) -> bool:
 	return is_inside_tree()
 
 
+var guard_fall: bool = false
+
+
 func _until(check: Callable) -> bool:
 	while is_inside_tree():
 		if check.call():
 			return true
+		if guard_fall and player != null and not cave.is_empty() and player.global_position.y < origin.y - 40.0:
+			player.global_position = cave["spawn"]
+			player.velocity = Vector3.ZERO
 		await get_tree().process_frame
 	return false
 
@@ -130,13 +136,18 @@ func _run() -> void:
 	Game.prologue_active = true
 	await ui.fade_black(1.0, 0.7)
 	_enter()
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	await get_tree().physics_frame
 	await _wait(0.4)
+	guard_fall = true
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	player.frozen = false
 	world.intro_playing = false
 	await ui.fade_black(0.0, 1.8)
 	if not await _tutorial():
 		return
+	guard_fall = false
 	if not await _crack():
 		return
 	if not await _descend():
@@ -266,8 +277,7 @@ func _mined() -> int:
 func _crack() -> bool:
 	var crack: Vector3 = cave["crack"]
 	return await _until(func() -> bool:
-		var flat := Vector2(player.global_position.x - crack.x, player.global_position.z - crack.z)
-		return flat.length() < CRACK_RADIUS and player.global_position.y > origin.y + STAIR_TOP_Y - 2.0)
+		return player.global_position.y < crack.y - FALL_TRIGGER)
 
 
 func _clear_cave() -> void:
@@ -282,10 +292,10 @@ func _clear_cave() -> void:
 
 
 func _descend() -> bool:
-	player.frozen = true
-	await ui.fade_black(1.0, 0.8)
+	await ui.fade_black(1.0, 1.0)
 	if not is_inside_tree():
 		return false
+	player.frozen = true
 	_clear_cave()
 	var loading = LoadingScene.instantiate()
 	add_child(loading)
