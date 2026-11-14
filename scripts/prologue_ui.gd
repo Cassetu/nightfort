@@ -140,6 +140,11 @@ func show_red(seconds: float) -> void:
 	tween.tween_property(vignette, "modulate:a", 1.0, seconds)
 
 
+func hide_red(seconds: float) -> void:
+	var tween := create_tween()
+	tween.tween_property(vignette, "modulate:a", 0.0, seconds)
+
+
 func blur_out(seconds: float) -> void:
 	blur.visible = true
 	var mat := blur.material as ShaderMaterial

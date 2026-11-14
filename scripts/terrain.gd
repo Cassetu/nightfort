@@ -453,6 +453,10 @@ func _process(_delta: float) -> void:
 		break
 
 
+func is_settled() -> bool:
+	return player != null and not wants.is_empty() and want_index >= wants.size() and requested.is_empty() and not levels_dirty
+
+
 func _physics_process(_delta: float) -> void:
 	if player == null:
 		return

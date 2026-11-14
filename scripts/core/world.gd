@@ -6,6 +6,7 @@ const DROP_SCENE_PATH := "res://scenes/item_drop.tscn"
 const Recipes = preload("res://scripts/player/recipes.gd")
 const ForgeUIScene = preload("res://scenes/forge_ui.tscn")
 const CreativeUIScene = preload("res://scenes/creative_ui.tscn")
+const LoadingScene = preload("res://scenes/ui/loading_screen.tscn")
 const DebugOverlayScene = preload("res://scenes/debug/debug_overlay.tscn")
 const RuinsScript = preload("res://scripts/ruins.gd")
 const RoofMapScript = preload("res://scripts/roof_map.gd")
@@ -53,6 +54,9 @@ var prologue_pending: bool = false
 
 
 func _ready() -> void:
+	var loading = LoadingScene.instantiate()
+	add_child(loading)
+	loading.begin(terrain, player)
 	Inventory.clear_banners()
 	terrain.pin(core.global_position, 4)
 	flow.setup(terrain, core)
@@ -172,6 +176,7 @@ func _ready() -> void:
 		prologue.name = "Prologue"
 		prologue.set_script(PrologueScript)
 		add_child(prologue)
+		await loading.finished
 		prologue.begin(self)
 
 

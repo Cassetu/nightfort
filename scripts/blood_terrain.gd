@@ -4,7 +4,15 @@ const TileArt = preload("res://scripts/tile_art.gd")
 
 const HALF := 300.0
 const CELL := 3.0
-const GRID := 200
+const CH := 32
+const CMIN := -10
+const CMAX := 9
+const FINE_R := 2
+const COARSE := 4
+const SKIRT := 8
+const OUTSIDE := -20
+const START := Vector2(0.0, -165.0)
+const PAD_COLLIDER_INSET := 3.0
 const PAD_H := 4.0
 const HEART := Vector2(0.0, 0.0)
 const ARMY := Vector2(0.0, -185.0)
@@ -16,14 +24,57 @@ const POOL_LEVEL := -1.5
 const RIM_START := 245.0
 const RIM_HEIGHT := 48.0
 const RINGS := [100.0, 68.0, 40.0]
+const WALL_DEPTH := 2.5
 
 static var origin := Vector3.ZERO
+
+class MeshBuf:
+	extends RefCounted
+
+	var v := PackedVector3Array()
+	var n := PackedVector3Array()
+	var c := PackedColorArray()
+	var uv := PackedVector2Array()
+	var idx := PackedInt32Array()
+
+	func quad(a: Vector3, b: Vector3, d: Vector3, e: Vector3, normal: Vector3, color: Color, uw: float, uh: float) -> void:
+		var pts: Array = [a, b, d, e]
+		var uvs: Array = [Vector2(0.0, 0.0), Vector2(uw, 0.0), Vector2(uw, uh), Vector2(0.0, uh)]
+		if (b - a).cross(d - a).dot(normal) > 0.0:
+			pts = [a, e, d, b]
+			uvs = [uvs[0], uvs[3], uvs[2], uvs[1]]
+		var base := v.size()
+		for i in 4:
+			v.append(pts[i])
+			n.append(normal)
+			c.append(color)
+			uv.append(uvs[i])
+		idx.append_array(PackedInt32Array([base, base + 1, base + 2, base, base + 2, base + 3]))
+
+	func to_mesh(material: Material) -> ArrayMesh:
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = v
+		arrays[Mesh.ARRAY_NORMAL] = n
+		arrays[Mesh.ARRAY_COLOR] = c
+		arrays[Mesh.ARRAY_TEX_UV] = uv
+		arrays[Mesh.ARRAY_INDEX] = idx
+		var mesh := ArrayMesh.new()
+		if v.size() > 0:
+			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+			mesh.surface_set_material(0, material)
+		return mesh
 
 var n_hills: FastNoiseLite
 var n_ridge: FastNoiseLite
 var n_veins: FastNoiseLite
 var n_detail: FastNoiseLite
 var n_tint: FastNoiseLite
+var material: StandardMaterial3D
+var chunks_root: Node3D
+var records: Dictionary = {}
+var pending: Array = []
+var last_center := Vector2i(1 << 20, 1 << 20)
 
 
 func _init(seed_value: int = 7041) -> void:
@@ -64,11 +115,31 @@ func pad_weight(x: float, z: float) -> float:
 	return maxf(wh, wa)
 
 
-func height(x: float, z: float) -> float:
+func smooth(x: float, z: float) -> float:
 	var w: float = pad_weight(x, z)
 	var h: float = lerpf(raw(x, z), PAD_H + n_detail.get_noise_2d(x, z) * 0.2, w)
 	var rim: float = smoothstep(RIM_START, HALF, maxf(absf(x), absf(z)))
 	return h + rim * RIM_HEIGHT
+
+
+func top(ix: int, iz: int) -> int:
+	return roundi(smooth(float(ix) + 0.5, float(iz) + 0.5))
+
+
+func height(x: float, z: float) -> float:
+	return float(top(floori(x), floori(z)))
+
+
+func _world_top(ix: int, iz: int) -> int:
+	if ix < CMIN * CH or iz < CMIN * CH or ix >= (CMAX + 1) * CH or iz >= (CMAX + 1) * CH:
+		return OUTSIDE
+	return top(ix, iz)
+
+
+func _coarse_top(cx: int, cz: int) -> int:
+	if cx < CMIN * CH / COARSE or cz < CMIN * CH / COARSE or cx >= (CMAX + 1) * CH / COARSE or cz >= (CMAX + 1) * CH / COARSE:
+		return OUTSIDE
+	return roundi(smooth(float(cx * COARSE) + COARSE * 0.5, float(cz * COARSE) + COARSE * 0.5))
 
 
 func color_at(x: float, z: float, h: float, slope: float) -> Color:
@@ -83,69 +154,178 @@ func color_at(x: float, z: float, h: float, slope: float) -> Color:
 	return col
 
 
-func build(parent: Node3D) -> StaticBody3D:
-	var n := GRID + 1
-	var heights := PackedFloat32Array()
-	heights.resize(n * n)
-	for iz in n:
-		for ix in n:
-			heights[iz * n + ix] = height(-HALF + ix * CELL, -HALF + iz * CELL)
-	var verts := PackedVector3Array()
-	var norms := PackedVector3Array()
-	var cols := PackedColorArray()
-	verts.resize(n * n)
-	norms.resize(n * n)
-	cols.resize(n * n)
-	for iz in n:
-		for ix in n:
-			var idx := iz * n + ix
-			var x := -HALF + ix * CELL
-			var z := -HALF + iz * CELL
-			var h: float = heights[idx]
-			var hl: float = heights[iz * n + maxi(ix - 1, 0)]
-			var hr: float = heights[iz * n + mini(ix + 1, GRID)]
-			var hd: float = heights[maxi(iz - 1, 0) * n + ix]
-			var hu: float = heights[mini(iz + 1, GRID) * n + ix]
-			var normal := Vector3(hl - hr, 2.0 * CELL, hd - hu).normalized()
-			verts[idx] = Vector3(x, h, z)
-			norms[idx] = normal
-			cols[idx] = color_at(x, z, h, 1.0 - normal.y)
-	var indices := PackedInt32Array()
-	indices.resize(GRID * GRID * 6)
-	var k := 0
-	for iz in GRID:
-		for ix in GRID:
-			var a := iz * n + ix
-			var b := a + 1
-			var c := a + n
-			var d := c + 1
-			indices[k] = a
-			indices[k + 1] = b
-			indices[k + 2] = c
-			indices[k + 3] = b
-			indices[k + 4] = d
-			indices[k + 5] = c
-			k += 6
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = verts
-	arrays[Mesh.ARRAY_NORMAL] = norms
-	arrays[Mesh.ARRAY_COLOR] = cols
-	arrays[Mesh.ARRAY_INDEX] = indices
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	mesh.surface_set_material(0, ground_material())
+func _hash(x: int, z: int) -> float:
+	var h: int = (x * 73856093) ^ (z * 19349663)
+	return float(h & 1023) / 1023.0
 
+
+func _fine_mesh(cx: int, cz: int) -> ArrayMesh:
+	var x0 := cx * CH
+	var z0 := cz * CH
+	var w := CH + 2
+	var hs := PackedInt32Array()
+	hs.resize(w * w)
+	for j in w:
+		for i in w:
+			hs[j * w + i] = _world_top(x0 + i - 1, z0 + j - 1)
+	var buf := MeshBuf.new()
+	for j in CH:
+		for i in CH:
+			var h: int = hs[(j + 1) * w + i + 1]
+			var hl: int = hs[(j + 1) * w + i]
+			var hr: int = hs[(j + 1) * w + i + 2]
+			var hb: int = hs[j * w + i + 1]
+			var hf: int = hs[(j + 2) * w + i + 1]
+			var wx := float(x0 + i)
+			var wz := float(z0 + j)
+			var hy := float(h)
+			var steep := maxi(maxi(absi(h - hl), absi(h - hr)), maxi(absi(h - hb), absi(h - hf)))
+			var col := color_at(wx + 0.5, wz + 0.5, hy, clampf(float(steep) * 0.25, 0.0, 1.0))
+			var taller := int(hl > h) + int(hr > h) + int(hb > h) + int(hf > h)
+			var shade := (0.94 + 0.12 * _hash(x0 + i, z0 + j)) * (1.0 - 0.07 * float(taller))
+			var lit := Color(col.r * shade, col.g * shade, col.b * shade)
+			buf.quad(Vector3(wx, hy, wz), Vector3(wx + 1.0, hy, wz), Vector3(wx + 1.0, hy, wz + 1.0), Vector3(wx, hy, wz + 1.0), Vector3.UP, lit, 1.0, 1.0)
+			var dark := Color(lit.r * 0.72, lit.g * 0.72, lit.b * 0.72)
+			if hl < h:
+				var y2 := float(hl)
+				buf.quad(Vector3(wx, hy, wz), Vector3(wx, hy, wz + 1.0), Vector3(wx, y2, wz + 1.0), Vector3(wx, y2, wz), Vector3.LEFT, dark, 1.0, hy - y2)
+			if hr < h:
+				var y3 := float(hr)
+				buf.quad(Vector3(wx + 1.0, hy, wz), Vector3(wx + 1.0, hy, wz + 1.0), Vector3(wx + 1.0, y3, wz + 1.0), Vector3(wx + 1.0, y3, wz), Vector3.RIGHT, dark, 1.0, hy - y3)
+			if hb < h:
+				var y4 := float(hb)
+				buf.quad(Vector3(wx, hy, wz), Vector3(wx + 1.0, hy, wz), Vector3(wx + 1.0, y4, wz), Vector3(wx, y4, wz), Vector3.FORWARD, dark, 1.0, hy - y4)
+			if hf < h:
+				var y5 := float(hf)
+				buf.quad(Vector3(wx, hy, wz + 1.0), Vector3(wx + 1.0, hy, wz + 1.0), Vector3(wx + 1.0, y5, wz + 1.0), Vector3(wx, y5, wz + 1.0), Vector3.BACK, dark, 1.0, hy - y5)
+	return buf.to_mesh(material)
+
+
+func _coarse_mesh(cx: int, cz: int) -> ArrayMesh:
+	var n := CH / COARSE
+	var x0 := cx * n
+	var z0 := cz * n
+	var w := n + 2
+	var hs := PackedInt32Array()
+	hs.resize(w * w)
+	for j in w:
+		for i in w:
+			hs[j * w + i] = _coarse_top(x0 + i - 1, z0 + j - 1)
+	var buf := MeshBuf.new()
+	var s := float(COARSE)
+	for j in n:
+		for i in n:
+			var h: int = hs[(j + 1) * w + i + 1]
+			var hl: int = hs[(j + 1) * w + i]
+			var hr: int = hs[(j + 1) * w + i + 2]
+			var hb: int = hs[j * w + i + 1]
+			var hf: int = hs[(j + 2) * w + i + 1]
+			var wx := float((x0 + i) * COARSE)
+			var wz := float((z0 + j) * COARSE)
+			var hy := float(h)
+			var steep := maxi(maxi(absi(h - hl), absi(h - hr)), maxi(absi(h - hb), absi(h - hf)))
+			var col := color_at(wx + s * 0.5, wz + s * 0.5, hy, clampf(float(steep) * 0.08, 0.0, 1.0))
+			var shade := 0.94 + 0.12 * _hash(x0 + i, z0 + j)
+			var lit := Color(col.r * shade, col.g * shade, col.b * shade)
+			buf.quad(Vector3(wx, hy, wz), Vector3(wx + s, hy, wz), Vector3(wx + s, hy, wz + s), Vector3(wx, hy, wz + s), Vector3.UP, lit, s, s)
+			var dark := Color(lit.r * 0.72, lit.g * 0.72, lit.b * 0.72)
+			var drop_l := float(maxi(h - hl, SKIRT if i == 0 else 0))
+			if drop_l > 0.0:
+				buf.quad(Vector3(wx, hy, wz), Vector3(wx, hy, wz + s), Vector3(wx, hy - drop_l, wz + s), Vector3(wx, hy - drop_l, wz), Vector3.LEFT, dark, s, drop_l)
+			var drop_r := float(maxi(h - hr, SKIRT if i == n - 1 else 0))
+			if drop_r > 0.0:
+				buf.quad(Vector3(wx + s, hy, wz), Vector3(wx + s, hy, wz + s), Vector3(wx + s, hy - drop_r, wz + s), Vector3(wx + s, hy - drop_r, wz), Vector3.RIGHT, dark, s, drop_r)
+			var drop_b := float(maxi(h - hb, SKIRT if j == 0 else 0))
+			if drop_b > 0.0:
+				buf.quad(Vector3(wx, hy, wz), Vector3(wx + s, hy, wz), Vector3(wx + s, hy - drop_b, wz), Vector3(wx, hy - drop_b, wz), Vector3.FORWARD, dark, s, drop_b)
+			var drop_f := float(maxi(h - hf, SKIRT if j == n - 1 else 0))
+			if drop_f > 0.0:
+				buf.quad(Vector3(wx, hy, wz + s), Vector3(wx + s, hy, wz + s), Vector3(wx + s, hy - drop_f, wz + s), Vector3(wx, hy - drop_f, wz + s), Vector3.BACK, dark, s, drop_f)
+	return buf.to_mesh(material)
+
+
+func _is_fine(coord: Vector2i, center: Vector2i) -> bool:
+	return maxi(absi(coord.x - center.x), absi(coord.y - center.y)) <= FINE_R
+
+
+func _set_chunk(coord: Vector2i, fine: bool) -> void:
+	var rec: Dictionary = records.get(coord, {})
+	if rec.is_empty():
+		var holder := Node3D.new()
+		holder.name = "Chunk_%d_%d" % [coord.x, coord.y]
+		chunks_root.add_child(holder)
+		var mi := MeshInstance3D.new()
+		mi.name = "Mesh"
+		holder.add_child(mi)
+		rec = {"holder": holder, "mi": mi, "body": null, "fine": null}
+		records[coord] = rec
+	if rec["fine"] == fine:
+		return
+	rec["fine"] = fine
+	var mesh: ArrayMesh = _fine_mesh(coord.x, coord.y) if fine else _coarse_mesh(coord.x, coord.y)
+	(rec["mi"] as MeshInstance3D).mesh = mesh
+	var old = rec["body"]
+	if old != null and is_instance_valid(old):
+		old.queue_free()
+		rec["body"] = null
+	if fine and mesh.get_surface_count() > 0:
+		var body := StaticBody3D.new()
+		body.name = "Body"
+		var cs := CollisionShape3D.new()
+		cs.shape = mesh.create_trimesh_shape()
+		body.add_child(cs)
+		(rec["holder"] as Node3D).add_child(body)
+		rec["body"] = body
+
+
+func update(local: Vector3, budget: int = 1) -> void:
+	if absf(local.x) > HALF + 100.0 or absf(local.z) > HALF + 100.0:
+		return
+	var c := Vector2i(floori(local.x / float(CH)), floori(local.z / float(CH)))
+	if c != last_center:
+		var jump := maxi(absi(c.x - last_center.x), absi(c.y - last_center.y)) > FINE_R * 2
+		last_center = c
+		pending.clear()
+		for coord: Vector2i in records:
+			var rec: Dictionary = records[coord]
+			if rec["fine"] != _is_fine(coord, c):
+				pending.append(coord)
+		pending.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return (a - c).length_squared() < (b - c).length_squared())
+		if jump:
+			budget = pending.size()
+	for i in budget:
+		if pending.is_empty():
+			return
+		var coord: Vector2i = pending.pop_front()
+		_set_chunk(coord, _is_fine(coord, last_center))
+
+
+func _add_pad_collider(parent: Node3D, at: Vector2, radius: float) -> void:
+	var cs := CollisionShape3D.new()
+	var cyl := CylinderShape3D.new()
+	cyl.radius = radius
+	cyl.height = 2.0
+	cs.shape = cyl
+	cs.position = Vector3(at.x, PAD_H - 1.0, at.y)
+	parent.add_child(cs)
+
+
+func build(parent: Node3D) -> StaticBody3D:
+	material = ground_material()
 	var body := StaticBody3D.new()
 	body.name = "Ground"
 	parent.add_child(body)
-	var mi := MeshInstance3D.new()
-	mi.mesh = mesh
-	body.add_child(mi)
-	var shape := mesh.create_trimesh_shape() as ConcavePolygonShape3D
-	var cs := CollisionShape3D.new()
-	cs.shape = shape
-	body.add_child(cs)
+	_add_pad_collider(body, HEART, HEART_FLAT - PAD_COLLIDER_INSET)
+	_add_pad_collider(body, ARMY, ARMY_FLAT - PAD_COLLIDER_INSET)
+	chunks_root = Node3D.new()
+	chunks_root.name = "Chunks"
+	parent.add_child(chunks_root)
+	var start := Vector2i(floori(START.x / float(CH)), floori(START.y / float(CH)))
+	last_center = start
+	for cz in range(CMIN, CMAX + 1):
+		for cx in range(CMIN, CMAX + 1):
+			var coord := Vector2i(cx, cz)
+			_set_chunk(coord, _is_fine(coord, start))
 
 	var pool := PlaneMesh.new()
 	pool.size = Vector2(HALF * 2.0, HALF * 2.0)
@@ -166,11 +346,7 @@ func build(parent: Node3D) -> StaticBody3D:
 
 
 static func ground_material() -> StandardMaterial3D:
-	var base := TileArt.block_material("stone", Color(0.44, 0.44, 0.47))
-	var m := base.duplicate() as StandardMaterial3D
-	m.vertex_color_use_as_albedo = true
-	m.albedo_color = Color(1, 1, 1)
-	return m
+	return TileArt.uv_material("stone", Color(0.44, 0.44, 0.47), Vector3.ONE, true)
 
 
 static func detail_material(tile: String) -> StandardMaterial3D:
@@ -217,6 +393,6 @@ static func band(world_pos: Vector3) -> int:
 	var d := Vector2(world_pos.x - origin.x, world_pos.z - origin.z).length()
 	var inside := 0
 	for r: float in RINGS:
-		if d < r:
+		if d < r - WALL_DEPTH:
 			inside += 1
 	return inside

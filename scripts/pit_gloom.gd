@@ -14,6 +14,8 @@ const COOLDOWN := 1.3
 const TURN := 9.0
 const BILE := Color(0.36, 0.2, 0.46)
 const RETARGET := 0.35
+const SLEEP_RETARGET := 0.9
+const HIDE_RANGE := 90.0
 
 static var pressure: float = 0.0
 
@@ -27,6 +29,7 @@ var knock := Vector3.ZERO
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var speed_mult: float = 1.0
 var retarget: float = 0.0
+var hidden_far: bool = false
 
 @onready var body: Node3D = $Body
 @onready var anim: AnimationPlayer = $Anim
@@ -37,11 +40,12 @@ func _ready() -> void:
 	add_to_group("enemy")
 	add_to_group("pit_gloom")
 	collision_layer = 2
-	collision_mask = 1
+	collision_mask = 1 | 2
 	speed_mult = randf_range(0.9, 1.1)
 	cooldown = randf_range(0.2, 0.8)
 	health = MAX_HEALTH * (1.0 + pressure * 0.5)
 	anim.play("idle")
+	retarget = randf() * SLEEP_RETARGET
 
 
 func take_damage(amount, from: Vector3 = Vector3.INF) -> void:
@@ -78,31 +82,50 @@ func _die() -> void:
 func _nearest_ally() -> Node3D:
 	var best: Node3D = null
 	var best_d := WAKE_RANGE * WAKE_RANGE
-	var my_band: int = BloodTerrain.band(global_position)
+	var my_band: int = -2
 	for a in get_tree().get_nodes_in_group("ally_unit"):
-		if not is_instance_valid(a) or BloodTerrain.band(a.global_position) != my_band:
+		if not is_instance_valid(a):
 			continue
 		var d := global_position.distance_squared_to(a.global_position)
-		if d < best_d:
-			best_d = d
-			best = a
+		if d >= best_d:
+			continue
+		if my_band == -2:
+			my_band = BloodTerrain.band(global_position)
+		if BloodTerrain.band(a.global_position) != my_band:
+			continue
+		best_d = d
+		best = a
 	return best
 
 
 func _physics_process(delta: float) -> void:
 	if dying:
 		return
+	retarget -= delta
+	if not awake and target == null:
+		if retarget > 0.0:
+			if is_on_floor():
+				return
+		else:
+			retarget = SLEEP_RETARGET + randf() * 0.4
+			target = _nearest_ally()
+			_update_visibility()
+			if target == null and is_on_floor():
+				return
 	if not is_on_floor():
 		velocity.y -= gravity * delta
 	cooldown = maxf(cooldown - delta, 0.0)
 	knock = knock.move_toward(Vector3.ZERO, 14.0 * delta)
 	var move := Vector3.ZERO
-	retarget -= delta
 	if retarget <= 0.0 or not is_instance_valid(target):
 		retarget = RETARGET + randf() * 0.15
 		target = _nearest_ally()
 	if target != null:
 		awake = true
+		if hidden_far:
+			hidden_far = false
+			visible = true
+			anim.speed_scale = 1.0
 	if awake and target != null:
 		var to = target.global_position - global_position
 		to.y = 0.0
@@ -123,6 +146,18 @@ func _physics_process(delta: float) -> void:
 	velocity.x = move.x + knock.x
 	velocity.z = move.z + knock.z
 	move_and_slide()
+
+
+func _update_visibility() -> void:
+	var far := false
+	var p = get_tree().get_first_node_in_group("player")
+	if p != null and target == null and not awake:
+		far = global_position.distance_squared_to(p.global_position) > HIDE_RANGE * HIDE_RANGE
+	if far == hidden_far:
+		return
+	hidden_far = far
+	visible = not far
+	anim.speed_scale = 0.0 if far else 1.0
 
 
 func _strike() -> void:

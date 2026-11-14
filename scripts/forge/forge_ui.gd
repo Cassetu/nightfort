@@ -1,7 +1,10 @@
 extends CanvasLayer
 
 const ForgeRecipes = preload("res://scripts/forge/forge_recipes.gd")
-const RECIPE_ROW := preload("res://scenes/recipe_row.tscn")
+const RECIPE_ROW := preload("res://scenes/recipes/recipe_row.tscn")
+const RECIPE_INGREDIENT := preload("res://scenes/recipes/recipe_ingredient.tscn")
+const MISSING_COLOR := Color(1.0, 0.3, 0.3)
+const TileArt = preload("res://scripts/tile_art.gd")
 const SessionScene := preload("res://scenes/forge_minigame.tscn")
 
 @onready var root: Control = $Root
@@ -77,7 +80,21 @@ func _build_list() -> void:
 	for r in ForgeRecipes.LIST:
 		var row: Button = RECIPE_ROW.instantiate()
 		row.focus_mode = Control.FOCUS_NONE
-		row.text = "%s\n%s" % [Inventory.item_name(r["id"]), ForgeRecipes.cost_text(r)]
+		row.toggle_mode = false
+		(row.get_node("Box/Icon") as TextureRect).texture = TileArt.icon(r["id"])
+		(row.get_node("Box/Info/Title") as Label).text = Inventory.item_name(r["id"])
+		var needs: HBoxContainer = row.get_node("Box/Info/Needs")
+		var cost: Dictionary = r["cost"].duplicate()
+		cost["coal"] = int(r["coal"])
+		for id in cost:
+			var entry: HBoxContainer = RECIPE_INGREDIENT.instantiate()
+			(entry.get_node("Icon") as TextureRect).texture = TileArt.icon(id)
+			var count_label: Label = entry.get_node("Count")
+			var lacking: bool = Inventory.get_count(id) < int(cost[id])
+			count_label.text = "" if int(cost[id]) <= 1 and not lacking else str(int(cost[id]))
+			if lacking:
+				count_label.add_theme_color_override("font_color", MISSING_COLOR)
+			needs.add_child(entry)
 		row.modulate = Color(1, 1, 1, 1) if ForgeRecipes.can_afford(r) else Color(1, 1, 1, 0.5)
 		row.pressed.connect(_on_row_pressed.bind(r["id"]))
 		recipe_list.add_child(row)

@@ -5,6 +5,7 @@ const UIScene = preload("res://scenes/prologue_ui.tscn")
 const BossScene = preload("res://scenes/bile_dreadnaught.tscn")
 const BlockIndex = preload("res://scripts/block_index.gd")
 const PitScript = preload("res://scripts/blood_world.gd")
+const LoadingScene = preload("res://scenes/ui/loading_screen.tscn")
 
 const ORIGIN := Vector3(3000.0, -400.0, 3000.0)
 const PIT_ORIGIN := Vector3(-3000.0, -400.0, 3000.0)
@@ -45,7 +46,7 @@ const LINES := [
 	["You", "Hello?.."],
 	["???", "Hush. You cannot perish now."],
 	["You", "Am I… Dead?"],
-	["???", "Soon. Wake warrior, and fight the darkness."],
+	["???", "Not for long. Wake, warrior, and fight the darkness."],
 	["You", "Wait!"],
 ]
 const LIGHT_LINE := 3
@@ -286,6 +287,11 @@ func _descend() -> bool:
 	if not is_inside_tree():
 		return false
 	_clear_cave()
+	var loading = LoadingScene.instantiate()
+	add_child(loading)
+	loading.begin(null, player)
+	await get_tree().process_frame
+	await get_tree().process_frame
 	pit = PitScript.new()
 	pit.build(world, player, PIT_ORIGIN)
 	player.camera.environment = pit.env
@@ -294,6 +300,9 @@ func _descend() -> bool:
 	player.head.rotation.x = 0.0
 	player.velocity = Vector3.ZERO
 	pit.army_changed.connect(ui.set_army)
+	await loading.finished
+	if not is_inside_tree():
+		return false
 	var cam: Camera3D = player.camera
 	var base := cam.position
 	cam.position = base + Vector3(0.0, FALL_HEIGHT, 0.0)
@@ -343,7 +352,7 @@ func _siege() -> bool:
 		var delta := get_process_delta_time()
 		if pit.alive_count() <= 0:
 			return true
-		if not player.dead and pit.doom_reached(player.global_position):
+		if (not player.dead and pit.doom_reached(player.global_position)) or pit.army_breached():
 			doomed = true
 			return true
 		heal_timer += delta
@@ -466,6 +475,7 @@ func _death() -> bool:
 	if not is_inside_tree():
 		return false
 	await ui.blur_out(2.0)
+	ui.hide_red(0.8)
 	return await _wait(0.8)
 
 

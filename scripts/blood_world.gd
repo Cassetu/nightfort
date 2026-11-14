@@ -6,15 +6,36 @@ const BloodTerrain = preload("res://scripts/blood_terrain.gd")
 const FleshBlock = preload("res://scripts/flesh_block.gd")
 const PitGloom = preload("res://scripts/pit_gloom.gd")
 const PitSpitter = preload("res://scripts/pit_spitter.gd")
+const BoneBarricade = preload("res://scripts/enemies/bone_barricade.gd")
+const PitFlora = preload("res://scripts/pit_flora.gd")
 const Ally = preload("res://scripts/ally.gd")
 const BileSack = preload("res://scripts/enemies/bile_sack.gd")
 const GloomScene = preload("res://scenes/gloom.tscn")
+const TileArt = preload("res://scripts/tile_art.gd")
 const SkyShader = preload("res://resources/blood_sky.gdshader")
 
-const BLOCK := 2.0
-const LAYERS := 3
+const BLOCK := 1.0
+const LAYERS := 6
+const GATE_LAYERS := 2
+const WALL_TILE := "gloom_flesh"
 const SPITTER_EVERY := 14
-const GLOOM_COUNTS := [30, 24, 18]
+const GLOOM_COUNTS := [60, 48, 36]
+const PACK_SIZE := 6
+const PACK_SPREAD := 2.6
+const PACK_DEPTH_MIN := 7.0
+const PACK_DEPTH_MAX := 14.0
+const PACK_INNER_LIMIT := 4.8
+const WALL_ROWS := 3
+const ACTIVATE_R2 := 2.2
+const BONE_BAND_MIN := 1.5
+const BONE_BAND_MAX := 3.5
+const BONE_CHANCE := 0.4
+const BONE_BUCKET := 4.0
+const BONE_DAMAGE := 3
+const BONE_TICK := 0.5
+const BONE_RADIUS := 0.85
+const BONE_AVOID := 1.3
+const BONE_COLOR := Color(0.78, 0.74, 0.62)
 const INNER_GLOOM := 14
 const SOLDIERS := 32
 const ARCHERS := 10
@@ -31,6 +52,12 @@ const TREE_COUNT := 220
 const SPIKE_COUNT := 140
 const MOUND_COUNT := 90
 const FLESH := Color(0.55, 0.16, 0.2)
+const HEARTBEAT_PATH := "res://audio/sfx/heartbeat.mp3"
+const HEARTBEAT_NEAR := 6.0
+const HEARTBEAT_FAR := 180.0
+const HEARTBEAT_QUIET_DB := -26.0
+const HEARTBEAT_CURVE := 0.8
+const HEARTBEAT_SMOOTH := 6.0
 
 var origin: Vector3 = Vector3.ZERO
 var gen
@@ -43,7 +70,13 @@ var heart: Node3D
 var heart_light: OmniLight3D
 var heart_mat: StandardMaterial3D
 var rain: GPUParticles3D
-var columns: Array = [[], [], []]
+var heartbeat: AudioStreamPlayer
+var columns: Array = [{}, {}, {}]
+var pending: Array = []
+var wall_shape: BoxShape3D
+var wall_meshes: Array = []
+var bones: Dictionary = {}
+var bone_tick: float = 0.0
 var doomed: bool = false
 var soldiers: Array = []
 var archers: Array = []
@@ -73,7 +106,9 @@ func build(host: Node, who: Node3D, at: Vector3) -> void:
 	_make_light()
 	_make_rain()
 	_build_heart()
+	_build_heartbeat()
 	_build_walls()
+	_build_barricades()
 	_build_gloom()
 	_scatter()
 	_build_army()
@@ -200,63 +235,258 @@ func _build_heart() -> void:
 	beat.tween_interval(0.7)
 
 
-func _block_mesh(material: Material) -> ArrayMesh:
-	var v := PackedVector3Array()
-	var n := PackedVector3Array()
-	var c := PackedColorArray()
-	var idx := PackedInt32Array()
-	var half := Vector3.ONE * (BLOCK * 0.5 + 0.02)
-	BloodTerrain.append_box(v, n, c, idx, Vector3.ZERO, half, Basis.IDENTITY, FLESH)
-	var lump := Color(0.72, 0.3, 0.34)
-	for dir: Vector3 in [Vector3.RIGHT, Vector3.LEFT, Vector3.BACK, Vector3.FORWARD]:
-		var side := Vector3(1.0 - absf(dir.x) * 0.55, 0.45, 1.0 - absf(dir.z) * 0.55) * 0.55
-		BloodTerrain.append_box(v, n, c, idx, dir * (BLOCK * 0.5 + 0.1) + Vector3(0.15, -0.1, 0.1), side, Basis.IDENTITY, lump)
-	BloodTerrain.append_box(v, n, c, idx, Vector3(0.0, BLOCK * 0.5 + 0.1, 0.0), Vector3(0.5, 0.2, 0.5), Basis.IDENTITY, Color(0.4, 0.14, 0.5))
-	return BloodTerrain.to_mesh(v, n, c, idx, material)
+func _build_heartbeat() -> void:
+	var stream := load(HEARTBEAT_PATH) as AudioStreamMP3
+	if stream == null:
+		return
+	stream.loop = true
+	heartbeat = AudioStreamPlayer.new()
+	heartbeat.stream = stream
+	heartbeat.bus = "SFX"
+	heartbeat.volume_db = HEARTBEAT_QUIET_DB
+	add_child(heartbeat)
+	heartbeat.play()
+
+
+func _update_heartbeat(delta: float) -> void:
+	if heartbeat == null or not is_instance_valid(player):
+		return
+	var d: float = distance_from_heart(player.global_position)
+	var t: float = clampf(1.0 - (d - HEARTBEAT_NEAR) / (HEARTBEAT_FAR - HEARTBEAT_NEAR), 0.0, 1.0)
+	var target: float = lerpf(HEARTBEAT_QUIET_DB, 0.0, pow(t, HEARTBEAT_CURVE))
+	heartbeat.volume_db = lerpf(heartbeat.volume_db, target, minf(HEARTBEAT_SMOOTH * delta, 1.0))
+
+
+func _block_mesh() -> ArrayMesh:
+	var material := TileArt.uv_material(WALL_TILE, FLESH, Vector3.ONE, true)
+	return TileArt.box_mesh(Vector3.ONE * BLOCK, material)
+
+
+func _ring_cells(r: float, lo: float, hi: float) -> Array:
+	var cells: Array = []
+	var reach := int(ceil(r + hi)) + 1
+	for ix in range(-reach, reach + 1):
+		for iz in range(-reach, reach + 1):
+			var d := Vector2(float(ix) + 0.5, float(iz) + 0.5).length()
+			if d >= r + lo and d < r + hi:
+				cells.append(Vector2i(ix, iz))
+	cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+		return atan2(float(a.y) + 0.5, float(a.x) + 0.5) < atan2(float(b.y) + 0.5, float(b.x) + 0.5))
+	return cells
+
+
+func _spawn_wall_block(ring: int, column_index: int, layer: int, depth: int, slot: int, pos: Vector3):
+	var block = FleshBlock.new()
+	block.setup(wall_shape, wall_meshes[ring], slot, ring, column_index, layer)
+	block.depth = depth
+	block.on_break = _on_wall_break
+	add_child(block)
+	block.position = pos
+	return block
+
+
+func _on_wall_break(broken) -> void:
+	var list: Array = pending[broken.ring][broken.layer]
+	for desc: Dictionary in list:
+		if desc["depth"] != broken.depth + 1:
+			continue
+		if (desc["pos"] as Vector3).distance_squared_to(broken.position) > ACTIVATE_R2:
+			continue
+		if desc["block"] == null:
+			desc["block"] = _spawn_wall_block(broken.ring, desc["column"], broken.layer, desc["depth"], desc["slot"], desc["pos"])
+		if broken.next_block == null and is_instance_valid(desc["block"]) and not desc["block"].dead:
+			broken.next_block = desc["block"]
 
 
 func _build_walls() -> void:
-	var material := BloodTerrain.detail_material("gloom_flesh")
-	var mesh := _block_mesh(material)
-	var shape := BoxShape3D.new()
-	shape.size = Vector3.ONE * BLOCK
+	var mesh := _block_mesh()
+	wall_shape = BoxShape3D.new()
+	wall_shape.size = Vector3.ONE * BLOCK
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 55
-	var base_y: float = BloodTerrain.PAD_H + 0.8
+	var floor_y: float = BloodTerrain.PAD_H
 	for ring in BloodTerrain.RINGS.size():
 		var r: float = BloodTerrain.RINGS[ring]
-		var count := roundi(TAU * r / BLOCK)
+		var cells: Array = _ring_cells(r, -0.5, 0.5)
+		var inner: Array = _ring_cells(r, -0.5 - float(WALL_ROWS - 1), -0.5)
+		var count := cells.size()
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
 		mm.use_colors = true
 		mm.mesh = mesh
-		mm.instance_count = count * LAYERS
+		mm.instance_count = (count + inner.size()) * LAYERS
+		wall_meshes.append(mm)
+		var layer_lists: Array = []
+		for layer in LAYERS:
+			layer_lists.append([])
+		pending.append(layer_lists)
 		var holder := MultiMeshInstance3D.new()
 		holder.multimesh = mm
 		add_child(holder)
 		for i in count:
-			var a := TAU * float(i) / float(count)
-			var yaw := atan2(-cos(a), -sin(a))
+			var cell: Vector2i = cells[i]
 			var column: Array = []
 			for layer in LAYERS:
 				var slot := i * LAYERS + layer
-				var pos := Vector3(cos(a) * r, base_y + BLOCK * float(layer), sin(a) * r)
-				var turn := Basis(Vector3.UP, yaw + float(rng.randi() % 4) * PI * 0.5)
-				mm.set_instance_transform(slot, Transform3D(turn, pos))
+				var pos := Vector3(float(cell.x) + 0.5, floor_y + BLOCK * (float(layer) + 0.5), float(cell.y) + 0.5)
+				mm.set_instance_transform(slot, Transform3D(Basis.IDENTITY, pos))
 				var tone := rng.randf_range(0.8, 1.15)
 				mm.set_instance_color(slot, Color(tone, tone * rng.randf_range(0.85, 1.05), tone))
-				var block = FleshBlock.new()
-				block.setup(shape, mm, slot, ring, i, layer)
-				add_child(block)
-				block.position = pos
-				block.rotation.y = yaw
-				column.append(block)
-			columns[ring].append(column)
+				column.append(_spawn_wall_block(ring, i, layer, 0, slot, pos))
+			columns[ring][cell] = column
 			if i % SPITTER_EVERY == 0:
 				var spitter = PitSpitter.new()
 				add_child(spitter)
-				spitter.position = Vector3(cos(a) * r, base_y + BLOCK * float(LAYERS - 1) + BLOCK * 0.5, sin(a) * r)
+				spitter.position = Vector3(float(cell.x) + 0.5, floor_y + BLOCK * float(LAYERS), float(cell.y) + 0.5)
 				column[LAYERS - 1].rider = spitter
+		for j in inner.size():
+			var icell: Vector2i = inner[j]
+			var d := Vector2(float(icell.x) + 0.5, float(icell.y) + 0.5).length()
+			var depth := clampi(int(floor(r + 0.5 - d)), 1, WALL_ROWS - 1)
+			for layer in LAYERS:
+				var slot2 := (count + j) * LAYERS + layer
+				var pos2 := Vector3(float(icell.x) + 0.5, floor_y + BLOCK * (float(layer) + 0.5), float(icell.y) + 0.5)
+				mm.set_instance_transform(slot2, Transform3D(Basis.IDENTITY, pos2))
+				var tone2 := rng.randf_range(0.7, 1.0)
+				mm.set_instance_color(slot2, Color(tone2, tone2 * rng.randf_range(0.85, 1.05), tone2))
+				pending[ring][layer].append({"pos": pos2, "depth": depth, "slot": slot2, "column": j, "block": null})
+
+
+func _bone_mesh() -> ArrayMesh:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = BONE_COLOR
+	material.roughness = 0.85
+	var spike := CylinderMesh.new()
+	spike.top_radius = 0.0
+	spike.bottom_radius = 0.09
+	spike.height = 0.95
+	spike.radial_segments = 5
+	spike.rings = 1
+	var arrays := spike.get_mesh_arrays()
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var norms: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var order: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4242
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for k in 7:
+		var a := TAU * float(k) / 7.0 + rng.randf_range(-0.3, 0.3)
+		var spot := Vector3(cos(a), 0.0, sin(a)) * rng.randf_range(0.0, 0.38)
+		spot.y = 0.25
+		var tilt := Vector3(rng.randf_range(-0.7, 0.7), rng.randf() * TAU, rng.randf_range(-0.7, 0.7))
+		var xf := Transform3D(Basis.from_euler(tilt), spot)
+		for idx in order:
+			st.set_normal(xf.basis * norms[idx])
+			st.add_vertex(xf * verts[idx])
+	var mesh := st.commit()
+	mesh.surface_set_material(0, material)
+	return mesh
+
+
+func _bucket(p: Vector3) -> Vector2i:
+	return Vector2i(floori(p.x / BONE_BUCKET), floori(p.z / BONE_BUCKET))
+
+
+func _build_barricades() -> void:
+	var mesh := _bone_mesh()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 909
+	for ring in BloodTerrain.RINGS.size():
+		var r: float = BloodTerrain.RINGS[ring]
+		var spots: Array = []
+		for cell: Vector2i in _ring_cells(r, BONE_BAND_MIN, BONE_BAND_MAX):
+			if rng.randf() < BONE_CHANCE:
+				spots.append(cell)
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = mesh
+		mm.instance_count = spots.size()
+		var holder := MultiMeshInstance3D.new()
+		holder.multimesh = mm
+		add_child(holder)
+		for i in spots.size():
+			var cell: Vector2i = spots[i]
+			var x := float(cell.x) + 0.5
+			var z := float(cell.y) + 0.5
+			var pos := Vector3(x, gen.height(x, z), z)
+			var yaw := rng.randf() * TAU
+			var size := rng.randf_range(0.9, 1.25)
+			mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3.ONE * size), pos))
+			var bone := BoneBarricade.new()
+			add_child(bone)
+			bone.position = pos
+			bone.setup(mm, i)
+			var key := _bucket(bone.global_position)
+			if not bones.has(key):
+				bones[key] = []
+			bones[key].append(bone)
+
+
+func nearest_barricade(pos: Vector3, radius: float) -> Node3D:
+	var best: Node3D = null
+	var best_d := radius * radius
+	var reach := int(ceil(radius / BONE_BUCKET))
+	var center := _bucket(pos)
+	for dx in range(-reach, reach + 1):
+		for dz in range(-reach, reach + 1):
+			var key := center + Vector2i(dx, dz)
+			if not bones.has(key):
+				continue
+			for b in bones[key]:
+				if not is_instance_valid(b) or b.dead:
+					continue
+				var d := Vector2(pos.x - b.global_position.x, pos.z - b.global_position.z).length_squared()
+				if d < best_d:
+					best_d = d
+					best = b
+	return best
+
+
+func bone_push(pos: Vector3) -> Vector3:
+	var push := Vector3.ZERO
+	var center := _bucket(pos)
+	for dx in range(-1, 2):
+		for dz in range(-1, 2):
+			var key := center + Vector2i(dx, dz)
+			if not bones.has(key):
+				continue
+			for b in bones[key]:
+				if not is_instance_valid(b) or b.dead:
+					continue
+				var away := Vector3(pos.x - b.global_position.x, 0.0, pos.z - b.global_position.z)
+				var d := away.length()
+				if d < BONE_AVOID and d > 0.001:
+					push += away / d * (1.0 - d / BONE_AVOID)
+	return push
+
+
+func _bone_under(pos: Vector3) -> Node3D:
+	var center := _bucket(pos)
+	for dx in range(-1, 2):
+		for dz in range(-1, 2):
+			var key := center + Vector2i(dx, dz)
+			if not bones.has(key):
+				continue
+			for b in bones[key]:
+				if not is_instance_valid(b) or b.dead:
+					continue
+				if Vector2(pos.x - b.global_position.x, pos.z - b.global_position.z).length() < BONE_RADIUS:
+					return b
+	return null
+
+
+func _bone_tick() -> void:
+	for a in get_tree().get_nodes_in_group("ally_unit"):
+		if not is_instance_valid(a):
+			continue
+		var b := _bone_under(a.global_position)
+		if b != null:
+			a.take_damage(BONE_DAMAGE, b.global_position)
+	if is_instance_valid(player) and not player.dead:
+		var pb := _bone_under(player.global_position)
+		if pb != null:
+			player.take_damage(BONE_DAMAGE, pb.global_position)
 
 
 func _spawn_gloom(local: Vector3) -> void:
@@ -270,11 +500,17 @@ func _spawn_gloom(local: Vector3) -> void:
 func _build_gloom() -> void:
 	for ring in BloodTerrain.RINGS.size():
 		var r: float = BloodTerrain.RINGS[ring]
-		var count: int = GLOOM_COUNTS[ring]
-		for i in count:
-			var a := TAU * (float(i) + randf_range(-0.3, 0.3)) / float(count)
-			var rr := r - randf_range(4.0, 14.0)
-			_spawn_gloom(Vector3(cos(a) * rr, BloodTerrain.PAD_H + 1.0, sin(a) * rr))
+		var packs: int = maxi(GLOOM_COUNTS[ring] / PACK_SIZE, 1)
+		for i in packs:
+			var a := TAU * (float(i) + randf_range(-0.3, 0.3)) / float(packs)
+			var depth := randf_range(PACK_DEPTH_MIN, PACK_DEPTH_MAX)
+			var center := Vector2(cos(a), sin(a)) * (r - depth)
+			for j in PACK_SIZE:
+				var jitter := Vector2.from_angle(randf() * TAU) * randf_range(0.0, PACK_SPREAD)
+				var spot := center + jitter
+				var radius := clampf(spot.length(), r - 16.0, r - PACK_INNER_LIMIT)
+				spot = spot.normalized() * radius
+				_spawn_gloom(Vector3(spot.x, BloodTerrain.PAD_H + 1.0, spot.y))
 	for i in INNER_GLOOM:
 		var a2 := TAU * float(i) / float(INNER_GLOOM)
 		_spawn_gloom(Vector3(cos(a2) * 16.0, BloodTerrain.PAD_H + 1.0, sin(a2) * 16.0))
@@ -371,6 +607,7 @@ func _scatter() -> void:
 	add_child(tree_node)
 	_scatter_decor(_spike_mesh(), SPIKE_COUNT, 60.0, 0.8, 1.7, rng)
 	_scatter_decor(_mound_mesh(), MOUND_COUNT, 30.0, 0.7, 1.6, rng)
+	PitFlora.scatter(self, gen)
 
 
 func _scatter_decor(mesh: Mesh, count: int, min_heart: float, smin: float, smax: float, rng: RandomNumberGenerator) -> void:
@@ -456,31 +693,57 @@ func ring_for(pos: Vector3) -> int:
 
 
 func nearest_wall(ring: int, pos: Vector3) -> Node3D:
-	var cols: Array = columns[ring]
-	var count := cols.size()
+	var cols: Dictionary = columns[ring]
 	var rel := pos - origin
-	var center := posmod(roundi(atan2(rel.z, rel.x) / TAU * float(count)), count)
-	var best: Node3D = null
+	var flat := Vector2(rel.x, rel.z)
+	var spot := flat
+	if flat.length() > 0.01:
+		spot = flat.normalized() * BloodTerrain.RINGS[ring]
+	var center := Vector2i(floori(spot.x), floori(spot.y))
+	var best: Array = []
 	var best_d := INF
-	for off in range(-10, 11):
-		var column: Array = cols[posmod(center + off, count)]
-		var block: Node3D = column[0]
-		var d := pos.distance_squared_to(block.global_position)
-		if d < best_d:
-			best_d = d
-			best = block
-	return best
+	for dx in range(-6, 7):
+		for dz in range(-6, 7):
+			var key := center + Vector2i(dx, dz)
+			if not cols.has(key):
+				continue
+			var column: Array = cols[key]
+			var d := pos.distance_squared_to(column[0].global_position)
+			if d < best_d:
+				best_d = d
+				best = column
+	if best.is_empty():
+		return null
+	for layer in GATE_LAYERS:
+		var block = _front(best[layer])
+		if not block.dead:
+			return block
+	return _front(best[0])
+
+
+func _front(block):
+	var cur = block
+	while cur.dead and cur.next_block != null and is_instance_valid(cur.next_block):
+		cur = cur.next_block
+	return cur
 
 
 func hold_point(pos: Vector3) -> Vector3:
 	var out := pos - heart_position
 	out.y = 0.0
 	out = out.normalized()
-	return heart_position + out * (BloodTerrain.RINGS[1] + 14.0)
+	return heart_position + out * (BloodTerrain.RINGS[2] + 14.0)
 
 
 func doom_reached(pos: Vector3) -> bool:
 	return distance_from_heart(pos) < BloodTerrain.RINGS[1] + DOOM_MARGIN
+
+
+func army_breached() -> bool:
+	for s in soldiers:
+		if is_instance_valid(s) and not s.dead and distance_from_heart(s.global_position) < BloodTerrain.RINGS[1] - 2.0:
+			return true
+	return false
 
 
 func wipe_army() -> void:
@@ -496,12 +759,13 @@ func nearest_gloom(pos: Vector3, radius: float) -> Node3D:
 	var best_d := radius * radius
 	var band: int = BloodTerrain.band(pos)
 	for g in get_tree().get_nodes_in_group("pit_gloom"):
-		if not is_instance_valid(g) or BloodTerrain.band(g.global_position) != band:
+		if not is_instance_valid(g):
 			continue
 		var d := pos.distance_squared_to(g.global_position)
-		if d < best_d:
-			best_d = d
-			best = g
+		if d >= best_d or BloodTerrain.band(g.global_position) != band:
+			continue
+		best_d = d
+		best = g
 	return best
 
 
@@ -570,8 +834,15 @@ func pulse_heart(strength: float) -> void:
 
 
 func _process(delta: float) -> void:
-	if is_instance_valid(player) and rain != null:
-		rain.global_position = player.global_position + Vector3(0.0, 18.0, 0.0)
+	if gen != null and is_instance_valid(player):
+		gen.update(player.global_position - origin)
+		if rain != null:
+			rain.global_position = player.global_position + Vector3(0.0, 18.0, 0.0)
+	_update_heartbeat(delta)
+	bone_tick -= delta
+	if bone_tick <= 0.0:
+		bone_tick = BONE_TICK
+		_bone_tick()
 	flash_timer -= delta
 	if flash_timer <= 0.0:
 		_schedule_flash()

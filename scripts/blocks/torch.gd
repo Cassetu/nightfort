@@ -48,8 +48,10 @@ func _build_mount() -> void:
 	mount.name = "Mount"
 	add_child(mount)
 	mount.transform = Transform3D(mount_basis(wall_normal), -wall_normal * WALL_OFFSET)
-	for child in [base_mesh, $Flame, particles, $CollisionShape3D, light, fill]:
+	for child in [base_mesh, $Flame, particles, light, fill]:
 		child.reparent(mount, false)
+	var shape: CollisionShape3D = $CollisionShape3D
+	shape.transform = mount.transform * shape.transform
 
 
 static func mount_basis(normal: Vector3) -> Basis:

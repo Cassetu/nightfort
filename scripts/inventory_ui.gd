@@ -3,7 +3,10 @@ extends CanvasLayer
 signal toggled(is_open: bool)
 
 const Recipes = preload("res://scripts/player/recipes.gd")
-const RECIPE_ROW := preload("res://scenes/recipe_row.tscn")
+const TileArt = preload("res://scripts/tile_art.gd")
+const RECIPE_ROW := preload("res://scenes/recipes/recipe_row.tscn")
+const RECIPE_INGREDIENT := preload("res://scenes/recipes/recipe_ingredient.tscn")
+const MISSING_COLOR := Color(1.0, 0.3, 0.3)
 const DOUBLE_CLICK_TIME := 0.35
 const CRAFT_CELLS := 9
 
@@ -560,15 +563,24 @@ func _can_craft(r: Dictionary) -> bool:
 	return true
 
 
-func _ingredient_text(r: Dictionary) -> String:
-	var parts: Array = []
+func _fill_needs(row: Button, r: Dictionary) -> void:
+	var needs: HBoxContainer = row.get_node("Box/Info/Needs")
 	var counts := Recipes.ingredient_counts(r)
 	for id in counts:
-		parts.append("%d %s" % [int(counts[id]), Inventory.item_name(id)])
-	var text := ", ".join(parts)
+		var want := int(counts[id])
+		var entry: HBoxContainer = RECIPE_INGREDIENT.instantiate()
+		(entry.get_node("Icon") as TextureRect).texture = TileArt.icon(id)
+		var count_label: Label = entry.get_node("Count")
+		var lacking: bool = Inventory.get_count(id) + _grid_count(id) < want
+		count_label.text = "" if want <= 1 and not lacking else str(want)
+		if lacking:
+			count_label.add_theme_color_override("font_color", MISSING_COLOR)
+		needs.add_child(entry)
 	if Recipes.needs_table(r):
-		text += "  (Workbench)"
-	return text
+		var table_entry: HBoxContainer = RECIPE_INGREDIENT.instantiate()
+		(table_entry.get_node("Icon") as TextureRect).texture = TileArt.icon("workbench")
+		(table_entry.get_node("Count") as Label).text = ""
+		needs.add_child(table_entry)
 
 
 func _toggle_recipes() -> void:
@@ -592,7 +604,9 @@ func _refresh_recipes() -> void:
 			continue
 		var can := _can_craft(r)
 		var row: Button = RECIPE_ROW.instantiate()
-		row.text = "%s x%d\n%s" % [Inventory.item_name(r["out"]), int(r["count"]), _ingredient_text(r)]
+		(row.get_node("Box/Icon") as TextureRect).texture = TileArt.icon(r["out"])
+		(row.get_node("Box/Info/Title") as Label).text = "%s x%d" % [Inventory.item_name(r["out"]), int(r["count"])]
+		_fill_needs(row, r)
 		row.set_pressed_no_signal(can)
 		row.modulate = Color(1, 1, 1, 1) if can else Color(1, 1, 1, 0.5)
 		row.pressed.connect(_on_recipe_pressed.bind(r["id"], row, can))

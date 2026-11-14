@@ -16,6 +16,7 @@ const TICK_BLOCK := 1
 const TICK_UNIT := 2
 const TICK_PLAYER := 2
 const BILE := Color(0.36, 0.2, 0.46)
+const MAX_SKIPS := 4
 
 static var unit_scale: float = 1.0
 static var sack_material: StandardMaterial3D
@@ -44,16 +45,16 @@ static func splash(host: Node, pos: Vector3, radius: float, block_damage: int, u
 		return
 	var r2 := radius * radius
 	for b in BlockIndex.list:
-		if not is_instance_valid(b) or b.dying or not b.structural or b.is_in_group("torch"):
+		if not is_instance_valid(b) or b.dying or not b.structural or b.is_in_group("torch") or b.is_in_group("enemy"):
 			continue
 		if b.global_position.distance_squared_to(pos) <= r2:
 			b.take_damage(block_damage, pos)
 	var tree := host.get_tree()
 	for t in tree.get_nodes_in_group("troop"):
-		if is_instance_valid(t) and t.global_position.distance_squared_to(pos) <= r2:
+		if is_instance_valid(t) and not t.is_in_group("enemy") and t.global_position.distance_squared_to(pos) <= r2:
 			t.take_damage(unit_damage, pos)
 	for t in tree.get_nodes_in_group("ally_unit"):
-		if is_instance_valid(t) and t.global_position.distance_squared_to(pos) <= r2:
+		if is_instance_valid(t) and not t.is_in_group("enemy") and t.global_position.distance_squared_to(pos) <= r2:
 			t.take_damage(maxi(1, roundi(unit_damage * unit_scale)), pos)
 	var player = tree.get_first_node_in_group("player")
 	if player != null and not player.dead:
@@ -109,11 +110,21 @@ func _physics_process(delta: float) -> void:
 	var from := global_position
 	var to := from + velocity * delta
 	var query := PhysicsRayQueryParameters3D.create(from, to, 1)
-	var hit := get_world_3d().direct_space_state.intersect_ray(query)
-	if hit.is_empty():
+	var space := get_world_3d().direct_space_state
+	var hit := space.intersect_ray(query)
+	var skipped: Array[RID] = []
+	while not hit.is_empty() and _is_ally_of_bile(hit["collider"]) and skipped.size() < MAX_SKIPS:
+		skipped.append(hit["rid"])
+		query.exclude = skipped
+		hit = space.intersect_ray(query)
+	if hit.is_empty() or _is_ally_of_bile(hit["collider"]):
 		global_position = to
 		return
 	_land(hit["position"])
+
+
+static func _is_ally_of_bile(node: Object) -> bool:
+	return node is Node and (node as Node).is_in_group("enemy")
 
 
 func _land(pos: Vector3) -> void:

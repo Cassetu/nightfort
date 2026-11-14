@@ -13,7 +13,12 @@ const MELEE_DAMAGE := 9
 const MELEE_COOLDOWN := 0.7
 const MINE_DAMAGE := 6
 const MINE_COOLDOWN := 0.8
-const WALL_STOP := 3.6
+const WALL_STOP := 1.7
+const HOLE_FUNNEL := 1.2
+const BONE_SEEK := 5.5
+const BONE_REACH := 2.0
+const BONE_STEER := 1.6
+const BONE_REFRESH := 0.3
 const BOW_RANGE := 30.0
 const BOW_COOLDOWN := 1.5
 const BOW_DAMAGE := 4
@@ -27,6 +32,12 @@ const MODELS := {
 	"commander": preload("res://scenes/commander.tscn"),
 }
 const HOLD_STOP := 2.0
+const JUMP_SPEED := 5.6
+const STEP_HEIGHT := 1.1
+const STEP_PROBE := 0.7
+const JUMP_COOLDOWN := 0.5
+const FOE_REFRESH := 0.18
+const WALL_REFRESH := 0.4
 
 var role: String = "soldier"
 var arena
@@ -43,6 +54,14 @@ var follow_node: Node3D
 var goto_point := Vector3.ZERO
 var has_goto: bool = false
 var end_yaw: float = PI
+var foe_cache
+var jump_timer: float = 0.0
+var foe_timer: float = randf() * 0.18
+var wall_cache
+var bone_cache
+var bone_timer: float = randf() * 0.3
+var wall_ring: int = -1
+var wall_timer: float = randf() * 0.4
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 
 var model: Node3D
@@ -67,7 +86,7 @@ func setup(unit_role: String, world_arena) -> void:
 			max_hp = 70.0
 	hp = max_hp
 	collision_layer = 8
-	collision_mask = 1
+	collision_mask = 1 | 8
 	add_to_group("ally_unit")
 	var cs := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
@@ -156,8 +175,24 @@ func _physics_process(delta: float) -> void:
 		move = _approach(follow_node.global_position, 4.0, delta)
 	velocity.x = move_toward(velocity.x, move.x, 30.0 * delta)
 	velocity.z = move_toward(velocity.z, move.z, 30.0 * delta)
-	move_and_slide()
+	jump_timer = maxf(jump_timer - delta, 0.0)
+	if move != Vector3.ZERO and jump_timer <= 0.0 and is_on_floor() and is_on_wall() and not mining:
+		_try_hop(move)
+	if move != Vector3.ZERO or not is_on_floor() or velocity.length_squared() > 0.01:
+		move_and_slide()
 	_animate(delta, Vector2(velocity.x, velocity.z).length())
+
+
+func _try_hop(move: Vector3) -> void:
+	var dir := Vector3(move.x, 0.0, move.z).normalized() * STEP_PROBE
+	if not test_move(global_transform, dir):
+		return
+	var raised := global_transform
+	raised.origin.y += STEP_HEIGHT
+	if test_move(raised, dir):
+		return
+	velocity.y = JUMP_SPEED
+	jump_timer = JUMP_COOLDOWN
 
 
 func _approach(point: Vector3, stop: float, delta: float) -> Vector3:
@@ -167,12 +202,48 @@ func _approach(point: Vector3, stop: float, delta: float) -> Vector3:
 	if dist <= stop:
 		return Vector3.ZERO
 	var dir := to / dist
+	if arena != null:
+		var push: Vector3 = arena.bone_push(global_position)
+		if push != Vector3.ZERO:
+			dir = (dir + push * BONE_STEER).normalized()
 	_face(dir, delta)
 	return dir * SPEED
 
 
+func _foe(radius: float, delta: float):
+	foe_timer -= delta
+	var stale: bool = foe_cache == null or not is_instance_valid(foe_cache) or foe_cache.dying
+	if foe_timer <= 0.0 or stale:
+		foe_timer = FOE_REFRESH + randf() * 0.1
+		foe_cache = arena.nearest_gloom(global_position, radius)
+		if foe_cache == null and role != "soldier":
+			foe_cache = arena.nearest_spitter(global_position, radius)
+	elif global_position.distance_squared_to(foe_cache.global_position) > radius * radius * 1.4:
+		foe_cache = null
+	return foe_cache
+
+
+func _bone(delta: float):
+	bone_timer -= delta
+	var stale: bool = bone_cache != null and (not is_instance_valid(bone_cache) or bone_cache.dead)
+	if bone_timer <= 0.0 or stale:
+		bone_timer = BONE_REFRESH + randf() * 0.15
+		bone_cache = arena.nearest_barricade(global_position, BONE_SEEK)
+	return bone_cache
+
+
+func _wall(ring: int, delta: float):
+	wall_timer -= delta
+	var stale: bool = wall_cache == null or not is_instance_valid(wall_cache) or wall_ring != ring or (wall_cache.dead and wall_cache.next_block != null)
+	if wall_timer <= 0.0 or stale:
+		wall_timer = WALL_REFRESH + randf() * 0.2
+		wall_ring = ring
+		wall_cache = arena.nearest_wall(ring, global_position)
+	return wall_cache
+
+
 func _soldier(delta: float) -> Vector3:
-	var foe = arena.nearest_gloom(global_position, SEEK)
+	var foe = _foe(SEEK, delta)
 	if foe != null:
 		var to = foe.global_position - global_position
 		to.y = 0.0
@@ -186,11 +257,24 @@ func _soldier(delta: float) -> Vector3:
 			return Vector3.ZERO
 		_set_weapon(false)
 		return _approach(foe.global_position, MELEE_REACH - 0.3, delta)
+	var bone = _bone(delta)
+	if bone != null:
+		var to_bone: Vector3 = bone.global_position - global_position
+		to_bone.y = 0.0
+		_set_weapon(false)
+		if to_bone.length() <= BONE_REACH:
+			_face(to_bone.normalized(), delta)
+			if cooldown <= 0.0:
+				cooldown = MELEE_COOLDOWN
+				swing = 1.0
+				bone.take_damage(MELEE_DAMAGE, global_position)
+			return Vector3.ZERO
+		return _approach(bone.global_position, BONE_REACH - 0.2, delta)
 	var ring: int = arena.ring_for(global_position)
-	if ring < 0 or ring >= 1:
+	if ring < 0 or ring >= 2:
 		_set_weapon(false)
 		return _approach(arena.hold_point(global_position), HOLD_STOP, delta)
-	var wall = arena.nearest_wall(ring, global_position)
+	var wall = _wall(ring, delta)
 	if wall == null:
 		return Vector3.ZERO
 	if wall.dead:
@@ -200,12 +284,8 @@ func _soldier(delta: float) -> Vector3:
 		radial = radial.normalized()
 		var unit_d: float = arena.distance_from_heart(global_position)
 		var wall_d: float = arena.distance_from_heart(wall.global_position)
-		if unit_d > wall_d + 1.0:
-			var stage: Vector3 = wall.global_position + radial * 4.0
-			var gap := stage - global_position
-			gap.y = 0.0
-			if gap.length() > 1.5:
-				return _approach(stage, 1.0, delta)
+		if unit_d > wall_d + HOLE_FUNNEL:
+			return _approach(wall.global_position, 0.5, delta)
 		return _approach(wall.global_position - radial * INNER_MARGIN, 0.8, delta)
 	var to_wall = wall.global_position - global_position
 	to_wall.y = 0.0
@@ -223,9 +303,7 @@ func _soldier(delta: float) -> Vector3:
 
 
 func _support(delta: float) -> Vector3:
-	var foe = arena.nearest_gloom(global_position, BOW_RANGE)
-	if foe == null:
-		foe = arena.nearest_spitter(global_position, BOW_RANGE)
+	var foe = _foe(BOW_RANGE, delta)
 	var anchor: Vector3 = arena.support_point(global_position, ARCHER_GAP if role == "archer" else ARCHER_GAP * 0.6)
 	if foe != null and role == "archer":
 		var to = foe.global_position - global_position
