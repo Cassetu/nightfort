@@ -421,6 +421,7 @@ func _die():
 
 
 func respawn(pos):
+	Game.achievements.add_progress("revives", 1)
 	global_position = pos
 	velocity = Vector3.ZERO
 	health = max_health

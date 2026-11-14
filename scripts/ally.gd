@@ -4,6 +4,7 @@ signal fell(unit: Node3D)
 
 const ArrowScript = preload("res://scripts/arrow.gd")
 const ChipBurst = preload("res://scripts/chip_burst.gd")
+const AllySkin = preload("res://scripts/ally_skin.gd")
 
 const SPEED := 3.5
 const TURN := 8.0
@@ -37,7 +38,15 @@ const STEP_HEIGHT := 1.1
 const STEP_PROBE := 0.7
 const JUMP_COOLDOWN := 0.5
 const FOE_REFRESH := 0.18
-const WALL_REFRESH := 0.4
+const WALL_REFRESH := 0.6
+const THINK := 0.08
+const FAR_THINK := 0.25
+const FAR_DIST := 70.0
+const STUCK_TIME := 0.45
+const SIDESTEP_TIME := 0.7
+const SIDESTEP_ANGLE := 1.2
+const KITE_RANGE := 6.0
+const FOE_SWITCH := 1.69
 
 var role: String = "soldier"
 var arena
@@ -62,6 +71,16 @@ var bone_cache
 var bone_timer: float = randf() * 0.3
 var wall_ring: int = -1
 var wall_timer: float = randf() * 0.4
+var think_timer: float = randf() * 0.08
+var think_accum: float = 0.0
+var desired := Vector3.ZERO
+var face_dir := Vector3.ZERO
+var far: bool = false
+var last_pos := Vector3.ZERO
+var stuck_time: float = 0.0
+var sidestep: float = 0.0
+var sidestep_sign: float = 1.0
+var claim_key = null
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 
 var model: Node3D
@@ -108,6 +127,7 @@ func _build_model() -> void:
 	sword_node = model.get_node_or_null("ArmR/Sword")
 	pick_node = model.get_node_or_null("ArmR/Pick")
 	bow_node = model.get_node_or_null("ArmL/Bow")
+	AllySkin.apply(model)
 	if pick_node != null:
 		pick_node.visible = false
 
@@ -131,6 +151,8 @@ func take_damage(amount, from: Vector3 = Vector3.INF) -> void:
 
 func _fall() -> void:
 	dead = true
+	if arena != null:
+		arena.release_wall(self)
 	remove_from_group("ally_unit")
 	collision_layer = 0
 	fell.emit(self)
@@ -145,10 +167,10 @@ func _fall() -> void:
 	queue_free()
 
 
-func _face(dir: Vector3, delta: float) -> void:
+func _face(dir: Vector3, _delta: float = 0.0) -> void:
 	if dir.length() < 0.01:
 		return
-	rotation.y = lerp_angle(rotation.y, atan2(-dir.x, -dir.z), minf(TURN * delta, 1.0))
+	face_dir = dir
 
 
 func _physics_process(delta: float) -> void:
@@ -157,10 +179,34 @@ func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity.y -= gravity * delta
 	cooldown = maxf(cooldown - delta, 0.0)
+	think_accum += delta
+	think_timer -= delta
+	if think_timer <= 0.0:
+		_think(think_accum)
+		think_accum = 0.0
+		think_timer = (FAR_THINK if far else THINK) + randf() * 0.03
+	if face_dir.length_squared() > 0.0001:
+		rotation.y = lerp_angle(rotation.y, atan2(-face_dir.x, -face_dir.z), minf(TURN * delta, 1.0))
+	velocity.x = move_toward(velocity.x, desired.x, 30.0 * delta)
+	velocity.z = move_toward(velocity.z, desired.z, 30.0 * delta)
+	jump_timer = maxf(jump_timer - delta, 0.0)
+	if desired != Vector3.ZERO and jump_timer <= 0.0 and is_on_floor() and is_on_wall() and not mining:
+		_try_hop(desired)
+	if desired != Vector3.ZERO or not is_on_floor() or velocity.length_squared() > 0.01:
+		move_and_slide()
+	if far:
+		swing = 0.0
+	else:
+		_animate(delta, Vector2(velocity.x, velocity.z).length())
+
+
+func _think(dt: float) -> void:
+	var cam := get_viewport().get_camera_3d()
+	far = cam != null and cam.global_position.distance_squared_to(global_position) > FAR_DIST * FAR_DIST
 	var move := Vector3.ZERO
 	mining = false
 	if has_goto:
-		move = _approach(goto_point, 0.8, delta)
+		move = _approach(goto_point, 0.8, dt)
 		if move == Vector3.ZERO:
 			has_goto = false
 			var turn := create_tween()
@@ -168,19 +214,33 @@ func _physics_process(delta: float) -> void:
 	elif active and arena != null:
 		match role:
 			"soldier":
-				move = _soldier(delta)
+				move = _soldier(dt)
 			_:
-				move = _support(delta)
+				move = _support(dt)
 	elif follow_node != null and is_instance_valid(follow_node):
-		move = _approach(follow_node.global_position, 4.0, delta)
-	velocity.x = move_toward(velocity.x, move.x, 30.0 * delta)
-	velocity.z = move_toward(velocity.z, move.z, 30.0 * delta)
-	jump_timer = maxf(jump_timer - delta, 0.0)
-	if move != Vector3.ZERO and jump_timer <= 0.0 and is_on_floor() and is_on_wall() and not mining:
-		_try_hop(move)
-	if move != Vector3.ZERO or not is_on_floor() or velocity.length_squared() > 0.01:
-		move_and_slide()
-	_animate(delta, Vector2(velocity.x, velocity.z).length())
+		move = _approach(follow_node.global_position, 4.0, dt)
+	desired = _unstick(move, dt)
+
+
+func _unstick(move: Vector3, dt: float) -> Vector3:
+	var moved := Vector2(global_position.x - last_pos.x, global_position.z - last_pos.z).length()
+	last_pos = global_position
+	if move == Vector3.ZERO:
+		stuck_time = 0.0
+		sidestep = maxf(sidestep - dt, 0.0)
+		return move
+	if sidestep > 0.0:
+		sidestep -= dt
+		return move.rotated(Vector3.UP, sidestep_sign * SIDESTEP_ANGLE)
+	if is_on_floor() and moved < move.length() * dt * 0.15:
+		stuck_time += dt
+	else:
+		stuck_time = maxf(stuck_time - dt, 0.0)
+	if stuck_time > STUCK_TIME:
+		stuck_time = 0.0
+		sidestep = SIDESTEP_TIME
+		sidestep_sign = 1.0 if randf() < 0.5 else -1.0
+	return move
 
 
 func _try_hop(move: Vector3) -> void:
@@ -215,9 +275,13 @@ func _foe(radius: float, delta: float):
 	var stale: bool = foe_cache == null or not is_instance_valid(foe_cache) or foe_cache.dying
 	if foe_timer <= 0.0 or stale:
 		foe_timer = FOE_REFRESH + randf() * 0.1
-		foe_cache = arena.nearest_gloom(global_position, radius)
-		if foe_cache == null and role != "soldier":
-			foe_cache = arena.nearest_spitter(global_position, radius)
+		var fresh = arena.nearest_gloom(global_position, radius)
+		if fresh == null and role != "soldier":
+			fresh = arena.nearest_spitter(global_position, radius)
+		if stale or fresh == null or foe_cache == fresh:
+			foe_cache = fresh
+		elif global_position.distance_squared_to(foe_cache.global_position) > global_position.distance_squared_to(fresh.global_position) * FOE_SWITCH:
+			foe_cache = fresh
 	elif global_position.distance_squared_to(foe_cache.global_position) > radius * radius * 1.4:
 		foe_cache = null
 	return foe_cache
@@ -234,11 +298,17 @@ func _bone(delta: float):
 
 func _wall(ring: int, delta: float):
 	wall_timer -= delta
-	var stale: bool = wall_cache == null or not is_instance_valid(wall_cache) or wall_ring != ring or (wall_cache.dead and wall_cache.next_block != null)
-	if wall_timer <= 0.0 or stale:
+	var valid: bool = wall_cache != null and is_instance_valid(wall_cache) and wall_ring == ring
+	var stale: bool = not valid or (wall_cache.dead and wall_cache.next_block != null)
+	var near := false
+	if valid and not wall_cache.dead:
+		var flat: Vector3 = wall_cache.global_position - global_position
+		flat.y = 0.0
+		near = flat.length_squared() < WALL_STOP * WALL_STOP * 2.0
+	if stale or (wall_timer <= 0.0 and not near):
 		wall_timer = WALL_REFRESH + randf() * 0.2
 		wall_ring = ring
-		wall_cache = arena.nearest_wall(ring, global_position)
+		wall_cache = arena.nearest_wall(ring, global_position, self)
 	return wall_cache
 
 
@@ -313,6 +383,8 @@ func _support(delta: float) -> Vector3:
 			cooldown = BOW_COOLDOWN
 			swing = 1.0
 			_shoot(foe)
+		if to.length() < KITE_RANGE:
+			return -to.normalized() * SPEED * 0.8
 	elif foe != null and role == "commander":
 		var close = foe.global_position - global_position
 		close.y = 0.0
@@ -350,6 +422,11 @@ func _pose(node: Node3D, angle: float, delta: float = 0.0) -> void:
 		node.rotation.x = lerpf(node.rotation.x, angle, minf(8.0 * delta, 1.0))
 	else:
 		node.rotation.x = angle
+
+
+func _exit_tree() -> void:
+	if arena != null and is_instance_valid(arena):
+		arena.release_wall(self)
 
 
 func _animate(delta: float, speed: float) -> void:

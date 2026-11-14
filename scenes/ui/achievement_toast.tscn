@@ -1,0 +1,21 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/achievement_toast.gd" id="1_toast"]
+[ext_resource type="Theme" uid="uid://gr2kk87lccmd" path="res://resources/main-theme.tres" id="2_theme"]
+[ext_resource type="PackedScene" path="res://scenes/ui/achievement_toast_item.tscn" id="3_item"]
+
+[node name="AchievementToast" type="CanvasLayer"]
+process_mode = 3
+layer = 110
+script = ExtResource("1_toast")
+item_scene = ExtResource("3_item")
+
+[node name="Stack" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 640.0
+offset_bottom = 400.0
+mouse_filter = 2
+theme = ExtResource("2_theme")
+theme_override_constants/separation = 10

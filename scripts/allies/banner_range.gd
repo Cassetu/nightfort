@@ -8,6 +8,9 @@ const REBUILD_INTERVAL := 0.15
 const BLUE := Color(0.25, 0.55, 1.0)
 const YELLOW := Color(1.0, 0.85, 0.2)
 const MAX_CACHE := 30000
+const MERLON_RANGE := 1.35
+const MERLON_DIRS := [Vector3i(1, 0, 0), Vector3i(-1, 0, 0), Vector3i(0, 0, 1), Vector3i(0, 0, -1)]
+const BlockIndex = preload("res://scripts/block_index.gd")
 
 static var heights: Dictionary = {}
 
@@ -62,8 +65,10 @@ func show_for(banner_type: String, ref: Vector3) -> void:
 	if banner_type == "" or not ref.is_finite() or terrain == null:
 		clear()
 		return
-	var reach := _range_for(banner_type)
 	var cell := Vector3i(floori(ref.x), floori(ref.y), floori(ref.z))
+	var reach := _range_for(banner_type)
+	if _behind_merlon(cell):
+		reach *= MERLON_RANGE
 	var new_key := "%d,%d,%d|%.1f" % [cell.x, cell.y, cell.z, reach]
 	if new_key == key:
 		if not visible:
@@ -75,6 +80,14 @@ func show_for(banner_type: String, ref: Vector3) -> void:
 	key = new_key
 	_rebuild(cell, reach)
 	show()
+
+
+func _behind_merlon(cell: Vector3i) -> bool:
+	for d: Vector3i in MERLON_DIRS:
+		var b = BlockIndex.at(cell + d)
+		if b != null and is_instance_valid(b) and not b.dying and b.block_type == "merlon":
+			return true
+	return false
 
 
 func _range_for(banner_type: String) -> float:

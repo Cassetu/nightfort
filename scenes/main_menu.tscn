@@ -1,19 +1,20 @@
-[gd_scene load_steps=11 format=3 uid="uid://bf1aawx5guoi"]
+[gd_scene load_steps=12 format=3 uid="uid://bf1aawx5guoi"]
 
 [ext_resource type="Script" uid="uid://dt525sk8gbbmo" path="res://scripts/main_menu.gd" id="1_menu"]
 [ext_resource type="Theme" uid="uid://gr2kk87lccmd" path="res://resources/main-theme.tres" id="2_theme"]
 [ext_resource type="PackedScene" path="res://scenes/menus/new_game_panel.tscn" id="3_new"]
 [ext_resource type="PackedScene" path="res://scenes/menus/slots_panel.tscn" id="4_slots"]
 [ext_resource type="PackedScene" path="res://scenes/menus/settings_panel.tscn" id="5_settings"]
-[ext_resource type="Shader" path="res://resources/menu_bg.gdshader" id="6_bgshader"]
-[ext_resource type="Texture2D" path="res://art/tiles/stone_brick.png" id="7_stone"]
-[ext_resource type="Texture2D" path="res://art/tiles/diorite_brick.png" id="8_diorite"]
+[ext_resource type="Shader" uid="uid://csghflx1uxkyw" path="res://resources/menu_bg.gdshader" id="6_bgshader"]
+[ext_resource type="Texture2D" uid="uid://ddwjig3adqynf" path="res://art/tiles/stone_brick.png" id="7_stone"]
+[ext_resource type="Texture2D" uid="uid://buwcdwygpo53e" path="res://art/tiles/diorite_brick.png" id="8_diorite"]
+[ext_resource type="PackedScene" path="res://scenes/menus/achievements_button.tscn" id="9_achv"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_stone"]
 shader = ExtResource("6_bgshader")
 shader_parameter/tex = ExtResource("7_stone")
 shader_parameter/tile_px = 192.0
-shader_parameter/drift = Vector2(0.03, 0.0)
+shader_parameter/drift = Vector2(0.03, 0)
 shader_parameter/brightness = 0.5
 shader_parameter/vignette = 0.6
 shader_parameter/tint = Vector3(1, 1, 1)
@@ -22,7 +23,7 @@ shader_parameter/tint = Vector3(1, 1, 1)
 shader = ExtResource("6_bgshader")
 shader_parameter/tex = ExtResource("8_diorite")
 shader_parameter/tile_px = 192.0
-shader_parameter/drift = Vector2(0.03, 0.0)
+shader_parameter/drift = Vector2(0.03, 0)
 shader_parameter/brightness = 0.5
 shader_parameter/vignette = 0.6
 shader_parameter/tint = Vector3(0.95, 1, 1.05)
@@ -189,3 +190,8 @@ theme_type_variation = &"OverlayTitle"
 text = "Generating world..."
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="AchievementsButton" parent="." instance=ExtResource("9_achv")]
+unique_name_in_owner = true
+layout_mode = 1
+script = null

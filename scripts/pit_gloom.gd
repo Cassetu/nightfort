@@ -66,6 +66,7 @@ func take_damage(amount, from: Vector3 = Vector3.INF) -> void:
 
 func _die() -> void:
 	dying = true
+	Game.achievements.add_progress("kills", 1)
 	remove_from_group("enemy")
 	remove_from_group("pit_gloom")
 	collision_layer = 0

@@ -194,7 +194,6 @@ func _enter() -> void:
 	world.missions.visible = false
 	world.ui.set_prologue(true)
 	world.hud_node.get_node("TimeBar").visible = false
-	world.hud_node.get_node("Counts").visible = false
 	_loadout()
 	player.global_position = cave["spawn"]
 	player.rotation.y = PI
@@ -549,7 +548,6 @@ func _exit() -> void:
 	world.core.set_process(true)
 	world.ui.set_prologue(false)
 	world.hud_node.get_node("TimeBar").visible = true
-	world.hud_node.get_node("Counts").visible = true
 	player.died.disconnect(_on_died)
 	player.respawn(start_position)
 	player.rotation.y = start_yaw

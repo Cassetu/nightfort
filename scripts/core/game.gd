@@ -3,6 +3,8 @@ extends Node
 signal settings_changed
 
 const StoneUI = preload("res://scripts/stone_ui.gd")
+const AchievementsScript = preload("res://scripts/core/achievements.gd")
+const ToastScene = preload("res://scenes/ui/achievement_toast.tscn")
 const SAVE_DIR := "user://saves"
 const SETTINGS_PATH := "user://settings.cfg"
 const SLOT_COUNT := 3
@@ -34,10 +36,16 @@ var gamemode: String = "survival"
 var difficulty: String = "normal"
 var world_name: String = DEFAULT_NAME
 var autosave_timer: float = 0.0
+var achievements: Node
 
 
 func _ready() -> void:
 	StoneUI.apply(load(StoneUI.THEME_PATH))
+	achievements = AchievementsScript.new()
+	add_child(achievements)
+	var toast := ToastScene.instantiate()
+	add_child(toast)
+	toast.bind(achievements)
 	load_settings()
 	apply_settings()
 

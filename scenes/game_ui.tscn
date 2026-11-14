@@ -4,6 +4,7 @@
 [ext_resource type="Theme" uid="uid://gr2kk87lccmd" path="res://resources/main-theme.tres" id="2_theme"]
 [ext_resource type="PackedScene" path="res://scenes/menus/settings_panel.tscn" id="3_settings"]
 [ext_resource type="PackedScene" path="res://scenes/menus/slots_panel.tscn" id="4_slots"]
+[ext_resource type="PackedScene" path="res://scenes/menus/achievements_button.tscn" id="9_achv"]
 
 [sub_resource type="Gradient" id="Gradient_vignette"]
 offsets = PackedFloat32Array(0.55, 1)
@@ -306,3 +307,6 @@ text = "Main Menu"
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
+
+[node name="AchievementsButton" parent="UI/PauseOverlay" instance=ExtResource("9_achv")]
+layout_mode = 1

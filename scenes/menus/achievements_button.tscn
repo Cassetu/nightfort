@@ -1,0 +1,36 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/menus/achievements_button.gd" id="1_button"]
+[ext_resource type="PackedScene" path="res://scenes/menus/achievements_panel.tscn" id="2_panel"]
+[ext_resource type="Texture2D" path="res://art/ui/trophy.png" id="3_trophy"]
+
+[node name="AchievementsButton" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_button")
+
+[node name="Trophy" type="Button" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(64, 64)
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -80.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = 80.0
+grow_horizontal = 0
+icon = ExtResource("3_trophy")
+icon_alignment = 1
+expand_icon = true
+texture_filter = 1
+
+[node name="Panel" parent="." instance=ExtResource("2_panel")]
+unique_name_in_owner = true
+layout_mode = 1

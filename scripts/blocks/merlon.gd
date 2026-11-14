@@ -12,3 +12,11 @@ func _build() -> void:
 	col.shape = BoxShape3D.new()
 	add_child(col)
 	set_process(false)
+
+
+func _decal_scale() -> float:
+	return 1.01
+
+
+func _decal_shape() -> Mesh:
+	return MerlonMesh.build(_get_decal_material())

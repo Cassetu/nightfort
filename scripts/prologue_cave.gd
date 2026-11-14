@@ -89,12 +89,15 @@ static func build(root: Node3D, world: Node3D, origin: Vector3) -> Dictionary:
 			for y in range(STAIR_BASE_Y + k, STAIR_BASE_Y + k + 3):
 				air[Vector3i(x, y, STAIR_Z + k)] = true
 	_carve(air, END_TUNNEL)
-	var open_bottom := _crack_shaft(air, rng)
+	var shaft_rng := RandomNumberGenerator.new()
+	shaft_rng.seed = 4410
+	var open_bottom := _crack_shaft(air, shaft_rng)
 	for p in CAVE_PILLARS:
 		_column(air, Vector2(float(p.x) + float(p.z) * 0.5, float(p.y) + float(p.z) * 0.5), float(p.z) * 0.8, CAVE_ONE["min"].y, shape_noise)
 	_formations(air, CAVE_ONE, rng, 9, 14)
 	_formations(air, CHAMBER, rng, 5, 9)
 	_formations(air, ARENA, rng, 7, 11)
+	_clear_spawn(air)
 
 	var body := StaticBody3D.new()
 	body.name = "Bedrock"
@@ -147,6 +150,13 @@ static func build(root: Node3D, world: Node3D, origin: Vector3) -> Dictionary:
 		"crack": crack_pos,
 		"origin": origin,
 	}
+
+
+static func _clear_spawn(air: Dictionary) -> void:
+	for x in range(9, 13):
+		for y in range(0, 4):
+			for z in range(2, 6):
+				air[Vector3i(x, y, z)] = true
 
 
 static func _crack_shaft(air: Dictionary, rng: RandomNumberGenerator) -> Dictionary:

@@ -411,6 +411,7 @@ func _die() -> void:
 	collision_layer = 0
 	Sfx.play(self, "gloom_death", global_position, 0.0)
 	_chips()
+	Game.achievements.add_progress("kills", 1)
 	died.emit(self)
 	_shrink(0.3)
 

@@ -27,6 +27,9 @@ const CRAFT_CELLS := 9
 @onready var chest_panel: VBoxContainer = %ChestPanel
 
 var slot_nodes: Array = []
+const DROP_HOLD_DELAY := 0.35
+const DROP_REPEAT := 0.06
+
 var open: bool = false
 var table_mode: bool = false
 var troop = null
@@ -45,6 +48,8 @@ var preview_left: int = 0
 var last_click_time: float = -10.0
 var last_click_slot = null
 var hovered = null
+var drop_hold: float = -1.0
+var drop_repeat: float = 0.0
 var flash_text: String = ""
 var flash_time: float = 0.0
 
@@ -82,6 +87,60 @@ func _ensure_action() -> void:
 		var ev := InputEventKey.new()
 		ev.physical_keycode = key
 		InputMap.action_add_event("inventory", ev)
+
+
+func _drop_tick(delta: float) -> void:
+	if not Input.is_physical_key_pressed(KEY_Q):
+		drop_hold = -1.0
+		return
+	if player == null or world == null or Game.gamemode == "creative" or not Game.in_world:
+		return
+	if drop_hold < 0.0:
+		drop_hold = 0.0
+		drop_repeat = 0.0
+		_drop_one()
+		return
+	drop_hold += delta
+	if drop_hold < DROP_HOLD_DELAY:
+		return
+	drop_repeat -= delta
+	if drop_repeat <= 0.0:
+		drop_repeat = DROP_REPEAT
+		_drop_one()
+
+
+func _drop_one() -> void:
+	if player.dead or game_ui.game_over or game_ui.dead or game_ui.pause_overlay.visible:
+		return
+	var item: Dictionary = {}
+	var s = null
+	if open:
+		s = hovered
+		if s == null or s.is_result:
+			return
+		item = _get(s)
+	else:
+		if player.frozen or world.intro_playing:
+			return
+		item = Inventory.slots[Inventory.selected]
+	if item.is_empty():
+		return
+	var id: String = item["id"]
+	item["count"] = int(item["count"]) - 1
+	if int(item["count"]) <= 0:
+		if s != null:
+			_set_slot(s, {})
+		else:
+			Inventory.set_slot(Inventory.selected, {})
+	elif s != null:
+		_set_slot(s, item)
+	else:
+		Inventory.set_slot(Inventory.selected, item)
+	var forward: Vector3 = -player.global_transform.basis.z
+	forward.y = 0.0
+	forward = forward.normalized()
+	var origin: Vector3 = player.global_position + Vector3(0.0, 1.3, 0.0) + forward * 0.6
+	world.spawn_drop(id, 1, origin, false, forward * 4.5 + Vector3(0.0, 1.5, 0.0))
 
 
 func can_open() -> bool:
@@ -252,6 +311,7 @@ func _input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
+	_drop_tick(delta)
 	if not open:
 		return
 	var mouse := get_viewport().get_mouse_position()
@@ -527,6 +587,9 @@ func _take_result() -> void:
 		return
 	var out_id: String = current_recipe["out"]
 	var n := int(current_recipe["count"])
+	if Input.is_key_pressed(KEY_SHIFT):
+		_take_all_results(out_id, n)
+		return
 	if not cursor.is_empty():
 		if cursor["id"] != out_id or int(cursor["count"]) + n > Inventory.max_stack(out_id):
 			return
@@ -542,6 +605,29 @@ func _take_result() -> void:
 			craft_items[i] = {}
 	Inventory.discover(out_id)
 	Inventory.item_added.emit(out_id, n)
+	_craft_changed()
+
+
+func _take_all_results(out_id: String, per_craft: int) -> void:
+	var times := 0
+	var cells: Array = []
+	for i in craft_size * craft_size:
+		if not craft_items[i].is_empty():
+			cells.append(i)
+	if cells.is_empty():
+		return
+	times = int(craft_items[cells[0]]["count"])
+	for i in cells:
+		times = mini(times, int(craft_items[i]["count"]))
+	if times <= 0:
+		return
+	for i in cells:
+		var item: Dictionary = craft_items[i]
+		item["count"] = int(item["count"]) - times
+		if int(item["count"]) <= 0:
+			craft_items[i] = {}
+	var total := times * per_craft
+	_give_back({"id": out_id, "count": total})
 	_craft_changed()
 
 
@@ -622,27 +708,58 @@ func _on_recipe_pressed(id: String, row: Button, can: bool) -> void:
 		else:
 			_flash("Missing ingredients")
 		return
+	if not current_recipe.is_empty() and current_recipe["id"] == id and _add_set(r):
+		return
 	_autofill(r)
 
 
-func _autofill(r: Dictionary) -> void:
-	_return_craft_items()
+func _layout(r: Dictionary) -> Dictionary:
+	var out := {}
 	if r.has("shapeless"):
 		var i := 0
 		for id in r["shapeless"]:
-			if Inventory.take_item(id, 1):
-				craft_items[i] = {"id": id, "count": 1}
+			out[i] = id
 			i += 1
 	else:
 		var shape: Array = r["shape"]
 		for row in shape.size():
 			for col in shape[row].size():
 				var id: String = shape[row][col]
-				if id == "":
-					continue
-				if Inventory.take_item(id, 1):
-					craft_items[row * craft_size + col] = {"id": id, "count": 1}
+				if id != "":
+					out[row * craft_size + col] = id
+	return out
+
+
+func _autofill(r: Dictionary) -> void:
+	_return_craft_items()
+	var layout := _layout(r)
+	for index in layout:
+		var id: String = layout[index]
+		if Inventory.take_item(id, 1):
+			craft_items[index] = {"id": id, "count": 1}
 	_craft_changed()
+
+
+func _add_set(r: Dictionary) -> bool:
+	var layout := _layout(r)
+	for index in layout:
+		var item: Dictionary = craft_items[index]
+		if item.is_empty() or item["id"] != layout[index]:
+			return false
+	var counts := Recipes.ingredient_counts(r)
+	for id in counts:
+		if Inventory.get_count(id) < int(counts[id]):
+			_flash("Missing ingredients")
+			return true
+	for index in layout:
+		if int(craft_items[index]["count"]) >= Inventory.max_stack(layout[index]):
+			_flash("Slot full")
+			return true
+	for index in layout:
+		if Inventory.take_item(layout[index], 1):
+			craft_items[index]["count"] = int(craft_items[index]["count"]) + 1
+	_craft_changed()
+	return true
 
 
 func _refresh(_index: int = 0) -> void:

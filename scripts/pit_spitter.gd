@@ -173,7 +173,7 @@ func take_damage(amount, from: Vector3 = Vector3.INF) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if dying:
+	if dying or not released:
 		return
 	timer -= delta * (1.0 + pressure)
 	if timer > 0.0:
@@ -186,6 +186,7 @@ func _physics_process(delta: float) -> void:
 	_lob(target)
 
 
+static var released: bool = false
 static var player_claim = null
 static var player_claim_until: float = 0.0
 

@@ -6,9 +6,13 @@ const VARIANTS := 8
 const ENEMY_DAMAGE := 4
 const FRIENDLY_DAMAGE := 3
 const MAX_DURABILITY := 80
+const SPIKE_STAGES := [9, 7, 5, 3, 1]
 const BASE_SIZE := Vector3(0.95, 0.22, 0.95)
 
 var durability: int = MAX_DURABILITY
+var variant: int = 0
+var stage: int = 0
+var model: MeshInstance3D
 
 static var meshes: Dictionary = {}
 
@@ -63,9 +67,10 @@ static func _append(st: SurfaceTool, mesh: Mesh, xform: Transform3D) -> void:
 		st.add_vertex(xform * verts[i])
 
 
-static func _variant_mesh(variant: int) -> ArrayMesh:
-	if meshes.has(variant):
-		return meshes[variant]
+static func _variant_mesh(variant: int, count: int) -> ArrayMesh:
+	var cache_key := variant * 16 + count
+	if meshes.has(cache_key):
+		return meshes[cache_key]
 	var wood := TileArt.uv_material("wood", Color(0.45, 0.32, 0.18), Vector3.ONE)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7919 * (variant + 1)
@@ -79,10 +84,14 @@ static func _variant_mesh(variant: int) -> ArrayMesh:
 
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var spike_index := 0
 	for gx in 3:
 		for gz in 3:
 			var pos := Vector3((gx - 1) * 0.3 + rng.randf_range(-0.05, 0.05), -0.5 + 0.475, (gz - 1) * 0.3 + rng.randf_range(-0.05, 0.05))
 			var rot := Vector3(rng.randf_range(-0.28, 0.28), rng.randf() * TAU, rng.randf_range(-0.28, 0.28))
+			spike_index += 1
+			if spike_index > count:
+				continue
 			_append(st, cone, Transform3D(Basis.from_euler(rot), pos))
 	var rail_mesh := TileArt.box_mesh(Vector3(0.98, 0.08, 0.1), wood)
 	for z in [-0.28, 0.28]:
@@ -91,14 +100,14 @@ static func _variant_mesh(variant: int) -> ArrayMesh:
 	_append(st, brace_mesh, Transform3D(Basis.IDENTITY, Vector3(0.0, -0.34, 0.0)))
 	var mesh := st.commit()
 	mesh.surface_set_material(0, wood)
-	meshes[variant] = mesh
+	meshes[cache_key] = mesh
 	return mesh
 
 
 func _build() -> void:
-	var variant := absi(hash(Vector3i(floori(global_position.x), floori(global_position.y), floori(global_position.z)))) % VARIANTS
-	var model := MeshInstance3D.new()
-	model.mesh = _variant_mesh(variant)
+	variant = absi(hash(Vector3i(floori(global_position.x), floori(global_position.y), floori(global_position.z)))) % VARIANTS
+	model = MeshInstance3D.new()
+	model.mesh = _variant_mesh(variant, SPIKE_STAGES[0])
 	visual.add_child(model)
 
 	var base := CollisionShape3D.new()
@@ -122,6 +131,17 @@ func strike(body: Node) -> void:
 		body.take_damage(FRIENDLY_DAMAGE, spot)
 	if durability <= 0:
 		_wear_out()
+	else:
+		_update_spikes()
+
+
+func _update_spikes() -> void:
+	var stages: int = SPIKE_STAGES.size()
+	var next: int = clampi(stages - int(ceil(float(durability) / float(MAX_DURABILITY) * float(stages))), 0, stages - 1)
+	if next == stage or model == null:
+		return
+	stage = next
+	model.mesh = _variant_mesh(variant, SPIKE_STAGES[stage])
 
 
 func _wear_out() -> void:

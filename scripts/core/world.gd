@@ -51,6 +51,8 @@ var outposts: Array = []
 var missions
 var minimap_node
 var prologue_pending: bool = false
+var ui_hidden: bool = false
+var ui_saved: Dictionary = {}
 
 
 func _ready() -> void:
@@ -202,6 +204,7 @@ func spawn_troop(data: Dictionary) -> Node:
 	add_child(troop)
 	troop.setup(self, terrain, core, info)
 	troops.append(troop)
+	Game.achievements.put_progress("militia", 1)
 	return troop
 
 
@@ -216,7 +219,7 @@ func _on_inventory_toggled(is_open: bool) -> void:
 	inventory_open = is_open
 
 
-func spawn_drop(id: String, amount: int, pos: Vector3, merge: bool = true) -> void:
+func spawn_drop(id: String, amount: int, pos: Vector3, merge: bool = true, toss: Vector3 = Vector3.INF) -> void:
 	if id == "" or amount <= 0:
 		return
 	var cap := Inventory.max_stack(id)
@@ -240,7 +243,30 @@ func spawn_drop(id: String, amount: int, pos: Vector3, merge: bool = true) -> vo
 		if drop.built:
 			drop.reuse()
 		drop.global_position = pos
-		drop.linear_velocity = Vector3(randf_range(-1.2, 1.2), randf_range(2.0, 3.5), randf_range(-1.2, 1.2))
+		if toss.is_finite():
+			drop.linear_velocity = toss
+			drop.age = -1.0
+		else:
+			drop.linear_velocity = Vector3(randf_range(-1.2, 1.2), randf_range(2.0, 3.5), randf_range(-1.2, 1.2))
+
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F1:
+		_toggle_ui()
+
+
+func _toggle_ui() -> void:
+	ui_hidden = not ui_hidden
+	for layer in [hud_node, ui, minimap_node, missions]:
+		if layer == null or not is_instance_valid(layer):
+			continue
+		if ui_hidden:
+			ui_saved[layer] = layer.visible
+			layer.visible = false
+		elif ui_saved.has(layer):
+			layer.visible = ui_saved[layer]
+	if not ui_hidden:
+		ui_saved.clear()
 
 
 func _on_intro_finished() -> void:

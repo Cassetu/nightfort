@@ -123,6 +123,7 @@ func _on_finished(result: String) -> void:
 		if left > 0:
 			world.spawn_drop(id, left, player.global_position + Vector3(0.0, 1.0, 0.0))
 		return
+	Game.achievements.put_progress("smith", 1)
 	var cost: Dictionary = current["cost"]
 	for mat in cost:
 		var left := Inventory.add_item(mat, int(cost[mat]))

@@ -6,6 +6,7 @@ const BloodTerrain = preload("res://scripts/blood_terrain.gd")
 const FleshBlock = preload("res://scripts/flesh_block.gd")
 const PitGloom = preload("res://scripts/pit_gloom.gd")
 const PitSpitter = preload("res://scripts/pit_spitter.gd")
+const WALL_CLAIM_COST := 9.0
 const BoneBarricade = preload("res://scripts/enemies/bone_barricade.gd")
 const PitFlora = preload("res://scripts/pit_flora.gd")
 const MerlonMesh = preload("res://scripts/blocks/merlon_mesh.gd")
@@ -92,7 +93,15 @@ var drain_timer: float = 0.0
 var last_count: int = -1
 
 
+var wall_claims: Dictionary = {}
+var gloom_frame: int = -1
+var gloom_nodes: Array = []
+var gloom_pos := PackedVector3Array()
+var gloom_band := PackedInt32Array()
+
+
 func build(host: Node, who: Node3D, at: Vector3) -> void:
+	PitSpitter.released = false
 	player = who
 	origin = at
 	BloodTerrain.origin = at
@@ -397,7 +406,7 @@ func _build_walls() -> void:
 					desc["rider"] = spitter
 
 
-func _bone_mesh() -> ArrayMesh:
+func _bone_mesh(count: int) -> ArrayMesh:
 	var material := TileArt.block_material("bone", BONE_COLOR)
 	var spike := CylinderMesh.new()
 	spike.top_radius = 0.0
@@ -418,6 +427,8 @@ func _bone_mesh() -> ArrayMesh:
 		var spot := Vector3(cos(a), 0.0, sin(a)) * rng.randf_range(0.0, 0.38)
 		spot.y = 0.25
 		var tilt := Vector3(rng.randf_range(-0.7, 0.7), rng.randf() * TAU, rng.randf_range(-0.7, 0.7))
+		if k >= count:
+			continue
 		var xf := Transform3D(Basis.from_euler(tilt), spot)
 		for idx in order:
 			st.set_normal(xf.basis * norms[idx])
@@ -432,7 +443,9 @@ func _bucket(p: Vector3) -> Vector2i:
 
 
 func _build_barricades() -> void:
-	var mesh := _bone_mesh()
+	var stage_meshes: Array = []
+	for count: int in BoneBarricade.STAGE_SPIKES:
+		stage_meshes.append(_bone_mesh(count))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 909
 	for ring in BloodTerrain.RINGS.size():
@@ -441,13 +454,18 @@ func _build_barricades() -> void:
 		for cell: Vector2i in _ring_cells(r, BONE_BAND_MIN, BONE_BAND_MAX):
 			if rng.randf() < BONE_CHANCE:
 				spots.append(cell)
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.mesh = mesh
-		mm.instance_count = spots.size()
-		var holder := MultiMeshInstance3D.new()
-		holder.multimesh = mm
-		add_child(holder)
+		var batches: Array = []
+		for stage_mesh: ArrayMesh in stage_meshes:
+			var mm := MultiMesh.new()
+			mm.transform_format = MultiMesh.TRANSFORM_3D
+			mm.mesh = stage_mesh
+			mm.instance_count = spots.size()
+			for z_i in spots.size():
+				mm.set_instance_transform(z_i, Transform3D(Basis.IDENTITY.scaled(Vector3.ZERO), Vector3.ZERO))
+			var holder := MultiMeshInstance3D.new()
+			holder.multimesh = mm
+			add_child(holder)
+			batches.append(mm)
 		for i in spots.size():
 			var cell: Vector2i = spots[i]
 			var x := float(cell.x) + 0.5
@@ -455,11 +473,10 @@ func _build_barricades() -> void:
 			var pos := Vector3(x, gen.height(x, z), z)
 			var yaw := rng.randf() * TAU
 			var size := rng.randf_range(0.9, 1.25)
-			mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3.ONE * size), pos))
 			var bone := BoneBarricade.new()
 			add_child(bone)
 			bone.position = pos
-			bone.setup(mm, i)
+			bone.setup(batches, i, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3.ONE * size), pos))
 			var key := _bucket(bone.global_position)
 			if not bones.has(key):
 				bones[key] = []
@@ -699,7 +716,9 @@ func _build_army() -> void:
 	odrick = _spawn_ally("commander", 2.8, LANDING_Z + 4.5, 0.0)
 
 
-func _on_fell(_unit: Node3D) -> void:
+func _on_fell(unit: Node3D) -> void:
+	if unit == odrick:
+		Game.achievements.put_progress("highway", 1)
 	army_changed.emit(alive_count())
 
 
@@ -708,6 +727,7 @@ func alive_count() -> int:
 
 
 func command() -> void:
+	PitSpitter.released = true
 	commanded = true
 	command_time = 0.0
 	for a in get_tree().get_nodes_in_group("ally_unit"):
@@ -735,7 +755,7 @@ func ring_for(pos: Vector3) -> int:
 	return b if b < BloodTerrain.RINGS.size() else -1
 
 
-func nearest_wall(ring: int, pos: Vector3) -> Node3D:
+func nearest_wall(ring: int, pos: Vector3, unit = null) -> Node3D:
 	var cols: Dictionary = columns[ring]
 	var rel := pos - origin
 	var flat := Vector2(rel.x, rel.z)
@@ -744,24 +764,46 @@ func nearest_wall(ring: int, pos: Vector3) -> Node3D:
 		spot = flat.normalized() * BloodTerrain.RINGS[ring]
 	var center := Vector2i(floori(spot.x), floori(spot.y))
 	var best: Array = []
-	var best_d := INF
-	for dx in range(-6, 7):
-		for dz in range(-6, 7):
+	var best_key = null
+	var best_cost := INF
+	for dx in range(-5, 6):
+		for dz in range(-5, 6):
 			var key := center + Vector2i(dx, dz)
 			if not cols.has(key):
 				continue
 			var column: Array = cols[key]
-			var d := pos.distance_squared_to(column[0].global_position)
-			if d < best_d:
-				best_d = d
+			var id: int = column[0].get_instance_id()
+			var cost := pos.distance_squared_to(column[0].global_position)
+			var claims: int = int(wall_claims.get(id, 0))
+			if unit != null and unit.claim_key == id:
+				claims -= 1
+			cost += float(maxi(claims, 0)) * WALL_CLAIM_COST
+			if cost < best_cost:
+				best_cost = cost
 				best = column
+				best_key = id
 	if best.is_empty():
 		return null
+	if unit != null:
+		release_wall(unit)
+		unit.claim_key = best_key
+		wall_claims[best_key] = int(wall_claims.get(best_key, 0)) + 1
 	for layer in GATE_LAYERS:
 		var block = _front(best[layer])
 		if not block.dead:
 			return block
 	return _front(best[0])
+
+
+func release_wall(unit) -> void:
+	if unit.claim_key == null:
+		return
+	var left: int = int(wall_claims.get(unit.claim_key, 0)) - 1
+	if left > 0:
+		wall_claims[unit.claim_key] = left
+	else:
+		wall_claims.erase(unit.claim_key)
+	unit.claim_key = null
 
 
 func _front(block):
@@ -797,18 +839,33 @@ func wipe_army() -> void:
 				a.take_damage(9999))
 
 
+func _gloom_snapshot() -> void:
+	var frame := Engine.get_physics_frames()
+	if frame == gloom_frame:
+		return
+	gloom_frame = frame
+	gloom_nodes.clear()
+	gloom_pos.clear()
+	gloom_band.clear()
+	for g in get_tree().get_nodes_in_group("pit_gloom"):
+		if not is_instance_valid(g) or g.dying:
+			continue
+		gloom_nodes.append(g)
+		gloom_pos.append(g.global_position)
+		gloom_band.append(BloodTerrain.band(g.global_position))
+
+
 func nearest_gloom(pos: Vector3, radius: float) -> Node3D:
+	_gloom_snapshot()
 	var best: Node3D = null
 	var best_d := radius * radius
 	var band: int = BloodTerrain.band(pos)
-	for g in get_tree().get_nodes_in_group("pit_gloom"):
-		if not is_instance_valid(g):
-			continue
-		var d := pos.distance_squared_to(g.global_position)
-		if d >= best_d or BloodTerrain.band(g.global_position) != band:
+	for i in gloom_nodes.size():
+		var d := pos.distance_squared_to(gloom_pos[i])
+		if d >= best_d or gloom_band[i] != band:
 			continue
 		best_d = d
-		best = g
+		best = gloom_nodes[i]
 	return best
 
 

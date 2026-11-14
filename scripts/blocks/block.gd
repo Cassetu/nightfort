@@ -152,7 +152,7 @@ func extra_cells() -> Array:
 
 
 func is_brick() -> bool:
-	return body_mesh != null and block_type.ends_with("_brick") and block_type != "ruined_brick"
+	return body_mesh != null and ((block_type.ends_with("_brick") and block_type != "ruined_brick") or block_type == "merlon")
 
 
 func set_reinforced(value: bool) -> void:
@@ -165,13 +165,22 @@ func set_reinforced(value: bool) -> void:
 	current_health = clampi(roundi(ratio * max_health), 1, max_health)
 	if value:
 		decal_mesh = MeshInstance3D.new()
-		decal_mesh.mesh = TileArt.box_mesh(Vector3.ONE * 1.004, _get_decal_material())
+		decal_mesh.mesh = _decal_shape()
+		decal_mesh.scale = Vector3.ONE * _decal_scale()
 		decal_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		visual.add_child(decal_mesh)
 	elif decal_mesh != null:
 		decal_mesh.queue_free()
 		decal_mesh = null
 	_apply_material()
+
+
+func _decal_scale() -> float:
+	return 1.0
+
+
+func _decal_shape() -> Mesh:
+	return TileArt.box_mesh(Vector3.ONE * 1.004, _get_decal_material())
 
 
 func set_wet(value: bool) -> void:
