@@ -150,6 +150,7 @@ func _on_upgrade() -> void:
 	core.upgrade()
 	Sfx.play(self, "core_upgrade")
 	var troop = world_ref().spawn_troop({})
+	Game.achievements.put_progress("militia", 1)
 	if troop != null and player != null and player.has_signal("notice"):
 		player.notice.emit(troop.display_name)
 	_refresh()

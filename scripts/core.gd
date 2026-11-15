@@ -58,6 +58,8 @@ func _process(_delta: float) -> void:
 		return
 	var dist := cam.global_position.distance_to(global_position)
 	var inside := dist < hide_distance
+	if dist < hide_distance + 0.7 and not Game.prologue_active:
+		Game.achievements.put_progress("orb", 1)
 	body_mesh.visible = not inside
 	mist.visible = not inside
 	glow.visible = night > 0.01 and not inside
@@ -98,6 +100,7 @@ func set_level(value: int) -> void:
 
 
 func upgrade() -> void:
+	Game.achievements.put_progress("charged", 1)
 	set_level(level + 1)
 	var floor_hp := roundi(float(max_health) * UPGRADE_FLOOR)
 	if current_health < floor_hp:

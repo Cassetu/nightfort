@@ -48,6 +48,7 @@ var territory
 var troops: Array = []
 var next_troop_id: int = 1
 var outposts: Array = []
+var legacy_torches: Array = []
 var missions
 var minimap_node
 var prologue_pending: bool = false
@@ -171,7 +172,7 @@ func _ready() -> void:
 	else:
 		intro.queue_free()
 	if troops.is_empty():
-		spawn_troop({})
+		spawn_troop({"name": "Gaius"} if prologue_pending else {})
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	if prologue_pending:
 		var prologue := Node.new()
@@ -204,7 +205,6 @@ func spawn_troop(data: Dictionary) -> Node:
 	add_child(troop)
 	troop.setup(self, terrain, core, info)
 	troops.append(troop)
-	Game.achievements.put_progress("militia", 1)
 	return troop
 
 
@@ -251,7 +251,7 @@ func spawn_drop(id: String, amount: int, pos: Vector3, merge: bool = true, toss:
 
 
 func _input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F1:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F1 and not Game.cutscene_active:
 		_toggle_ui()
 
 
@@ -300,6 +300,28 @@ func restore_block(block_type: String, pos: Vector3, yaw: float = 0.0) -> Node:
 	return block
 
 
+func _fix_legacy_torches() -> void:
+	for torch in legacy_torches:
+		if not is_instance_valid(torch) or torch.wall_normal != Vector3.ZERO:
+			continue
+		var cell := Vector3i(floori(torch.global_position.x), floori(torch.global_position.y), floori(torch.global_position.z))
+		if _solid_at(cell + Vector3i.DOWN, torch):
+			continue
+		for dir: Vector3i in [Vector3i(1, 0, 0), Vector3i(-1, 0, 0), Vector3i(0, 0, 1), Vector3i(0, 0, -1)]:
+			if _solid_at(cell + dir, torch):
+				torch.wall_normal = -Vector3(dir)
+				torch._build_mount()
+				break
+	legacy_torches.clear()
+
+
+func _solid_at(cell: Vector3i, ignore: Node) -> bool:
+	if terrain.block_at(cell.x, cell.y, cell.z) != 0:
+		return true
+	var other = BlockIndex.at(cell)
+	return other != null and other != ignore and other.block_type != "torch"
+
+
 func respawn_position() -> Vector3:
 	if is_instance_valid(core):
 		return core.global_position + Vector3(0.0, 1.2, 6.0)
@@ -316,7 +338,11 @@ func collect_state() -> Dictionary:
 		if node.dying:
 			continue
 		var p: Vector3 = node.global_position
-		blocks.append({"type": node.block_type, "pos": [p.x, p.y, p.z], "hp": node.current_health, "yaw": node.rotation.y, "open": node.get("is_open") == true, "items": node.get("items")})
+		var entry := {"type": node.block_type, "pos": [p.x, p.y, p.z], "hp": node.current_health, "yaw": node.rotation.y, "open": node.get("is_open") == true, "items": node.get("items")}
+		var wall = node.get("wall_normal")
+		if wall != null and wall != Vector3.ZERO:
+			entry["wall"] = [wall.x, wall.y, wall.z]
+		blocks.append(entry)
 
 	var drops: Array = []
 	for node in get_tree().get_nodes_in_group("item_drop"):
@@ -390,6 +416,11 @@ func apply_state(d: Dictionary) -> void:
 		var scene: PackedScene = load(scene_path)
 		var block = scene.instantiate()
 		block.block_type = block_type
+		var saved_wall = b.get("wall")
+		if typeof(saved_wall) == TYPE_ARRAY and saved_wall.size() == 3:
+			block.wall_normal = Vector3(saved_wall[0], saved_wall[1], saved_wall[2])
+		elif block_type == "torch":
+			legacy_torches.append(block)
 		add_child(block)
 		block.global_position = Vector3(b["pos"][0], b["pos"][1], b["pos"][2])
 		block.rotation.y = float(b.get("yaw", 0.0))
@@ -400,3 +431,4 @@ func apply_state(d: Dictionary) -> void:
 		if block.get("items") != null and typeof(saved_items) == TYPE_ARRAY:
 			for i in mini(saved_items.size(), block.items.size()):
 				block.items[i] = Inventory._clean(saved_items[i])
+	_fix_legacy_torches()

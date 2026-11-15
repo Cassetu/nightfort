@@ -1,6 +1,10 @@
 extends RefCounted
 
 const TileArt = preload("res://scripts/tile_art.gd")
+const PitFlora = preload("res://scripts/pit_flora.gd")
+const FLESH_TILE := "gloom_flesh"
+const FLESH_COLOR := Color(0.55, 0.16, 0.2)
+const NO_BUILD_PAD := 5.0
 
 const TORCH_SCENE := "res://scenes/torch.tscn"
 const DIRS := [Vector3i(1, 0, 0), Vector3i(-1, 0, 0), Vector3i(0, 1, 0), Vector3i(0, -1, 0), Vector3i(0, 0, 1), Vector3i(0, 0, -1)]
@@ -144,12 +148,240 @@ static func build(root: Node3D, world: Node3D, origin: Vector3) -> Dictionary:
 
 	var crack_pos := origin + CRACK_CENTER
 	_make_crack(root, crack_pos, origin)
+	_decorate_crack(root, origin, air, open_bottom)
+	Game.no_build = [{"center": crack_pos, "radius": CRACK_LENGTH * 0.5 + NO_BUILD_PAD, "height": 24.0}]
 	return {
 		"spawn": origin + Vector3(11.0, 1.0, 3.5),
 		"stones": stones,
 		"crack": crack_pos,
 		"origin": origin,
 	}
+
+
+static func _decorate_crack(root: Node3D, origin: Vector3, air: Dictionary, columns: Dictionary) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 8817
+	var shaft: Dictionary = {}
+	for key: Vector3i in columns:
+		shaft[Vector2i(key.x, key.z)] = true
+	var floor_y := CRACK_TOP_Y + 1
+	var material := TileArt.uv_material(FLESH_TILE, FLESH_COLOR, Vector3.ONE, true)
+	var plain := TileArt.uv_material(FLESH_TILE, FLESH_COLOR, Vector3.ONE, false)
+	var body := StaticBody3D.new()
+	body.name = "CrackFlesh"
+	root.add_child(body)
+	var rim: Array = []
+	var seen: Dictionary = {}
+	for col: Vector2i in shaft:
+		for dx in range(-4, 5):
+			for dz in range(-4, 5):
+				var c := col + Vector2i(dx, dz)
+				if seen.has(c) or shaft.has(c) or not air.has(Vector3i(c.x, floor_y, c.y)):
+					continue
+				seen[c] = true
+				var dist := 99
+				var nearest := Vector2i.ZERO
+				for sx in range(-4, 5):
+					for sz in range(-4, 5):
+						if shaft.has(c + Vector2i(sx, sz)):
+							var d := maxi(absi(sx), absi(sz))
+							if d < dist:
+								dist = d
+								nearest = Vector2i(sx, sz)
+				if dist > 4:
+					continue
+				var center := origin + Vector3(c.x + 0.5, floor_y + 0.5, c.y + 0.5)
+				if dist == 3 and rng.randf() < 0.3:
+					var height := rng.randf_range(0.6, 1.0)
+					var holder := MeshInstance3D.new()
+					holder.mesh = TileArt.box_mesh(Vector3(1.0, height, 1.0), material)
+					body.add_child(holder)
+					holder.global_position = center + Vector3(0.0, height * 0.5 - 0.5, 0.0)
+					var shape := CollisionShape3D.new()
+					var box := BoxShape3D.new()
+					box.size = Vector3(1.0, height, 1.0)
+					shape.shape = box
+					body.add_child(shape)
+					shape.global_position = holder.global_position
+				if dist == 1:
+					rim.append({"cell": c, "pos": center + Vector3(0.0, -0.5, 0.0), "out": Vector2(-nearest.x, -nearest.y).normalized(), "toward": nearest})
+	var mid := origin + CRACK_CENTER
+	rim.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var pa: Vector3 = a["pos"] - mid
+		var pb: Vector3 = b["pos"] - mid
+		return atan2(pa.z * 0.35, pa.x) < atan2(pb.z * 0.35, pb.x))
+	var joints: Array = []
+	var links: Array = []
+	var bulbs: Array = []
+	var floor_top := origin.y + float(floor_y)
+	for i in rim.size():
+		var cur: Dictionary = rim[i]
+		var nxt: Dictionary = rim[(i + 1) % rim.size()]
+		var a: Vector3 = cur["pos"]
+		var b: Vector3 = nxt["pos"]
+		if a.distance_to(b) < 2.4:
+			_vein(links, joints, a + Vector3(0.0, 0.12, 0.0), b + Vector3(0.0, 0.12, 0.0), 0.2, rng)
+	var roots := 0
+	for entry: Dictionary in rim:
+		if rng.randf() > 0.42:
+			continue
+		roots += 1
+		var out: Vector2 = entry["out"]
+		var start: Vector3 = entry["pos"] + Vector3(0.0, 0.1, 0.0)
+		bulbs.append(start)
+		_crawl(links, joints, bulbs, start, Vector3(out.x, 0.0, out.y), 0.19, rng.randi_range(6, 10), 0, rng, origin, air, shaft, floor_y)
+	for entry: Dictionary in rim:
+		if rng.randf() > 0.3:
+			continue
+		var toward: Vector2i = entry["toward"]
+		var cell: Vector2i = entry["cell"]
+		var edge := Vector3(float(cell.x) + 0.5 + float(toward.x) * 0.58, floor_top, float(cell.y) + 0.5 + float(toward.y) * 0.58)
+		edge = Vector3(origin.x + edge.x, edge.y, origin.z + edge.z)
+		_drape(links, joints, bulbs, edge, rng.randi_range(5, 11), rng)
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.5
+	cyl.bottom_radius = 0.5
+	cyl.height = 1.0
+	cyl.radial_segments = 6
+	cyl.rings = 1
+	cyl.material = plain
+	var ball := SphereMesh.new()
+	ball.radius = 0.5
+	ball.height = 1.0
+	ball.radial_segments = 8
+	ball.rings = 4
+	ball.material = plain
+	_chain(root, cyl, links)
+	_balls(root, ball, joints)
+	_balls(root, ball, bulbs, 2.0)
+	var caps: Array = []
+	for entry in bulbs:
+		if rng.randf() < 0.5:
+			caps.append(entry + Vector3(rng.randf_range(-0.25, 0.25), -0.05, rng.randf_range(-0.25, 0.25)))
+	_scatter(root, PitFlora._mesh_for("pustule"), caps, rng, 0.6, 1.1, false)
+	for z_off in [-CRACK_LENGTH * 0.5 - 1.5, CRACK_LENGTH * 0.5 + 1.5]:
+		var arch := MeshInstance3D.new()
+		arch.mesh = PitFlora._mesh_for("arch")
+		arch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(arch)
+		arch.global_position = Vector3(mid.x, mid.y - 0.3, mid.z + z_off)
+		arch.scale = Vector3.ONE * 0.8
+
+
+static func _vein(links: Array, joints: Array, from: Vector3, to: Vector3, radius: float, rng: RandomNumberGenerator) -> void:
+	var span := from.distance_to(to)
+	var count := maxi(2, int(span / 0.7))
+	var prev := from
+	for k in range(1, count + 1):
+		var t := float(k) / float(count)
+		var p := from.lerp(to, t) + Vector3(rng.randf_range(-0.08, 0.08), sin(t * PI) * 0.08, rng.randf_range(-0.08, 0.08))
+		links.append({"a": prev, "b": p, "r": radius})
+		joints.append({"p": p, "r": radius})
+		prev = p
+
+
+static func _crawl(links: Array, joints: Array, bulbs: Array, start: Vector3, dir: Vector3, radius: float, steps: int, depth: int, rng: RandomNumberGenerator, origin: Vector3, air: Dictionary, shaft: Dictionary, floor_y: int) -> void:
+	var pos := start
+	var heading := dir.normalized()
+	var r := radius
+	for k in steps:
+		heading = (heading + Vector3(rng.randf_range(-0.55, 0.55), 0.0, rng.randf_range(-0.55, 0.55))).normalized()
+		var next := pos + heading * 0.85
+		var rel := next - origin
+		var cell := Vector2i(floori(rel.x), floori(rel.z))
+		if shaft.has(cell) or not air.has(Vector3i(cell.x, floor_y, cell.y)):
+			break
+		next.y = origin.y + float(floor_y) + r * 0.6 + rng.randf_range(0.0, 0.1)
+		var nr := maxf(r * 0.88, 0.05)
+		links.append({"a": pos, "b": next, "r": (r + nr) * 0.5})
+		joints.append({"p": next, "r": nr})
+		pos = next
+		r = nr
+		if depth < 2 and k >= 1 and k < steps - 2 and rng.randf() < 0.3:
+			var side := heading.rotated(Vector3.UP, rng.randf_range(0.6, 1.1) * (1.0 if rng.randf() < 0.5 else -1.0))
+			_crawl(links, joints, bulbs, pos, side, r * 0.85, maxi(steps - k - 2, 2), depth + 1, rng, origin, air, shaft, floor_y)
+	bulbs.append(pos + Vector3(0.0, 0.02, 0.0))
+
+
+static func _drape(links: Array, joints: Array, bulbs: Array, start: Vector3, steps: int, rng: RandomNumberGenerator) -> void:
+	var pos := start
+	var r := 0.14
+	for k in steps:
+		var next := pos + Vector3(rng.randf_range(-0.12, 0.12), -0.8, rng.randf_range(-0.12, 0.12))
+		var nr := maxf(r * 0.92, 0.05)
+		links.append({"a": pos, "b": next, "r": (r + nr) * 0.5})
+		joints.append({"p": next, "r": nr})
+		pos = next
+		r = nr
+	bulbs.append(pos)
+
+
+static func _chain(root: Node3D, mesh: Mesh, links: Array) -> void:
+	if links.is_empty():
+		return
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = mesh
+	mm.instance_count = links.size()
+	for i in links.size():
+		var link: Dictionary = links[i]
+		var a: Vector3 = link["a"]
+		var b: Vector3 = link["b"]
+		var diameter: float = float(link["r"]) * 2.0
+		var up := (b - a)
+		var length := up.length()
+		up = up / maxf(length, 0.001)
+		var ref := Vector3.RIGHT if absf(up.x) < 0.9 else Vector3.FORWARD
+		var x_axis := up.cross(ref).normalized()
+		var z_axis := x_axis.cross(up).normalized()
+		var basis := Basis(x_axis * diameter, up * (length + diameter * 0.3), z_axis * diameter)
+		mm.set_instance_transform(i, Transform3D(basis, (a + b) * 0.5))
+	var holder := MultiMeshInstance3D.new()
+	holder.multimesh = mm
+	holder.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(holder)
+
+
+static func _balls(root: Node3D, mesh: Mesh, spots: Array, scale_by: float = 1.0) -> void:
+	if spots.is_empty():
+		return
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = mesh
+	mm.instance_count = spots.size()
+	for i in spots.size():
+		var pos: Vector3
+		var size: float
+		if spots[i] is Dictionary:
+			pos = spots[i]["p"]
+			size = float(spots[i]["r"]) * 2.0
+		else:
+			pos = spots[i]
+			size = 0.3 * scale_by
+		mm.set_instance_transform(i, Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * size), pos))
+	var holder := MultiMeshInstance3D.new()
+	holder.multimesh = mm
+	holder.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(holder)
+
+
+static func _scatter(root: Node3D, mesh: Mesh, spots: Array, rng: RandomNumberGenerator, smin: float, smax: float, tilt: bool) -> void:
+	if spots.is_empty():
+		return
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = mesh
+	mm.instance_count = spots.size()
+	for i in spots.size():
+		var basis := Basis(Vector3.UP, rng.randf() * TAU)
+		if tilt:
+			basis = basis * Basis.from_euler(Vector3(rng.randf_range(-0.5, 0.5), 0.0, rng.randf_range(-0.5, 0.5)))
+		basis = basis.scaled(Vector3.ONE * rng.randf_range(smin, smax))
+		mm.set_instance_transform(i, Transform3D(basis, spots[i]))
+	var holder := MultiMeshInstance3D.new()
+	holder.multimesh = mm
+	holder.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(holder)
 
 
 static func _clear_spawn(air: Dictionary) -> void:

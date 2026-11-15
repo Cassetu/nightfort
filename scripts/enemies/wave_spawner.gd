@@ -3,6 +3,7 @@ extends Node
 signal status_changed(text: String)
 
 const BirdScript = preload("res://scripts/enemies/gloom_bird.gd")
+const RepairWave = preload("res://scripts/repair_wave.gd")
 const GloomNest = preload("res://scripts/enemies/gloom_nest.gd")
 const NEST_INTERVAL := 0.5
 
@@ -213,6 +214,7 @@ func _begin_night() -> void:
 
 
 func _end_night() -> void:
+	Game.achievements.put_progress("nights", night)
 	if is_instance_valid(core):
 		var amount = core.get("night_heal")
 		core.heal(int(amount) if amount != null else 5)
@@ -225,6 +227,8 @@ func _end_night() -> void:
 	for bird in get_tree().get_nodes_in_group("gloom_bird"):
 		bird.dissolve()
 	birds_total = 0
+	if is_instance_valid(core) and enemies_root != null:
+		RepairWave.start.call_deferred(enemies_root, core, 12.0)
 
 
 func _bird_count(n: int) -> int:

@@ -666,7 +666,8 @@ func _fill_needs(row: Button, r: Dictionary) -> void:
 		var table_entry: HBoxContainer = RECIPE_INGREDIENT.instantiate()
 		(table_entry.get_node("Icon") as TextureRect).texture = TileArt.icon("workbench")
 		(table_entry.get_node("Count") as Label).text = ""
-		needs.add_child(table_entry)
+		table_entry.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.get_node("Box").add_child(table_entry)
 
 
 func _toggle_recipes() -> void:

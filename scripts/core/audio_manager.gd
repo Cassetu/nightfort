@@ -28,6 +28,7 @@ const SOUNDS := {
 	"door_open": ["door_open"],
 	"door_close": ["door_close"],
 	"block_place": ["block_place"],
+	"player_hurt": ["player_hurt"],
 }
 const PITCH_BASE := {"stone_break": 0.74}
 const PITCH_VAR := {"stone_hit": 0.14, "stone_break": 0.1, "anvil_hit": 0.12, "forge_sparkle": 0.1}

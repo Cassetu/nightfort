@@ -80,6 +80,8 @@ var wall_meshes: Array = []
 var bones: Dictionary = {}
 var bone_tick: float = 0.0
 var doomed: bool = false
+var heartbeat_gain: float = 1.0
+var heartbeat_tween: Tween
 var soldiers: Array = []
 var archers: Array = []
 var odrick
@@ -102,6 +104,7 @@ var gloom_band := PackedInt32Array()
 
 func build(host: Node, who: Node3D, at: Vector3) -> void:
 	PitSpitter.released = false
+	add_to_group("pit_world")
 	player = who
 	origin = at
 	BloodTerrain.origin = at
@@ -261,12 +264,20 @@ func _build_heartbeat() -> void:
 	heartbeat.play()
 
 
+func fade_heartbeat(to: float, seconds: float) -> void:
+	if heartbeat_tween != null:
+		heartbeat_tween.kill()
+	heartbeat_tween = create_tween()
+	heartbeat_tween.tween_property(self, "heartbeat_gain", to, seconds)
+
+
 func _update_heartbeat(delta: float) -> void:
 	if heartbeat == null or not is_instance_valid(player):
 		return
 	var d: float = distance_from_heart(player.global_position)
 	var t: float = clampf(1.0 - (d - HEARTBEAT_NEAR) / (HEARTBEAT_FAR - HEARTBEAT_NEAR), 0.0, 1.0)
 	var target: float = lerpf(HEARTBEAT_QUIET_DB, 0.0, pow(t, HEARTBEAT_CURVE))
+	target += linear_to_db(maxf(heartbeat_gain, 0.0001))
 	heartbeat.volume_db = lerpf(heartbeat.volume_db, target, minf(HEARTBEAT_SMOOTH * delta, 1.0))
 
 

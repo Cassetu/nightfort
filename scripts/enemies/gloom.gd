@@ -79,7 +79,7 @@ func _ready() -> void:
 	else:
 		add_to_group("enemy")
 	collision_layer = 2
-	collision_mask = 1
+	collision_mask = 1 | 2
 	terrain = get_tree().get_first_node_in_group("terrain")
 	speed_mult = randf_range(0.9, 1.1)
 	attack_timer = randf_range(0.2, 0.8)

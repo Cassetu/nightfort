@@ -64,7 +64,7 @@ func _die() -> void:
 	if is_in_group("tree") and not by_enemy:
 		get_tree().call_group("missions", "on_event", "tree")
 	var world := get_tree().current_scene
-	if world != null and world.has_method("spawn_drop"):
+	if world != null and world.has_method("spawn_drop") and not get_meta("no_yield", false):
 		world.spawn_drop(resource_type, resource_amount, global_position + Vector3(0.0, 0.9, 0.0))
 	_play_death()
 

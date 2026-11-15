@@ -5,6 +5,8 @@ signal fell(unit: Node3D)
 const ArrowScript = preload("res://scripts/arrow.gd")
 const ChipBurst = preload("res://scripts/chip_burst.gd")
 const AllySkin = preload("res://scripts/ally_skin.gd")
+const BileSack = preload("res://scripts/enemies/bile_sack.gd")
+const PUDDLE_MARGIN := 1.0
 
 const SPEED := 3.5
 const TURN := 8.0
@@ -219,7 +221,30 @@ func _think(dt: float) -> void:
 				move = _support(dt)
 	elif follow_node != null and is_instance_valid(follow_node):
 		move = _approach(follow_node.global_position, 4.0, dt)
-	desired = _unstick(move, dt)
+	desired = _unstick(_dodge_bile(move), dt)
+
+
+func _dodge_bile(move: Vector3) -> Vector3:
+	var push := Vector3.ZERO
+	for puddle in BileSack.puddles:
+		if not is_instance_valid(puddle):
+			continue
+		var away: Vector3 = global_position - puddle.global_position
+		away.y = 0.0
+		var danger: float = puddle.puddle_radius + PUDDLE_MARGIN
+		var d := away.length()
+		if d >= danger:
+			continue
+		if d < 0.05:
+			away = Vector3(randf() - 0.5, 0.0, randf() - 0.5)
+			d = 0.05
+		push += away / d * (1.0 - d / danger)
+	if push == Vector3.ZERO:
+		return move
+	var blended := move + push * SPEED * 2.0
+	if blended.length() > SPEED:
+		blended = blended.normalized() * SPEED
+	return blended
 
 
 func _unstick(move: Vector3, dt: float) -> Vector3:

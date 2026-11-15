@@ -6,6 +6,8 @@ const BossScene = preload("res://scenes/bile_dreadnaught.tscn")
 const BlockIndex = preload("res://scripts/block_index.gd")
 const PitScript = preload("res://scripts/blood_world.gd")
 const LoadingScene = preload("res://scenes/ui/loading_screen.tscn")
+const DialogueScene = preload("res://scenes/ui/dialogue_box.tscn")
+const WakeScript = preload("res://scripts/cutscene/wake_cutscene.gd")
 
 const ORIGIN := Vector3(3000.0, -400.0, 3000.0)
 const PIT_ORIGIN := Vector3(-3000.0, -400.0, 3000.0)
@@ -24,12 +26,12 @@ const ARMOR := {"head": "iron_helmet", "chest": "iron_chestplate", "legs": "iron
 const STONE_SLOT := 4
 const PICKAXE_SLOT := 1
 const LANDING_LINES := [
-	["Odrick", "There you are at last."],
-	["You", "Are the troops ready?"],
-	["Odrick", "They fight on your command."],
-	["Odrick", "We will keep you safe."],
-	["You", "Worry more of the heart, and less of me."],
-	["", "Odrick nods, and rejoins the ranks."],
+	["Odrick", "At last you grace the vanguard, Valerian."],
+	["You", "Does the host stand ready for the breach?"],
+	["Odrick", "Every sword and bow awaits your word, my lord."],
+	["Odrick", "Our shields shall form around your life."],
+	["You", "Guard your thoughts for the Heart, Odrick, not for me."],
+	["", "Odrick bows his head in grim assent, and steps back into the ranks."],
 ]
 const LEAVE_LINE := "I can't abandon the fight now."
 const COMMAND_PROMPT := "F: Command Attack"
@@ -77,6 +79,7 @@ var boss_awake: bool = false
 var doomed: bool = false
 var running: bool = false
 var swing_pressed: bool = false
+var box
 
 
 func begin(w) -> void:
@@ -329,14 +332,25 @@ func _descend() -> bool:
 	return await _wait(1.4)
 
 
+func _open_box() -> void:
+	box = DialogueScene.instantiate()
+	world.add_child(box)
+
+
+func _close_box() -> void:
+	if is_instance_valid(box):
+		box.queue_free()
+
+
 func _landing_dialogue() -> bool:
-	for i in LANDING_LINES.size():
-		if not is_inside_tree():
-			return false
-		if i == LANDING_LINES.size() - 1:
-			pit.odrick_rejoin()
-		await ui.say(LANDING_LINES[i][0], LANDING_LINES[i][1])
-	await ui.hide_dialogue()
+	_open_box()
+	box.line_started.connect(func(index: int, _line: Dictionary) -> void:
+		if index == LANDING_LINES.size() - 1 and is_instance_valid(pit):
+			pit.odrick_rejoin())
+	await box.play(LANDING_LINES, "landing")
+	_close_box()
+	if not is_inside_tree():
+		return false
 	return await _until(func() -> bool: return not pit.odrick_walking())
 
 
@@ -380,8 +394,9 @@ func _siege() -> bool:
 func _turn_back() -> void:
 	player.frozen = true
 	player.velocity = Vector3.ZERO
-	await ui.say("You", LEAVE_LINE)
-	await ui.hide_dialogue()
+	_open_box()
+	await box.play([["You", LEAVE_LINE]])
+	_close_box()
 	var from: Vector3 = player.global_position
 	var toward: Vector3 = pit.heart_position - from
 	toward.y = 0.0
@@ -491,13 +506,14 @@ func _death() -> bool:
 func _dialogue() -> bool:
 	await ui.show_orb()
 	await _wait(0.6)
-	for i in LINES.size():
-		if not is_inside_tree():
-			return false
-		if i == LIGHT_LINE:
-			ui.grow_light(LIGHT_TIME)
-		await ui.say(LINES[i][0], LINES[i][1])
-	await ui.hide_dialogue()
+	_open_box()
+	box.line_started.connect(func(index: int, _line: Dictionary) -> void:
+		if index == LIGHT_LINE:
+			ui.grow_light(LIGHT_TIME))
+	await box.play(LINES, "voice")
+	_close_box()
+	if not is_inside_tree():
+		return false
 	await ui.finish_light()
 	return true
 
@@ -508,13 +524,16 @@ func _finale() -> void:
 	await _wait(2.2)
 	await ui.hide_title(0.9)
 	_exit()
+	player.frozen = true
 	await _wait(0.5)
-	await ui.fade_white_out(2.8)
-	ui.queue_free()
+	var wake := WakeScript.new()
+	world.add_child(wake)
+	await wake.run(world, player, terrain, ui)
 	queue_free()
 
 
 func _exit() -> void:
+	_close_box()
 	ui.clear_layers()
 	if is_instance_valid(boss):
 		boss.queue_free()
@@ -549,7 +568,7 @@ func _exit() -> void:
 	world.ui.set_prologue(false)
 	world.hud_node.get_node("TimeBar").visible = true
 	player.died.disconnect(_on_died)
-	player.respawn(start_position)
+	player.respawn(start_position, false)
 	player.rotation.y = start_yaw
 	player.head.rotation.x = 0.0
 	player.frozen = false

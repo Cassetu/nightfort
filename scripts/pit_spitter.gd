@@ -200,7 +200,7 @@ func _pick() -> Node3D:
 		if not is_instance_valid(a):
 			continue
 		var d := from.distance_squared_to(a.global_position)
-		if d < best_d and d > MIN_RANGE * MIN_RANGE:
+		if d < best_d and d > MIN_RANGE * MIN_RANGE and _sees(a):
 			best_d = d
 			best = a
 	var p = get_tree().get_first_node_in_group("player")
@@ -208,11 +208,24 @@ func _pick() -> Node3D:
 		var pd := from.distance_squared_to(p.global_position)
 		var now := float(Time.get_ticks_msec()) / 1000.0
 		var open: bool = player_claim == null or not is_instance_valid(player_claim) or player_claim == self or player_claim.dying or now > player_claim_until
-		if open and pd < best_d and pd > MIN_RANGE * MIN_RANGE:
+		if open and pd < best_d and pd > MIN_RANGE * MIN_RANGE and _sees(p):
 			best = p
 			player_claim = self
 			player_claim_until = now + COOLDOWN * 1.6
 	return best
+
+
+func _sees(target: Node3D) -> bool:
+	var from := maw.global_position + Vector3(0.0, 0.3, 0.0)
+	var to := target.global_position + Vector3(0.0, 1.0, 0.0)
+	var dir := to - from
+	var length := dir.length()
+	if length < 3.0:
+		return true
+	var query := PhysicsRayQueryParameters3D.create(from + dir / length * 1.6, to, 1)
+	if target is CollisionObject3D:
+		query.exclude = [(target as CollisionObject3D).get_rid()]
+	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
 
 func _lob(target: Node3D) -> void:
@@ -234,7 +247,7 @@ func _lob(target: Node3D) -> void:
 	swell.parallel().tween_property(arm_r, "rotation:x", RELEASE_ANGLE, 0.12)
 	swell.tween_property(maw, "scale", Vector3.ONE, 0.25)
 	swell.parallel().tween_property(arm_r, "rotation:x", DRAW_ANGLE, 0.25)
-	BileSack.drop(self, origin, v)
+	BileSack.drop(self, origin, v, true)
 
 
 func _face(point: Vector3) -> void:

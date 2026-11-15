@@ -5,6 +5,8 @@ const BlockIndex = preload("res://scripts/block_index.gd")
 
 const MAX_VISIBLE := 2
 const RUINS_INDEX := 7
+const FORGE_INDEX := 5
+const CAVE_HIDE_DIST := 10.0
 const ARROWS := ["→", "↘", "↓", "↙", "←", "↖", "↑", "↗"]
 const MARGIN := Vector2(90.0, 70.0)
 const MARKER_LIFT := 6.0
@@ -16,7 +18,7 @@ const LIST := [
 	{"title": "Craft a wooden pickaxe", "desc": "Craft with fiber (from breaking plants), sticks, and planks", "item": "wooden_pickaxe", "needs": {"plank": 3, "fiber": 2, "stick": 2}},
 	{"title": "Gather stone", "desc": "Find a mountain, go underground, or break rocks", "item": "stone"},
 	{"title": "Craft a stone pickaxe", "desc": "Same as wood, but this time with stone", "item": "stone_pickaxe", "needs": {"stone": 3, "fiber": 2, "stick": 2}},
-	{"title": "Craft a forge", "desc": "Behind the core should be a mountain, explore the mountain for a cave opening. Mine coal to craft a forge", "item": "stone_forge", "needs": {"stone_brick": 8, "coal": 1}},
+	{"title": "Craft a forge", "desc": "Behind the core should be a mountain, explore the mountain for a cave opening. Mine coal to craft a forge. You will need stone bricks, not just regular stone.", "item": "stone_forge", "needs": {"stone_brick": 8, "coal": 1}},
 	{"title": "Craft an iron item with the forge", "desc": "To forge successfully, you need to click the circles before they disappear", "event": "forged"},
 	{"title": "Gather a soul crystal", "desc": "Head to the marked ruins, typically 90-170 units out", "item": "soul_gem"},
 ]
@@ -130,7 +132,7 @@ func _update_progress() -> void:
 
 
 func _process(delta: float) -> void:
-	if done != RUINS_INDEX or not is_instance_valid(player):
+	if (done != RUINS_INDEX and done != FORGE_INDEX) or not is_instance_valid(player):
 		marker.visible = false
 		return
 	var cam := get_viewport().get_camera_3d()
@@ -140,11 +142,18 @@ func _process(delta: float) -> void:
 	retarget_timer -= delta
 	if retarget_timer <= 0.0 or target == Vector3.INF:
 		retarget_timer = RETARGET
-		target = _nearest_ruins()
+		target = _nearest_ruins() if done == RUINS_INDEX else _cave_mouth()
 	if target == Vector3.INF:
 		marker.visible = false
 		return
 	_place(cam, target + Vector3(0.0, MARKER_LIFT, 0.0))
+
+
+func _cave_mouth() -> Vector3:
+	var terrain = get_tree().get_first_node_in_group("terrain")
+	if terrain == null:
+		return Vector3.INF
+	return terrain.tunnel_mouth()
 
 
 func _nearest_ruins() -> Vector3:
@@ -187,7 +196,7 @@ func _place(cam: Camera3D, p: Vector3) -> void:
 		sp = center + dir * k
 		var slot := int(roundf(dir.angle() / (TAU / 8.0)))
 		arrow = ARROWS[posmod(slot, 8)]
-	var text := "Ruins %du\n%s" % [roundi(dist), arrow]
+	var text := "%s %du\n%s" % ["Ruins" if done == RUINS_INDEX else "Cave", roundi(dist), arrow]
 	if text != marker.text:
 		marker.text = text
 		marker.reset_size()

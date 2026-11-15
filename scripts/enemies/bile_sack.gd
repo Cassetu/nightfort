@@ -20,10 +20,18 @@ const BILE := Color(0.36, 0.2, 0.46)
 const MAX_SKIPS := 4
 
 static var unit_scale: float = 1.0
+static var puddles: Array = []
+const SMALL_SPLASH := 1.5
+const SMALL_PUDDLE := 0.9
+const SMALL_TIME := 1.8
 static var sack_material: StandardMaterial3D
 static var puddle_material: StandardMaterial3D
 
 var velocity := Vector3.ZERO
+var small: bool = false
+var splash_radius: float = SPLASH_RADIUS
+var puddle_radius: float = PUDDLE_RADIUS
+var puddle_time: float = PUDDLE_TIME
 var landed: bool = false
 var life: float = 0.0
 var tick_left: float = TICK
@@ -31,7 +39,7 @@ var sack_mesh: MeshInstance3D
 var puddle_mesh: MeshInstance3D
 
 
-static func drop(host: Node, pos: Vector3, start_velocity: Vector3 = Vector3.ZERO) -> void:
+static func drop(host: Node, pos: Vector3, start_velocity: Vector3 = Vector3.ZERO, is_small: bool = false) -> void:
 	if host == null or not host.is_inside_tree():
 		return
 	var sack := Node3D.new()
@@ -39,6 +47,11 @@ static func drop(host: Node, pos: Vector3, start_velocity: Vector3 = Vector3.ZER
 	host.get_tree().current_scene.add_child(sack)
 	sack.global_position = pos
 	sack.velocity = start_velocity
+	if is_small:
+		sack.small = true
+		sack.splash_radius = SMALL_SPLASH
+		sack.puddle_radius = SMALL_PUDDLE
+		sack.puddle_time = SMALL_TIME
 
 
 static func splash(host: Node, pos: Vector3, radius: float, block_damage: int, unit_damage: int, player_damage: int, core_damage: int) -> void:
@@ -132,16 +145,21 @@ static func _is_ally_of_bile(node: Object) -> bool:
 	return node is Node and (node as Node).is_in_group("enemy")
 
 
+func _exit_tree() -> void:
+	puddles.erase(self)
+
+
 func _land(pos: Vector3) -> void:
 	landed = true
 	life = 0.0
 	global_position = pos + Vector3(0.0, 0.04, 0.0)
 	sack_mesh.visible = false
 	ChipBurst.spawn(self, global_position + Vector3(0.0, 0.2, 0.0), "", BILE, 14, 0.14, 0.8, 85.0, 2.0, 5.0, 12.0)
-	splash(self, global_position, SPLASH_RADIUS, SPLASH_BLOCK, SPLASH_UNIT, SPLASH_PLAYER, SPLASH_CORE)
+	splash(self, global_position, splash_radius, SPLASH_BLOCK, SPLASH_UNIT, SPLASH_PLAYER, SPLASH_CORE)
+	puddles.append(self)
 	var disc := CylinderMesh.new()
-	disc.top_radius = PUDDLE_RADIUS
-	disc.bottom_radius = PUDDLE_RADIUS
+	disc.top_radius = puddle_radius
+	disc.bottom_radius = puddle_radius
 	disc.height = 0.04
 	disc.radial_segments = 14
 	disc.rings = 1
@@ -153,13 +171,13 @@ func _land(pos: Vector3) -> void:
 
 
 func _puddle(delta: float) -> void:
-	if life > PUDDLE_TIME:
+	if life > puddle_time:
 		queue_free()
 		return
-	var fade := clampf((PUDDLE_TIME - life) / 1.5, 0.0, 1.0)
+	var fade := clampf((puddle_time - life) / minf(1.5, puddle_time), 0.0, 1.0)
 	puddle_mesh.scale = Vector3(1.0, 1.0, 1.0) * lerpf(0.4, 1.0, fade)
 	tick_left -= delta
 	if tick_left > 0.0:
 		return
 	tick_left = TICK
-	splash(self, global_position, PUDDLE_RADIUS, TICK_BLOCK, TICK_UNIT, TICK_PLAYER, 0)
+	splash(self, global_position, puddle_radius, TICK_BLOCK, TICK_UNIT, TICK_PLAYER, 0)

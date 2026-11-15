@@ -1,12 +1,7 @@
 extends CanvasLayer
 
 signal choice_made(play: bool)
-signal advanced
 
-const TYPE_SPEED := 40.0
-const YOU_COLOR := Color(0.92, 0.92, 0.96)
-const VOICE_COLOR := Color(0.45, 0.75, 1.0)
-const ODRICK_COLOR := Color(1.0, 0.78, 0.35)
 const DONE_COLOR := Color(0.45, 1.0, 0.5)
 const LIGHT_SCALE := 3.2
 
@@ -19,10 +14,6 @@ const LIGHT_SCALE := 3.2
 @onready var heal_glow: TextureRect = %HealGlow
 @onready var boss_box: Control = %BossBox
 @onready var boss_bar: ProgressBar = %BossBar
-@onready var dialogue: Control = %Dialogue
-@onready var speaker_name: Label = %SpeakerName
-@onready var speaker_text: Label = %SpeakerText
-@onready var arrow: Label = %Arrow
 @onready var light: TextureRect = %Light
 @onready var white: ColorRect = %White
 @onready var title_box: Control = %TitleBox
@@ -32,11 +23,7 @@ const LIGHT_SCALE := 3.2
 @onready var play_button: Button = %PlayButton
 @onready var skip_button: Button = %SkipButton
 
-var typed: float = 0.0
-var typing: bool = false
-var waiting: bool = false
 var light_tween: Tween
-var arrow_tween: Tween
 var orb_tween: Tween
 var tutorial_tween: Tween
 
@@ -136,11 +123,13 @@ func set_boss(current: float, maximum: float) -> void:
 
 
 func show_red(seconds: float) -> void:
+	get_tree().call_group("pit_world", "fade_heartbeat", 0.0, seconds)
 	var tween := create_tween()
 	tween.tween_property(vignette, "modulate:a", 1.0, seconds)
 
 
 func hide_red(seconds: float) -> void:
+	get_tree().call_group("pit_world", "fade_heartbeat", 1.0, seconds)
 	var tween := create_tween()
 	tween.tween_property(vignette, "modulate:a", 0.0, seconds)
 
@@ -163,37 +152,6 @@ func show_orb() -> void:
 	orb_tween = create_tween().set_loops()
 	orb_tween.tween_property(orb, "scale", Vector2(1.07, 1.07), 1.4).set_trans(Tween.TRANS_SINE)
 	orb_tween.tween_property(orb, "scale", Vector2(0.94, 0.94), 1.4).set_trans(Tween.TRANS_SINE)
-
-
-func say(speaker: String, text: String) -> void:
-	speaker_name.text = speaker
-	speaker_name.visible = speaker != ""
-	var tint := VOICE_COLOR
-	if speaker == "You":
-		tint = YOU_COLOR
-	elif speaker == "Odrick":
-		tint = ODRICK_COLOR
-	speaker_name.add_theme_color_override("font_color", tint)
-	speaker_text.text = text
-	speaker_text.visible_characters = 0
-	typed = 0.0
-	typing = true
-	waiting = true
-	arrow.visible = false
-	if not dialogue.visible:
-		dialogue.visible = true
-		dialogue.modulate.a = 0.0
-		var tween := create_tween()
-		tween.tween_property(dialogue, "modulate:a", 1.0, 0.4)
-	await advanced
-
-
-func hide_dialogue() -> void:
-	waiting = false
-	var tween := create_tween()
-	tween.tween_property(dialogue, "modulate:a", 0.0, 0.7)
-	await tween.finished
-	dialogue.visible = false
 
 
 func grow_light(seconds: float) -> void:
@@ -236,7 +194,6 @@ func clear_layers() -> void:
 	vignette.modulate.a = 0.0
 	orb.modulate.a = 0.0
 	light.visible = false
-	dialogue.visible = false
 	boss_box.modulate.a = 0.0
 	tutorial.modulate.a = 0.0
 	prompt.modulate.a = 0.0
@@ -248,40 +205,3 @@ func fade_white_out(seconds: float) -> void:
 	var tween := create_tween()
 	tween.tween_property(white, "modulate:a", 0.0, seconds)
 	await tween.finished
-
-
-func _process(delta: float) -> void:
-	if not typing:
-		return
-	typed += delta * TYPE_SPEED
-	var total := speaker_text.text.length()
-	speaker_text.visible_characters = int(typed)
-	if int(typed) >= total:
-		_finish_typing()
-
-
-func _finish_typing() -> void:
-	typing = false
-	speaker_text.visible_characters = -1
-	arrow.visible = true
-	arrow.position.y = 0.0
-	if arrow_tween != null:
-		arrow_tween.kill()
-	arrow_tween = create_tween().set_loops()
-	arrow_tween.tween_property(arrow, "modulate:a", 0.35, 0.6)
-	arrow_tween.tween_property(arrow, "modulate:a", 1.0, 0.6)
-
-
-func _input(event: InputEvent) -> void:
-	if not waiting:
-		return
-	var pressed = event is InputEventMouseButton and event.pressed
-	if not pressed:
-		return
-	get_viewport().set_input_as_handled()
-	if typing:
-		_finish_typing()
-		return
-	waiting = false
-	arrow.visible = false
-	advanced.emit()

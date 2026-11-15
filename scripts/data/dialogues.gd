@@ -1,0 +1,26 @@
+extends RefCounted
+
+const WAKE_UP := [
+	{"who": "", "text": "A ragged breath tears from my chest as cold air fills my lungs once more."},
+	["You", "Urrghhh…"],
+	["???", "Hail, traveler! By the mercy of the heavens, you draw breath!"],
+	["You", "What… Where am I?"],
+	["???", "You lie upon the broken stones of the Sacred Center. The great Anchor has awakened from its slumber."],
+	["You", "The Center? Its blue light burns once more?"],
+	["???", "It burns, aye. Yet its mighty walls lie shattered in the dust, stripped of their former glory."],
+	{"who": "", "text": "From the ash and rubble, my fingers close around the hilt of my sword. I heave the blade upward, holding its edge between myself and the stranger."},
+	["???", "Stay your hand. I bear no malice, nor am I a foe of yours."],
+	["You", "I am Lucius Valerian. Speak your name, stranger, before my patience falters."],
+	["???", "Valerian? Forgive my boldness, yet are you not the zealot who marched a grand host into the abyss against the Heart of the Underworld?"],
+	["You", "I am he. And I fear I have led them into a fatal folly."],
+	["You", "My entire legion was slaughtered in the dark, every man claimed by the depths. Yet the Anchor has tethered my spirit back to the mortal realm."],
+	["???", "Heavy tidings indeed. I mourn your fallen brothers."],
+	["???", "Yet if the Anchor has pulled you from the grave, its essence is now bound to your own lifeblood, as you must know."],
+	["???", "Forgive my breach of custom, for I have spoken long yet withheld my name."],
+	["???", "I am Gaius, son of no great house, simply a humble hunter of the northern wilds."],
+	{"who": "", "text": "Planting the point of my blade into the cracked earth, I haul my battered frame up from the ruins.", "event": "stand"},
+	["You", "The Heart of the Underworld will not sleep no more. Its wrath will rise like a black tide against this place."],
+	{"who": "", "text": "Gaius's expression hardens, the warmth fading from his eyes like a dying ember."},
+	["You", "I must raise these walls anew and fortify the Anchor before the dark returns. Will you-"],
+	["Gaius", "Say no more, O Valerian. My days in the quiet woods have grown barren as winter stone, and my arrows seek for glory and the clash of bronze. By the sky above and the earth beneath our feet, I swear my life to the defense of the Anchor."],
+]

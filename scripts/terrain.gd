@@ -1561,6 +1561,10 @@ func _mount_bump(fx: float, fz: float, rough: float) -> float:
 	return g * mount_height * (0.8 + 0.4 * rough)
 
 
+func tunnel_mouth() -> Vector3:
+	return Vector3(mount_dir.x * mouth_dist, float(mouth_y), mount_dir.y * mouth_dist)
+
+
 func _is_tunnel(x: int, iy: int, z: int) -> bool:
 	var fx := x + 0.5
 	var fz := z + 0.5

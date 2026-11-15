@@ -1,5 +1,7 @@
 extends CharacterBody3D
 
+const BloodDrips = preload("res://scripts/player/blood_drips.gd")
+
 const BannerRangeScript = preload("res://scripts/allies/banner_range.gd")
 
 signal health_changed(current, maximum)
@@ -20,6 +22,7 @@ const CROUCH_EYE = 0.15
 const STAND_HEIGHT = 1.8
 const CROUCH_HEIGHT = 1.3
 const FEET_OFFSET = 0.85
+const HURT_SOUND_GAP_MS := 400
 const LEDGE_LOOK = 0.15
 const LEDGE_DROP = 0.55
 const CLIMB_SPEED = 3.0
@@ -61,6 +64,7 @@ var gravity = float(ProjectSettings.get_setting("physics/3d/default_gravity")) *
 var mine_timer = 0.0
 var attack_timer = 0.0
 var frozen = false
+var last_hurt_ms: int = 0
 var slow: float = 1.0
 var crouching: bool = false
 var crouch_t: float = 0.0
@@ -95,6 +99,7 @@ var bow_ready: bool = false
 
 
 func _ready():
+	add_child(BloodDrips.new())
 	add_to_group("player")
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	ghost_block.top_level = true
@@ -391,6 +396,10 @@ func fire_bow(bow, charge):
 func take_damage(amount, _hit_position = Vector3.INF):
 	if dead or amount <= 0:
 		return
+	var now := Time.get_ticks_msec()
+	if now - last_hurt_ms >= HURT_SOUND_GAP_MS:
+		last_hurt_ms = now
+		Sfx.play(self, "player_hurt", Vector3.INF, -2.0)
 	var taken: float = maxf(1.0, float(amount) * (1.0 - Inventory.armor_reduction()))
 	health = maxf(health - taken, 0.0)
 	since_damage = 0.0
@@ -420,8 +429,9 @@ func _die():
 	died.emit()
 
 
-func respawn(pos):
-	Game.achievements.add_progress("revives", 1)
+func respawn(pos, count: bool = true):
+	if count:
+		Game.achievements.add_progress("revives", 1)
 	global_position = pos
 	velocity = Vector3.ZERO
 	health = max_health
@@ -659,6 +669,8 @@ func try_mine(hit):
 	if hit.position.distance_to(camera.global_position) > MINE_REACH:
 		return
 	mine_timer = MINE_COOLDOWN
+	if target.is_in_group("block") and target.block_type == "ruined_brick":
+		target.set_meta("no_yield", Inventory.held_tool().get("tool", "") != "pickaxe")
 	target.take_damage(maxi(1, roundi(MINE_DAMAGE * Inventory.tool_power(resource_category(target)))), hit.position)
 	_tool_swing()
 	if target.is_in_group("cactus"):
@@ -667,12 +679,12 @@ func try_mine(hit):
 
 func holds_repair_item():
 	var item = Inventory.selected_item()
-	return not item.is_empty() and item["id"] == "stone_brick"
+	return not item.is_empty() and item["id"] == "stone"
 
 
 func repair_ruined(block):
 	if not holds_repair_item():
-		notice.emit("Repair this with Stone Bricks")
+		notice.emit("Repair this with Stone")
 		return
 	Inventory.consume_selected(1)
 	var world = get_tree().current_scene
@@ -722,6 +734,12 @@ func mine_terrain(hit):
 		get_tree().current_scene.spawn_drop(result["item"], result["amount"], Vector3(cell) + Vector3(0.5, 0.5, 0.5))
 
 
+func _clear_shot(target: Node3D) -> bool:
+	var query := PhysicsRayQueryParameters3D.create(camera.global_position, target.global_position + Vector3(0.0, 0.9, 0.0), 1)
+	query.exclude = [get_rid()]
+	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+
+
 func sweep(weapon):
 	attack_timer = weapon["cooldown"]
 	Sfx.play(self, "sword_swing", global_position, -2.0)
@@ -742,6 +760,8 @@ func sweep(weapon):
 	for entry in get_world_3d().direct_space_state.intersect_shape(query, 24):
 		var target = entry["collider"]
 		if struck.has(target) or not (target.is_in_group("enemy") or target.is_in_group("wild_gloom") or target.is_in_group("gloom_bird") or target.is_in_group("boss")):
+			continue
+		if not _clear_shot(target):
 			continue
 		var off = target.global_position - global_position
 		off.y = 0.0
@@ -784,6 +804,8 @@ func swing(weapon):
 		var target = entry["collider"]
 		if struck.has(target) or not (target.is_in_group("enemy") or target.is_in_group("wild_gloom") or target.is_in_group("gloom_bird") or target.is_in_group("boss")):
 			continue
+		if not _clear_shot(target):
+			continue
 		struck[target] = true
 		target.take_damage(weapon["damage"], global_position)
 
@@ -807,6 +829,8 @@ func _thrust(weapon) -> void:
 	for entry in found:
 		var target = entry["collider"]
 		if struck.has(target) or not (target.is_in_group("enemy") or target.is_in_group("wild_gloom") or target.is_in_group("gloom_bird") or target.is_in_group("boss")):
+			continue
+		if not _clear_shot(target):
 			continue
 		struck[target] = true
 		target.set_meta("knock_scale", float(weapon.get("knockback", 1.0)))
@@ -842,6 +866,9 @@ func try_place(hit):
 		return
 	var cell = cell_center(hit)
 	aim_normal = hit.normal
+	if Game.build_blocked(cell):
+		notice.emit("Can't build here")
+		return
 	for o in type_offsets(type):
 		if in_core_zone(cell + o):
 			notice.emit("You can't build this close to the Core")

@@ -104,6 +104,17 @@ func take_damage(amount: int, hit_position: Vector3 = Vector3.INF) -> void:
 		crack_mesh = CrackOverlay.show(visual, crack_mesh, 1.0 - float(current_health) / float(maxi(max_health, 1)))
 
 
+func repair() -> void:
+	if dying or current_health >= max_health:
+		return
+	current_health = max_health
+	if crack_mesh != null and is_instance_valid(crack_mesh):
+		crack_mesh.queue_free()
+	crack_mesh = null
+	if get_script().resource_path == BLOCK_SCRIPT:
+		_try_batch.call_deferred()
+
+
 func _shows_cracks() -> bool:
 	return not Inventory.BLOCK_TYPES[block_type].has("scene")
 
@@ -252,6 +263,7 @@ func _mark_stability() -> void:
 
 
 func _die() -> void:
+	_unbatch()
 	super()
 	BlockIndex.bump()
 	_mark_stability()

@@ -32,7 +32,7 @@ static var owner_of: Dictionary = {}
 
 
 static func add(block: Node3D, material: Material, tag: String) -> bool:
-	if not ENABLED or not block.is_inside_tree():
+	if not ENABLED or not block.is_inside_tree() or owner_of.has(block.get_instance_id()):
 		return false
 	var scene := block.get_tree().current_scene
 	if scene == null:
@@ -67,8 +67,9 @@ static func remove(block: Node) -> void:
 		return
 	owner_of.erase(id)
 	var idx := group.members.find(block)
-	if idx >= 0:
+	while idx >= 0:
 		group.members.remove_at(idx)
+		idx = group.members.find(block)
 	if group.members.is_empty() and groups.get(group.key) == group:
 		groups.erase(group.key)
 	_schedule(group)
@@ -82,4 +83,15 @@ static func _schedule(group: Group) -> void:
 	if group.pending:
 		return
 	group.pending = true
-	group.rebuild.call_deferred()
+	_flush.call_deferred(group)
+
+
+static func _flush(group: Group) -> void:
+	for i in range(group.members.size() - 1, -1, -1):
+		var member = group.members[i]
+		if not is_instance_valid(member):
+			group.members.remove_at(i)
+		elif not member.is_inside_tree() or member.dying:
+			owner_of.erase(member.get_instance_id())
+			group.members.remove_at(i)
+	group.rebuild()

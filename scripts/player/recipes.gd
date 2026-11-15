@@ -9,7 +9,7 @@ const LIST := [
 	{"id": "granite_brick", "out": "granite_brick", "count": 4, "shape": [["granite", "granite"], ["granite", "granite"]]},
 	{"id": "basalt_brick", "out": "basalt_brick", "count": 4, "shape": [["basalt", "basalt"], ["basalt", "basalt"]]},
 	{"id": "limestone_brick", "out": "limestone_brick", "count": 4, "shape": [["limestone", "limestone"], ["limestone", "limestone"]]},
-	{"id": "torch", "out": "torch", "count": 4, "shape": [["coal"], ["plank"]]},
+	{"id": "torch", "out": "torch", "count": 4, "shape": [["coal"], ["stick"]]},
 	{"id": "chest", "out": "chest", "count": 1, "shape": [["plank", "plank", "plank"], ["plank", "", "plank"], ["plank", "plank", "plank"]]},
 	{"id": "lantern", "out": "lantern", "count": 1, "shape": [["iron"], ["torch"], ["iron"]]},
 	{"id": "door", "out": "door", "count": 1, "shape": [["plank", "plank"], ["plank", "plank"], ["plank", "plank"]]},

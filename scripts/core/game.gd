@@ -27,6 +27,7 @@ var settings := {
 
 var has_session: bool = false
 var prologue_active: bool = false
+var cutscene_active: bool = false
 var in_world: bool = false
 var world_seed: int = 1337
 var pending: Dictionary = {}
@@ -37,6 +38,7 @@ var difficulty: String = "normal"
 var world_name: String = DEFAULT_NAME
 var autosave_timer: float = 0.0
 var achievements: Node
+var no_build: Array = []
 
 
 func _ready() -> void:
@@ -279,3 +281,12 @@ func latest_slot() -> int:
 			best = slot
 			best_time = info["unix"]
 	return best
+
+
+func build_blocked(pos: Vector3) -> bool:
+	for zone: Dictionary in no_build:
+		var center: Vector3 = zone["center"]
+		var flat := Vector2(pos.x - center.x, pos.z - center.z)
+		if flat.length() < float(zone["radius"]) and absf(pos.y - center.y) < float(zone["height"]):
+			return true
+	return false
