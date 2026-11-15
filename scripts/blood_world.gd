@@ -55,6 +55,9 @@ const SPIKE_COUNT := 140
 const MOUND_COUNT := 90
 const FLESH := Color(0.55, 0.16, 0.2)
 const HEARTBEAT_PATH := "res://audio/sfx/heartbeat.mp3"
+const MUSIC_PATH := "res://audio/music/prologue_fight.mp3"
+const MUSIC_DB := -6.0
+const MUSIC_SILENT_DB := -60.0
 const HEARTBEAT_NEAR := 6.0
 const HEARTBEAT_FAR := 180.0
 const HEARTBEAT_QUIET_DB := -26.0
@@ -82,6 +85,8 @@ var bone_tick: float = 0.0
 var doomed: bool = false
 var heartbeat_gain: float = 1.0
 var heartbeat_tween: Tween
+var music: AudioStreamPlayer
+var music_tween: Tween
 var soldiers: Array = []
 var archers: Array = []
 var odrick
@@ -262,6 +267,35 @@ func _build_heartbeat() -> void:
 	heartbeat.volume_db = HEARTBEAT_QUIET_DB
 	add_child(heartbeat)
 	heartbeat.play()
+
+
+func start_music(seconds: float) -> void:
+	if music == null:
+		var stream := load(MUSIC_PATH) as AudioStreamMP3
+		if stream == null:
+			return
+		stream.loop = true
+		music = AudioStreamPlayer.new()
+		music.stream = stream
+		music.bus = "SFX"
+		music.volume_db = MUSIC_SILENT_DB
+		add_child(music)
+	if not music.playing:
+		music.play()
+	if music_tween != null:
+		music_tween.kill()
+	music_tween = create_tween()
+	music_tween.tween_property(music, "volume_db", MUSIC_DB, seconds)
+
+
+func stop_music(seconds: float) -> void:
+	if music == null or not music.playing:
+		return
+	if music_tween != null:
+		music_tween.kill()
+	music_tween = create_tween()
+	music_tween.tween_property(music, "volume_db", MUSIC_SILENT_DB, seconds)
+	music_tween.tween_callback(music.stop)
 
 
 func fade_heartbeat(to: float, seconds: float) -> void:
@@ -799,10 +833,15 @@ func nearest_wall(ring: int, pos: Vector3, unit = null) -> Node3D:
 		release_wall(unit)
 		unit.claim_key = best_key
 		wall_claims[best_key] = int(wall_claims.get(best_key, 0)) + 1
+	var pick = null
 	for layer in GATE_LAYERS:
 		var block = _front(best[layer])
-		if not block.dead:
-			return block
+		if block.dead:
+			continue
+		if pick == null or block.depth < pick.depth:
+			pick = block
+	if pick != null:
+		return pick
 	return _front(best[0])
 
 

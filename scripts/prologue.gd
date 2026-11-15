@@ -360,6 +360,7 @@ func _command() -> bool:
 		return false
 	ui.hide_prompt()
 	pit.command()
+	pit.start_music(2.5)
 	ui.show_army(pit.alive_count())
 	if not await _until(func() -> bool: return not Input.is_physical_key_pressed(KEY_F)):
 		return false
@@ -482,6 +483,8 @@ func _fade_targets() -> Array:
 
 
 func _death() -> bool:
+	if is_instance_valid(pit):
+		pit.stop_music(1.2)
 	boss.freeze()
 	ui.hide_boss()
 	ui.hide_army()

@@ -12,6 +12,9 @@ const PICKUP_DELAY := 0.5
 const PICKUP_RANGE := 1.7
 const LENGTH := 0.55
 const EMBED := 0.14
+const EMBED_LIFE := 12.0
+const MAX_EMBEDDED := 6
+const EMBED_META := "arrows_in"
 
 var velocity := Vector3.ZERO
 var damage: int = 2
@@ -22,6 +25,9 @@ var landed: bool = false
 var landed_age: float = 0.0
 var stuck_on = null
 var player_ref = null
+var embedded: Node3D = null
+var embed_offset := Transform3D.IDENTITY
+var embed_age: float = 0.0
 
 static var shaft_mesh: BoxMesh
 static var head_mesh: BoxMesh
@@ -46,9 +52,12 @@ func reset() -> void:
 	landed = false
 	landed_age = 0.0
 	stuck_on = null
+	embedded = null
+	embed_age = 0.0
 
 
 func _recycle() -> void:
+	_release_embed()
 	set_physics_process(false)
 	Pool.give("arrow", self)
 
@@ -101,6 +110,9 @@ func launch(from: Vector3, dir: Vector3, dmg: int, speed: float = SPEED) -> void
 
 
 func _physics_process(delta: float) -> void:
+	if embedded != null:
+		_follow(delta)
+		return
 	if landed:
 		_resting(delta)
 		return
@@ -117,7 +129,10 @@ func _physics_process(delta: float) -> void:
 		var target = hit["collider"]
 		if target.is_in_group("enemy") or target.is_in_group("wild_gloom") or target.is_in_group("gloom_bird"):
 			target.take_damage(damage, from - velocity.normalized() * 2.0)
-			_recycle()
+			if target is Node3D and is_instance_valid(target):
+				_embed(target, hit)
+			else:
+				_recycle()
 			return
 		if pickable:
 			_land(hit)
@@ -128,6 +143,39 @@ func _physics_process(delta: float) -> void:
 	velocity.y -= GRAVITY * delta
 	if velocity.length() > 0.1:
 		look_at(global_position + velocity, Vector3.UP)
+
+
+func _embed(target: Node3D, hit: Dictionary) -> void:
+	var count: int = int(target.get_meta(EMBED_META, 0))
+	if count >= MAX_EMBEDDED:
+		_recycle()
+		return
+	target.set_meta(EMBED_META, count + 1)
+	var dir := velocity.normalized()
+	global_position = hit["position"] - dir * (LENGTH * 0.5 + 0.03 - EMBED)
+	if dir.length() > 0.1:
+		look_at(global_position + dir, Vector3.UP)
+	embedded = target
+	embed_age = 0.0
+	embed_offset = target.global_transform.affine_inverse() * global_transform
+
+
+func _follow(delta: float) -> void:
+	embed_age += delta
+	var gone := not is_instance_valid(embedded) or embed_age > EMBED_LIFE
+	if not gone and embedded.scale.length() < 0.25:
+		gone = true
+	if gone:
+		_recycle()
+		return
+	global_transform = embedded.global_transform * embed_offset
+
+
+func _release_embed() -> void:
+	if embedded != null and is_instance_valid(embedded):
+		var count: int = int(embedded.get_meta(EMBED_META, 1))
+		embedded.set_meta(EMBED_META, maxi(count - 1, 0))
+	embedded = null
 
 
 func _land(hit: Dictionary) -> void:

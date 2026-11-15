@@ -5,6 +5,8 @@
 [ext_resource type="PackedScene" path="res://scenes/menus/settings_panel.tscn" id="3_settings"]
 [ext_resource type="PackedScene" path="res://scenes/menus/slots_panel.tscn" id="4_slots"]
 [ext_resource type="PackedScene" path="res://scenes/menus/achievements_button.tscn" id="9_achv"]
+[ext_resource type="Texture2D" path="res://art/ui/health_frame.png" id="10_hframe"]
+[ext_resource type="Texture2D" path="res://art/ui/core_frame.png" id="11_cframe"]
 
 [sub_resource type="Gradient" id="Gradient_vignette"]
 offsets = PackedFloat32Array(0.55, 1)
@@ -53,9 +55,9 @@ anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -250.0
-offset_top = 75.0
+offset_top = 96.0
 offset_right = 250.0
-offset_bottom = 105.0
+offset_bottom = 126.0
 grow_horizontal = 2
 theme_type_variation = &"AccentLabel"
 horizontal_alignment = 1
@@ -95,6 +97,16 @@ theme_type_variation = &"HealthBar"
 value = 100.0
 show_percentage = false
 
+[node name="Frame" type="TextureRect" parent="UI/PlayerBar"]
+texture_filter = 1
+layout_mode = 0
+offset_left = -20.0
+offset_top = -6.0
+offset_right = 288.0
+offset_bottom = 36.0
+mouse_filter = 2
+texture = ExtResource("10_hframe")
+
 [node name="Label" type="Label" parent="UI/PlayerBar"]
 layout_mode = 1
 anchors_preset = 15
@@ -114,14 +126,24 @@ anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -170.0
-offset_top = 48.0
+offset_top = 60.0
 offset_right = 170.0
-offset_bottom = 72.0
+offset_bottom = 84.0
 grow_horizontal = 2
 mouse_filter = 2
 theme_type_variation = &"CoreBar"
 value = 100.0
 show_percentage = false
+
+[node name="Frame" type="TextureRect" parent="UI/CoreBar"]
+texture_filter = 1
+layout_mode = 0
+offset_left = -20.0
+offset_top = -6.0
+offset_right = 360.0
+offset_bottom = 30.0
+mouse_filter = 2
+texture = ExtResource("11_cframe")
 
 [node name="Label" type="Label" parent="UI/CoreBar"]
 layout_mode = 1
