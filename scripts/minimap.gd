@@ -9,6 +9,7 @@ const CELLS_PER_FRAME := 140
 const CACHE_LIMIT := 6000
 const EVICT_INTERVAL := 3.0
 const EDGE := 6.0
+const WATER_COLOR := Color(0.2, 0.4, 0.46)
 const BACKDROP := Color(0.04, 0.04, 0.05, 1.0)
 const GLOOM_COLOR := Color(0.68, 0.3, 0.95, 1.0)
 const RAID_COLOR := Color(0.95, 0.2, 0.2, 1.0)
@@ -141,6 +142,8 @@ func _rebuild() -> void:
 				var h: int = terrain.surface_y(key.x, key.y)
 				var id: int = terrain.block_at(key.x, h - 1, key.y)
 				var col := _terrain_color(id)
+				if h < terrain.water_level:
+					col = WATER_COLOR
 				cache_h[key] = h
 				cache_c[key] = col
 				heights[idx] = h

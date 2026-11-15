@@ -54,6 +54,10 @@ const COL_DRY := Color(0.62, 0.60, 0.28)
 const COL_LUSH := Color(0.18, 0.46, 0.16)
 const COL_SAND := Color(0.76, 0.68, 0.45)
 const RUIN_RADIUS := 10
+const RIVER_NOISE_CAP := 0.22
+const RIVER_MIN_GRAD := 0.004
+const WATER_SURFACE_DROP := 0.1
+const WATER_MATERIAL_PATH := "res://resources/water.gdshader"
 const COL_DIRT := Color(0.42, 0.29, 0.18)
 const COL_ROCK := Color(0.50, 0.50, 0.53)
 const COL_STONE := Color(0.44, 0.44, 0.47)
@@ -124,6 +128,15 @@ var tree_center: Vector2i = Vector2i.ZERO
 @export var rock_line: float = 17.0
 @export var snow_line: float = 32.0
 
+@export_group("Rivers")
+@export var rivers_enabled: bool = true
+@export var water_level: int = 0
+@export var river_freq: float = 0.0035
+@export var river_half_width: float = 3.2
+@export var river_bank: float = 9.0
+@export var river_depth: float = 3.4
+@export var river_clear_radius: float = 70.0
+
 @export_group("Underground")
 @export var caves_enabled: bool = true
 @export var cave_cover: int = 5
@@ -188,6 +201,7 @@ class Chunk:
 	var trees_real: bool = false
 	var shadowed: bool = true
 	var occluder: OccluderInstance3D
+	var water: MeshInstance3D
 
 class MeshBuf:
 	var verts := PackedVector3Array()
@@ -213,6 +227,9 @@ var n_stone_a: FastNoiseLite
 var n_stone_b: FastNoiseLite
 var n_biome: FastNoiseLite
 var n_snowy: FastNoiseLite
+var n_river: FastNoiseLite
+var n_river_w: FastNoiseLite
+var water_material: ShaderMaterial
 var mount_dir: Vector2 = Vector2.RIGHT
 var mouth_y: int = 0
 
@@ -496,6 +513,8 @@ func _setup_noise() -> void:
 	n_stone_b = _make_noise(15, 0.024, 1)
 	n_biome = _make_noise(16, 0.0032, 2)
 	n_snowy = _make_noise(17, 0.0032, 2)
+	n_river = _make_noise(18, river_freq, 1)
+	n_river_w = _make_noise(19, 0.012, 1)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = world_seed ^ 0x5EED
 	mount_dir = Vector2.RIGHT.rotated(rng.randf() * TAU)
@@ -912,9 +931,35 @@ func _finalize(coord: Vector2i, data: Dictionary) -> Chunk:
 
 	if OCCLUDERS and data.has("heights") and not edit_chunks.has(coord):
 		_add_occluder(chunk, data["heights"])
+	_add_water(chunk, data)
 
 	chunks[coord] = chunk
 	return chunk
+
+
+func _add_water(chunk: Chunk, data: Dictionary) -> void:
+	var quads: PackedVector3Array = data.get("water", PackedVector3Array())
+	if quads.is_empty():
+		return
+	if water_material == null:
+		water_material = ShaderMaterial.new()
+		water_material.shader = load(WATER_MATERIAL_PATH)
+	var normals := PackedVector3Array()
+	normals.resize(quads.size())
+	normals.fill(Vector3.UP)
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = quads
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var wmi := MeshInstance3D.new()
+	wmi.name = "Water"
+	wmi.mesh = mesh
+	wmi.material_override = water_material
+	wmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	chunk.root.add_child(wmi)
+	chunk.water = wmi
 
 
 func _add_occluder(chunk: Chunk, heights: PackedInt32Array) -> void:
@@ -1197,7 +1242,7 @@ func _gen_plants(coord: Vector2i, heights: PackedInt32Array, surf: PackedByteArr
 		for lx in CHUNK:
 			var ci := lz * CHUNK + lx
 			if desert[ci] > 0.5 and surf[ci] == B_SAND:
-				if rng.randf() < shrub_density:
+				if rng.randf() < shrub_density and not _wet(heights, (lz + 1) * PAD + lx + 1):
 					var sc := rng.randf_range(0.6, 1.2)
 					var v := rng.randf_range(0.85, 1.1)
 					_push_plant(shrub, lx + rng.randf_range(0.15, 0.85), heights[(lz + 1) * PAD + lx + 1] - 0.02, lz + rng.randf_range(0.15, 0.85), rng.randf() * TAU, sc, sc * rng.randf_range(0.7, 1.1), Color(v, v, v))
@@ -1549,7 +1594,60 @@ func _height(x: int, z: int) -> int:
 	var blend := smoothstep(plateau_radius, plateau_radius + plateau_blend, dist)
 	var wall := pow(clampf((dist - (world_radius - border_width)) / border_width, 0.0, 1.0), 2.0) * border_height
 
-	return clampi(base_height + roundi(maxf(relief, 0.0) * blend + wall + _mount_bump(fx, fz, rough) * blend), 1, Y_MAX - 2)
+	var top := float(base_height) + maxf(relief, 0.0) * blend + wall + _mount_bump(fx, fz, rough) * blend
+	top = _carve_river(fx, fz, top, dist)
+	return clampi(roundi(top), Y_MIN + 8, Y_MAX - 2)
+
+
+func _carve_river(fx: float, fz: float, top: float, dist: float) -> float:
+	if not rivers_enabled or dist < river_clear_radius:
+		return top
+	var n := n_river.get_noise_2d(fx, fz)
+	if absf(n) > RIVER_NOISE_CAP:
+		return top
+	var fade := 1.0 - smoothstep(4.0, 14.0, top - float(base_height))
+	fade *= smoothstep(river_clear_radius, river_clear_radius + 40.0, dist)
+	var to_mount := Vector2(fx - mount_dir.x * mount_dist, fz - mount_dir.y * mount_dist).length()
+	fade *= smoothstep(mount_radius * 1.6, mount_radius * 3.0, to_mount)
+	if fade <= 0.0:
+		return top
+	var gx := n_river.get_noise_2d(fx + 1.0, fz) - n
+	var gz := n_river.get_noise_2d(fx, fz + 1.0) - n
+	var grad := maxf(sqrt(gx * gx + gz * gz), RIVER_MIN_GRAD)
+	var d := absf(n) / grad
+	var width := river_half_width * (0.75 + 0.6 * (n_river_w.get_noise_2d(fx, fz) * 0.5 + 0.5))
+	var bank_end := width + river_bank
+	if d >= bank_end:
+		return top
+	var shore := float(water_level) - 1.0
+	var target: float
+	if d < width:
+		var u := d / width
+		target = shore - river_depth * (1.0 - u * u)
+	else:
+		target = lerpf(shore, top, smoothstep(width, bank_end, d))
+	return lerpf(top, target, fade)
+
+
+func water_surface_y() -> float:
+	return float(water_level) - WATER_SURFACE_DROP
+
+
+func is_water_column(x: int, z: int) -> bool:
+	return _height(x, z) < water_level
+
+
+func water_surface_at(world_x: float, world_z: float) -> float:
+	if _height(floori(world_x), floori(world_z)) < water_level:
+		return water_surface_y()
+	return -INF
+
+
+func _wet(heights: PackedInt32Array, i: int) -> bool:
+	var h := heights[i]
+	if h > water_level + 1:
+		return false
+	return h < water_level or heights[i - 1] < water_level or heights[i + 1] < water_level or heights[i - PAD] < water_level or heights[i + PAD] < water_level
 
 
 func _mount_bump(fx: float, fz: float, rough: float) -> float:
@@ -1801,6 +1899,42 @@ func _emit_face(buf: MeshBuf, vol: PackedByteArray, i: int, f: int, origin: Vect
 		buf.uv2s.append(Vector2(layer, 0.0))
 
 
+func _water_quads(heights: PackedInt32Array) -> PackedVector3Array:
+	var quads := PackedVector3Array()
+	if not rivers_enabled:
+		return quads
+	var y := water_surface_y()
+	var open: Dictionary = {}
+	var rects: Array = []
+	for lz in CHUNK:
+		var next_open: Dictionary = {}
+		var lx := 0
+		while lx < CHUNK:
+			if heights[(lz + 1) * PAD + lx + 1] >= water_level:
+				lx += 1
+				continue
+			var x0 := lx
+			while lx < CHUNK and heights[(lz + 1) * PAD + lx + 1] < water_level:
+				lx += 1
+			var key := x0 * 64 + lx
+			if open.has(key):
+				var rect: Array = open[key]
+				rect[3] = lz + 1
+				next_open[key] = rect
+			else:
+				var fresh: Array = [x0, lz, lx, lz + 1]
+				rects.append(fresh)
+				next_open[key] = fresh
+		open = next_open
+	for rect: Array in rects:
+		var a := Vector3(rect[0], y, rect[1])
+		var b := Vector3(rect[2], y, rect[1])
+		var c := Vector3(rect[2], y, rect[3])
+		var e := Vector3(rect[0], y, rect[3])
+		quads.append_array(PackedVector3Array([a, b, c, a, c, e]))
+	return quads
+
+
 func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictionary:
 	var ox := coord.x * CHUNK - 1
 	var oz := coord.y * CHUNK - 1
@@ -1841,6 +1975,8 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 			snowy[ci] = sv
 			top_cols[ci] = COL_DIRT if in_ruins(wx0, wz0) else _top_color(h, m, dv, sv)
 			surf[ci] = _surface_id(h, m, dv, wx0, wz0)
+			if _wet(heights, (lz + 1) * PAD + lx + 1) and surf[ci] != B_SNOW:
+				surf[ci] = B_SAND
 
 	var vol := PackedByteArray()
 	vol.resize(LAYER * Y_LAYERS)
@@ -1970,7 +2106,7 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 			var lz := int(pz)
 			var i := (lz + 1) * PAD + lx + 1
 			var h := heights[i]
-			if h > tree_line or _max_step(heights, i, h) > 1 or desert[lz * CHUNK + lx] > 0.3:
+			if h > tree_line or _max_step(heights, i, h) > 1 or desert[lz * CHUNK + lx] > 0.3 or _wet(heights, i):
 				continue
 			var world := origin2 + Vector2(px, pz)
 			if world.length() < tree_clear_radius:
@@ -2013,7 +2149,7 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 			var i := (lz + 1) * PAD + lx + 1
 			var h := heights[i]
 			var world := origin2 + Vector2(px, pz)
-			if world.length() < rock_clear_radius or desert[lz * CHUNK + lx] > 0.3:
+			if world.length() < rock_clear_radius or desert[lz * CHUNK + lx] > 0.3 or _wet(heights, i):
 				continue
 			var chance := clampf(0.2 + float(h) / 30.0 + 0.25 * (1.0 - moist[lz * CHUNK + lx]), 0.0, 0.8)
 			if rng.randf() > chance:
@@ -2055,7 +2191,7 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 				continue
 			var i := (lz + 1) * PAD + lx + 1
 			var h := heights[i]
-			if _max_step(heights, i, h) > 1 or rng.randf() > 0.55:
+			if _max_step(heights, i, h) > 1 or _wet(heights, i) or rng.randf() > 0.55:
 				continue
 			var pos := Vector2(px, pz)
 			var blocked := false
@@ -2076,4 +2212,4 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 		for key: String in plants.keys():
 			plants[key] = _drop_floating(coord, plants[key], heights)
 
-	return {"verts": buf.verts, "norms": buf.norms, "cols": buf.cols, "uvs": buf.uvs, "uv2s": buf.uv2s, "trees": trees, "rocks": rocks, "cacti": cacti, "plants": plants, "remesh": not with_objects, "heights": heights}
+	return {"verts": buf.verts, "norms": buf.norms, "cols": buf.cols, "uvs": buf.uvs, "uv2s": buf.uv2s, "trees": trees, "rocks": rocks, "cacti": cacti, "plants": plants, "remesh": not with_objects, "heights": heights, "water": _water_quads(heights)}

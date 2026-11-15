@@ -2,6 +2,9 @@ extends Node
 
 const SFX_DIR := "res://audio/sfx/"
 const RAIN_FADE_IN := 5.0
+const UNDER_CUTOFF := 650.0
+const OPEN_CUTOFF := 20500.0
+const UNDER_FADE := 0.25
 const RAIN_PATH := "res://audio/rain.mp3"
 const SFX_BUS := "SFX"
 const RAIN_BUS := "Rain"
@@ -29,6 +32,9 @@ const SOUNDS := {
 	"door_close": ["door_close"],
 	"block_place": ["block_place"],
 	"player_hurt": ["player_hurt"],
+	"water_splash": ["water_splash"],
+	"water_small": ["water_small"],
+	"water_stroke": ["water_stroke"],
 }
 const PITCH_BASE := {"stone_break": 0.74}
 const PITCH_VAR := {"stone_hit": 0.14, "stone_break": 0.1, "anvil_hit": 0.12, "forge_sparkle": 0.1}
@@ -61,6 +67,9 @@ var creak_timer: float = 20.0
 var rain_a: AudioStreamPlayer
 var rain_b: AudioStreamPlayer
 var rain_filter: AudioEffectLowPassFilter
+var under_filters: Array = []
+var under_tween: Tween
+var underwater: bool = false
 var rain_stream: AudioStream
 var rain_clock: float = 0.0
 var rain_timer: float = 0.0
@@ -93,6 +102,11 @@ func setup(p, t, w, r, s) -> void:
 		AudioServer.add_bus_effect(rain_index, rain_filter)
 	else:
 		rain_filter = AudioServer.get_bus_effect(rain_index, 0) as AudioEffectLowPassFilter
+	for bus_name: String in [SFX_BUS, RAIN_BUS]:
+		var filter := AudioEffectLowPassFilter.new()
+		filter.cutoff_hz = OPEN_CUTOFF
+		AudioServer.add_bus_effect(AudioServer.get_bus_index(bus_name), filter)
+		under_filters.append(filter)
 	for i in POOL_2D:
 		var a := AudioStreamPlayer.new()
 		a.bus = SFX_BUS
@@ -120,6 +134,18 @@ func _ensure_bus(bus_name: String) -> void:
 	var idx := AudioServer.bus_count - 1
 	AudioServer.set_bus_name(idx, bus_name)
 	AudioServer.set_bus_send(idx, "Master")
+
+
+func set_underwater(on: bool) -> void:
+	if on == underwater:
+		return
+	underwater = on
+	if under_tween != null:
+		under_tween.kill()
+	under_tween = create_tween()
+	under_tween.set_parallel(true)
+	for filter: AudioEffectLowPassFilter in under_filters:
+		under_tween.tween_property(filter, "cutoff_hz", UNDER_CUTOFF if on else OPEN_CUTOFF, UNDER_FADE)
 
 
 func _scan_buttons() -> void:

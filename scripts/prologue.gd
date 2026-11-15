@@ -196,7 +196,7 @@ func _enter() -> void:
 	world.core.set_process(false)
 	world.missions.visible = false
 	world.ui.set_prologue(true)
-	world.hud_node.get_node("TimeBar").visible = false
+	_time_hud(false)
 	_loadout()
 	player.global_position = cave["spawn"]
 	player.rotation.y = PI
@@ -217,6 +217,13 @@ func _make_environment() -> Environment:
 	e.fog_light_color = Color(0.02, 0.02, 0.035)
 	e.fog_density = 0.012
 	return e
+
+
+func _time_hud(on: bool) -> void:
+	for node_name: String in ["TimeBar", "TimeFrame", "Needle"]:
+		var node: CanvasItem = world.hud_node.get_node_or_null(node_name)
+		if node != null:
+			node.visible = on
 
 
 func _loadout() -> void:
@@ -322,6 +329,7 @@ func _descend() -> bool:
 	if not is_inside_tree():
 		return false
 	ui.fade_black(0.0, 1.0)
+	pit.start_music(4.0)
 	var tween := create_tween()
 	tween.tween_property(cam, "position", base, FALL_DROP_TIME).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	await tween.finished
@@ -360,7 +368,6 @@ func _command() -> bool:
 		return false
 	ui.hide_prompt()
 	pit.command()
-	pit.start_music(2.5)
 	ui.show_army(pit.alive_count())
 	if not await _until(func() -> bool: return not Input.is_physical_key_pressed(KEY_F)):
 		return false
@@ -569,7 +576,7 @@ func _exit() -> void:
 	world.minimap_node.set_blank(false)
 	world.core.set_process(true)
 	world.ui.set_prologue(false)
-	world.hud_node.get_node("TimeBar").visible = true
+	_time_hud(true)
 	player.died.disconnect(_on_died)
 	player.respawn(start_position, false)
 	player.rotation.y = start_yaw

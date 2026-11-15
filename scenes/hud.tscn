@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3 uid="uid://cx7k8iaq34851"]
+[gd_scene load_steps=10 format=3 uid="uid://cx7k8iaq34851"]
 
 [ext_resource type="Script" uid="uid://8p1x636ps4qy" path="res://scripts/hud.gd" id="1_oo0fn"]
 [ext_resource type="Theme" uid="uid://gr2kk87lccmd" path="res://resources/main-theme.tres" id="2_5ysmq"]
@@ -6,13 +6,8 @@
 [ext_resource type="PackedScene" path="res://scenes/slot.tscn" id="4_slot"]
 [ext_resource type="Texture2D" path="res://art/ui/time_frame.png" id="5_tframe"]
 [ext_resource type="Texture2D" path="res://art/ui/time_needle.png" id="6_needle"]
-
-[sub_resource type="Gradient" id="Gradient_oo0fn"]
-offsets = PackedFloat32Array(0, 0.3, 0.70666665, 1)
-colors = PackedColorArray(1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0.9882353, 1, 1, 1, 1, 0)
-
-[sub_resource type="GradientTexture1D" id="GradientTexture1D_5ysmq"]
-gradient = SubResource("Gradient_oo0fn")
+[ext_resource type="Texture2D" path="res://art/ui/time_sun.png" id="7_sun"]
+[ext_resource type="Texture2D" path="res://art/ui/time_moon.png" id="8_moon"]
 
 [sub_resource type="Gradient" id="Gradient_5ysmq"]
 offsets = PackedFloat32Array(0, 0.04167, 0.08333, 0.125, 0.16667, 0.20833, 0.25, 0.29167, 0.33333, 0.375, 0.41667, 0.45833, 0.5, 0.54167, 0.58333, 0.625, 0.66667, 0.70833, 0.75, 0.79167, 0.83333, 0.875, 0.91667, 0.95833, 1)
@@ -25,71 +20,73 @@ width = 600
 [node name="HUD" type="CanvasLayer"]
 script = ExtResource("1_oo0fn")
 
-[node name="TimeBar" type="TextureRect" parent="."]
-clip_children = 1
+[node name="TimeBar" type="Control" parent="."]
 clip_contents = true
+layout_mode = 3
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -150.0
-offset_top = 6.0
-offset_right = 150.0
-offset_bottom = 46.0
+offset_left = -148.0
+offset_top = 10.0
+offset_right = 148.0
+offset_bottom = 42.0
 grow_horizontal = 2
-texture = SubResource("GradientTexture1D_5ysmq")
+mouse_filter = 2
 
 [node name="Timeline" type="TextureRect" parent="TimeBar"]
 layout_mode = 0
 offset_right = 600.0
-offset_bottom = 40.0
+offset_bottom = 32.0
+mouse_filter = 2
 texture = SubResource("GradientTexture1D_6fi6k")
 
-[node name="SunIcon" type="Label" parent="TimeBar/Timeline"]
+[node name="SunIcon" type="TextureRect" parent="TimeBar/Timeline"]
+texture_filter = 1
 layout_mode = 0
-offset_left = -20.0
-offset_right = 20.0
-offset_bottom = 39.0
-theme = ExtResource("2_5ysmq")
-theme_override_font_sizes/font_size = 28
-text = "☀️"
-horizontal_alignment = 1
+offset_left = -12.0
+offset_top = 4.0
+offset_right = 12.0
+offset_bottom = 28.0
+mouse_filter = 2
+texture = ExtResource("7_sun")
 
-[node name="MoonIcon" type="Label" parent="TimeBar/Timeline"]
+[node name="MoonIcon" type="TextureRect" parent="TimeBar/Timeline"]
+texture_filter = 1
 layout_mode = 0
-offset_left = 280.0
-offset_right = 320.0
-offset_bottom = 39.0
-theme = ExtResource("2_5ysmq")
-theme_override_font_sizes/font_size = 28
-text = "🌙"
-horizontal_alignment = 1
+offset_left = 288.0
+offset_top = 4.0
+offset_right = 312.0
+offset_bottom = 28.0
+mouse_filter = 2
+texture = ExtResource("8_moon")
 
 [node name="Timeline2" type="TextureRect" parent="TimeBar"]
 layout_mode = 0
 offset_left = 600.0
 offset_right = 1200.0
-offset_bottom = 40.0
+offset_bottom = 32.0
+mouse_filter = 2
 texture = SubResource("GradientTexture1D_6fi6k")
 
-[node name="SunIcon" type="Label" parent="TimeBar/Timeline2"]
+[node name="SunIcon" type="TextureRect" parent="TimeBar/Timeline2"]
+texture_filter = 1
 layout_mode = 0
-offset_left = -20.0
-offset_right = 20.0
-offset_bottom = 39.0
-theme = ExtResource("2_5ysmq")
-theme_override_font_sizes/font_size = 28
-text = "☀️"
-horizontal_alignment = 1
+offset_left = -12.0
+offset_top = 4.0
+offset_right = 12.0
+offset_bottom = 28.0
+mouse_filter = 2
+texture = ExtResource("7_sun")
 
-[node name="MoonIcon" type="Label" parent="TimeBar/Timeline2"]
+[node name="MoonIcon" type="TextureRect" parent="TimeBar/Timeline2"]
+texture_filter = 1
 layout_mode = 0
-offset_left = 280.0
-offset_right = 320.0
-offset_bottom = 39.0
-theme = ExtResource("2_5ysmq")
-theme_override_font_sizes/font_size = 28
-text = "🌙"
-horizontal_alignment = 1
+offset_left = 288.0
+offset_top = 4.0
+offset_right = 312.0
+offset_bottom = 28.0
+mouse_filter = 2
+texture = ExtResource("8_moon")
 
 [node name="TimeFrame" type="TextureRect" parent="."]
 texture_filter = 1

@@ -1,7 +1,7 @@
 extends CanvasLayer
 
 const STRIP_WIDTH := 600.0
-const TIC_X := 150.0
+const TIC_X := 148.0
 
 @onready var sun = $"../Sun"
 @onready var strip_a = $TimeBar/Timeline

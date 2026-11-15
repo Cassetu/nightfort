@@ -23,6 +23,9 @@ const STAND_HEIGHT = 1.8
 const CROUCH_HEIGHT = 1.3
 const FEET_OFFSET = 0.85
 const HURT_SOUND_GAP_MS := 400
+const TIGHT_HEIGHT := 1.0
+const TIGHT_CENTER := 0.1
+const TIGHT_EYE := 0.25
 const LEDGE_LOOK = 0.15
 const LEDGE_DROP = 0.55
 const CLIMB_SPEED = 3.0
@@ -35,6 +38,7 @@ const MINE_DAMAGE = 1
 const TileArt = preload("res://scripts/tile_art.gd")
 const ArrowScript = preload("res://scripts/arrow.gd")
 const Sfx = preload("res://scripts/core/sfx.gd")
+const SwimScript = preload("res://scripts/player/swim.gd")
 const DRAW_TIME = 0.9
 const MIN_DRAW = 0.25
 const ARROW_MIN_SPEED = 0.45
@@ -68,6 +72,9 @@ var last_hurt_ms: int = 0
 var slow: float = 1.0
 var crouching: bool = false
 var crouch_t: float = 0.0
+var tight: bool = false
+var tight_t: float = 0.0
+var shape_key: int = 0
 var bauble_light: OmniLight3D
 var place_cell := Vector3.INF
 var banner_range
@@ -90,6 +97,7 @@ var stun_depth: float = 0.0
 var shown_health: int = 100
 var draw: float = 0.0
 var bow_ready: bool = false
+var swim
 
 @onready var head = $Head
 @onready var camera = $Head/Camera3D
@@ -101,6 +109,7 @@ var bow_ready: bool = false
 func _ready():
 	add_child(BloodDrips.new())
 	add_to_group("player")
+	swim = SwimScript.new(self)
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	ghost_block.top_level = true
 	ghost_block.layers = 2
@@ -146,18 +155,30 @@ func _ready():
 
 
 func _update_crouch(delta: float, on_ladder: bool) -> void:
-	var want = Input.is_action_pressed("crouch") and not dead and not frozen and not on_ladder
+	var want = Input.is_action_pressed("crouch") and not dead and not frozen and not on_ladder and not swim.swimming
 	if crouching and not want and _ceiling_blocked():
 		want = true
-	if want != crouching:
-		crouching = want
+	crouching = want
+	if swim.sprinting:
+		tight = true
+	elif tight and not _ceiling_blocked():
+		tight = false
+	var key := 2 if tight else (1 if crouching else 0)
+	if key != shape_key:
+		shape_key = key
 		var capsule: CapsuleShape3D = $CollisionShape3D.shape
-		var h = CROUCH_HEIGHT if crouching else STAND_HEIGHT
-		capsule.height = h
-		$CollisionShape3D.position.y = -FEET_OFFSET + h * 0.5
+		if tight:
+			capsule.height = TIGHT_HEIGHT
+			$CollisionShape3D.position.y = TIGHT_CENTER
+		else:
+			var h = CROUCH_HEIGHT if crouching else STAND_HEIGHT
+			capsule.height = h
+			$CollisionShape3D.position.y = -FEET_OFFSET + h * 0.5
 	crouch_t = move_toward(crouch_t, 1.0 if crouching else 0.0, delta * 7.0)
+	tight_t = move_toward(tight_t, 1.0 if tight else 0.0, delta * 6.0)
 	var eased = crouch_t * crouch_t * (3.0 - 2.0 * crouch_t)
-	head.position.y = lerpf(STAND_EYE, CROUCH_EYE, eased) - _land_sink()
+	var eye := lerpf(lerpf(STAND_EYE, CROUCH_EYE, eased), TIGHT_EYE, tight_t)
+	head.position.y = eye - _land_sink()
 
 
 func _land_sink() -> float:
@@ -268,9 +289,14 @@ func _physics_process(delta):
 	if not dead and not frozen:
 		ladder = touching_ladder()
 	var on_ladder = ladder != null
+	if not dead and not frozen and not on_ladder:
+		swim.update(delta, camera.global_position.y)
+	else:
+		swim.clear()
 	_update_crouch(delta, on_ladder)
-	var speed_now = SPEED * slow * (CROUCH_SPEED if crouching else 1.0)
-	if not is_on_floor() and not on_ladder:
+	var in_water: bool = swim.swimming
+	var speed_now = SPEED * slow * (CROUCH_SPEED if crouching else 1.0) * swim.wade_factor()
+	if not is_on_floor() and not on_ladder and not in_water:
 		velocity.y -= gravity * delta
 
 	if dead or frozen:
@@ -286,7 +312,7 @@ func _physics_process(delta):
 	stun_left = maxf(stun_left - delta, 0.0)
 	var stunned := stun_left > 0.0
 	var jumped = false
-	if Input.is_action_just_pressed("ui_accept") and is_on_floor() and not stunned:
+	if Input.is_action_just_pressed("ui_accept") and is_on_floor() and not stunned and not in_water:
 		velocity.y = JUMP_VELOCITY
 		jumped = true
 
@@ -297,7 +323,9 @@ func _physics_process(delta):
 		velocity.y = -input_dir.y * CLIMB_SPEED * slow * climb_sign(ladder)
 	var direction = (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
 
-	if not is_on_floor():
+	if in_water:
+		swim.move(delta, input_dir, camera, Input.is_action_pressed("ui_accept") and not stunned, Input.is_action_pressed("crouch") and not stunned)
+	elif not is_on_floor():
 		var flat := Vector2(velocity.x, velocity.z)
 		if direction:
 			var wish := Vector2(direction.x, direction.z)
@@ -316,12 +344,12 @@ func _physics_process(delta):
 		velocity.x = move_toward(velocity.x, 0, speed_now)
 		velocity.z = move_toward(velocity.z, 0, speed_now)
 
-	if crouching and is_on_floor() and not on_ladder and not jumped:
+	if crouching and is_on_floor() and not on_ladder and not jumped and not in_water:
 		_ledge_guard(delta)
 
 	var impact = velocity.y
 	move_and_slide()
-	if is_on_floor() and not was_on_floor and impact < 0.0:
+	if is_on_floor() and not was_on_floor and impact < 0.0 and not in_water and swim.submerged < 0.3:
 		var drop = impact * impact / (2.0 * gravity)
 		if drop >= LAND_STUN_DROP:
 			_begin_stun(drop)
