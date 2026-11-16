@@ -4,6 +4,7 @@ signal fell(unit: Node3D)
 
 const ArrowScript = preload("res://scripts/arrow.gd")
 const ChipBurst = preload("res://scripts/chip_burst.gd")
+const Footsteps = preload("res://scripts/core/footsteps.gd")
 const AllySkin = preload("res://scripts/ally_skin.gd")
 const BileSack = preload("res://scripts/enemies/bile_sack.gd")
 const PUDDLE_MARGIN := 1.0
@@ -50,6 +51,7 @@ const SIDESTEP_ANGLE := 1.2
 const KITE_RANGE := 6.0
 const FOE_SWITCH := 1.69
 
+var steps = Footsteps.new(self, 1.15, -9.0)
 var role: String = "soldier"
 var arena
 var hp: float = 70.0
@@ -196,6 +198,8 @@ func _physics_process(delta: float) -> void:
 		_try_hop(desired)
 	if desired != Vector3.ZERO or not is_on_floor() or velocity.length_squared() > 0.01:
 		move_and_slide()
+		if not far:
+			steps.update(delta)
 	if far:
 		swing = 0.0
 	else:

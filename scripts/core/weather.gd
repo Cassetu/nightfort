@@ -139,7 +139,7 @@ func _build_rain() -> void:
 	roof_field.size = Vector3(36.0, 44.0, 36.0)
 	roof_field.resolution = GPUParticlesCollisionHeightField3D.RESOLUTION_256
 	roof_field.update_mode = GPUParticlesCollisionHeightField3D.UPDATE_MODE_ALWAYS
-	roof_field.heightfield_mask = 1
+	roof_field.heightfield_mask = 1 | (1 << 19)
 	roof_field.top_level = true
 	add_child(roof_field)
 
@@ -216,6 +216,10 @@ func _emit_ripples(delta: float, ppos: Vector3) -> void:
 		var h: float = roof_map.height_at(x, z)
 		if h <= roof_map.UNKNOWN + 1.0:
 			continue
+		if terrain != null:
+			var ws: float = terrain.water_surface_at(x, z)
+			if ws > h:
+				h = ws
 		var xform := Transform3D(Basis.IDENTITY, Vector3(x, h + 0.04, z))
 		splash_particles.emit_particle(xform, Vector3.ZERO, Color(1, 1, 1, 1), Color(0, 0, 0, 0), GPUParticles3D.EMIT_FLAG_POSITION)
 

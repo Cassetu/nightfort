@@ -35,6 +35,7 @@ const LANDING_LINES := [
 ]
 const LEAVE_LINE := "I can't abandon the fight now."
 const COMMAND_PROMPT := "F: Command Attack"
+const BATTLE_CRY_PATH := "res://audio/voice/lucius_for_sastria.mp3"
 const FALL_TRIGGER := 9.0
 const LEAVE_RADIUS := 235.0
 const BACKUP_DISTANCE := 22.0
@@ -368,11 +369,24 @@ func _command() -> bool:
 		return false
 	ui.hide_prompt()
 	pit.command()
+	_battle_cry()
 	ui.show_army(pit.alive_count())
 	if not await _until(func() -> bool: return not Input.is_physical_key_pressed(KEY_F)):
 		return false
 	player.frozen = false
 	return true
+
+
+func _battle_cry() -> void:
+	var stream := load(BATTLE_CRY_PATH) as AudioStream
+	if stream == null:
+		return
+	var cry := AudioStreamPlayer.new()
+	cry.stream = stream
+	cry.bus = "Voice"
+	add_child(cry)
+	cry.finished.connect(cry.queue_free)
+	cry.play()
 
 
 func _siege() -> bool:

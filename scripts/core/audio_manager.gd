@@ -32,13 +32,14 @@ const SOUNDS := {
 	"door_close": ["door_close"],
 	"block_place": ["block_place"],
 	"player_hurt": ["player_hurt"],
+	"footstep_dirt": ["footstep_dirt_1", "footstep_dirt_2", "footstep_dirt_3", "footstep_dirt_4", "footstep_dirt_5", "footstep_dirt_6", "footstep_dirt_7", "footstep_dirt_8"],
 	"water_splash": ["water_splash"],
 	"water_small": ["water_small"],
 	"water_stroke": ["water_stroke"],
 }
 const PITCH_BASE := {"stone_break": 0.74}
-const PITCH_VAR := {"stone_hit": 0.14, "stone_break": 0.1, "anvil_hit": 0.12, "forge_sparkle": 0.1}
-const VOL_JITTER := {"stone_hit": 2.0, "stone_break": 1.5, "anvil_hit": 1.8, "forge_sparkle": 1.5}
+const PITCH_VAR := {"footstep_dirt": 0.09, "stone_hit": 0.14, "stone_break": 0.1, "anvil_hit": 0.12, "forge_sparkle": 0.1}
+const VOL_JITTER := {"footstep_dirt": 1.5, "stone_hit": 2.0, "stone_break": 1.5, "anvil_hit": 1.8, "forge_sparkle": 1.5}
 const CREAK_MIN := 18.0
 const CREAK_MAX := 40.0
 const RAIN_BASE_DB := -24.0
@@ -102,11 +103,17 @@ func setup(p, t, w, r, s) -> void:
 		AudioServer.add_bus_effect(rain_index, rain_filter)
 	else:
 		rain_filter = AudioServer.get_bus_effect(rain_index, 0) as AudioEffectLowPassFilter
-	for bus_name: String in [SFX_BUS, RAIN_BUS]:
+	var sfx_index := AudioServer.get_bus_index(SFX_BUS)
+	under_filters.clear()
+	if AudioServer.get_bus_effect_count(sfx_index) == 0:
 		var filter := AudioEffectLowPassFilter.new()
 		filter.cutoff_hz = OPEN_CUTOFF
-		AudioServer.add_bus_effect(AudioServer.get_bus_index(bus_name), filter)
+		AudioServer.add_bus_effect(sfx_index, filter)
 		under_filters.append(filter)
+	else:
+		var existing := AudioServer.get_bus_effect(sfx_index, 0) as AudioEffectLowPassFilter
+		existing.cutoff_hz = OPEN_CUTOFF
+		under_filters.append(existing)
 	for i in POOL_2D:
 		var a := AudioStreamPlayer.new()
 		a.bus = SFX_BUS

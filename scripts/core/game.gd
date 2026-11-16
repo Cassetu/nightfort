@@ -14,11 +14,15 @@ const SEED_LIMIT := 2000000000
 const BACKUP_COUNT := 5
 const AUTOSAVE_INTERVAL := 300.0
 const DEFAULT_NAME := "New World"
+const BUS_SETTINGS := {"SFX": "sfx_volume", "Voice": "voice_volume", "Music": "music_volume"}
 const DIFFICULTIES := ["easy", "normal", "hard"]
 const DIFFICULTY_SPAWN := {"easy": 0.6, "normal": 1.0, "hard": 1.6}
 
 var settings := {
 	"master_volume": 0.8,
+	"sfx_volume": 1.0,
+	"voice_volume": 1.0,
+	"music_volume": 1.0,
 	"mouse_sensitivity": 0.002,
 	"fov": 75.0,
 	"view_distance": 7,
@@ -83,9 +87,10 @@ func set_setting(key: String, value) -> void:
 
 
 func apply_settings() -> void:
-	var volume: float = settings["master_volume"]
-	AudioServer.set_bus_mute(0, volume <= 0.001)
-	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(volume, 0.001)))
+	_ensure_buses()
+	_set_bus_volume(0, float(settings["master_volume"]))
+	for bus_name: String in BUS_SETTINGS.keys():
+		_set_bus_volume(AudioServer.get_bus_index(bus_name), float(settings[BUS_SETTINGS[bus_name]]))
 
 	var want_fullscreen: bool = settings["fullscreen"]
 	var is_fullscreen := DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
@@ -96,6 +101,26 @@ func apply_settings() -> void:
 			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 
 	settings_changed.emit()
+
+
+func _ensure_buses() -> void:
+	for bus_name: String in ["SFX", "Rain", "Music", "Voice"]:
+		if AudioServer.get_bus_index(bus_name) != -1:
+			continue
+		AudioServer.add_bus()
+		var idx := AudioServer.bus_count - 1
+		AudioServer.set_bus_name(idx, bus_name)
+		AudioServer.set_bus_send(idx, "SFX" if bus_name == "Rain" else "Master")
+	var rain_index := AudioServer.get_bus_index("Rain")
+	if AudioServer.get_bus_send(rain_index) != &"SFX":
+		AudioServer.set_bus_send(rain_index, "SFX")
+
+
+func _set_bus_volume(index: int, volume: float) -> void:
+	if index < 0:
+		return
+	AudioServer.set_bus_mute(index, volume <= 0.001)
+	AudioServer.set_bus_volume_db(index, linear_to_db(maxf(volume, 0.001)))
 
 
 func seed_from_text(text: String) -> int:

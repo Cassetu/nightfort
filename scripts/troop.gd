@@ -2,6 +2,7 @@ extends CharacterBody3D
 
 const PathScript = preload("res://scripts/allies/troop_path.gd")
 const ArrowScript = preload("res://scripts/arrow.gd")
+const Footsteps = preload("res://scripts/core/footsteps.gd")
 const BlockIndex = preload("res://scripts/block_index.gd")
 const Sfx = preload("res://scripts/core/sfx.gd")
 
@@ -39,6 +40,7 @@ var rest_index: int = 0
 
 var world
 var terrain
+var steps = Footsteps.new(self, 1.15, -9.0)
 var core
 var sun
 var pathfinder
@@ -410,6 +412,7 @@ func _move(delta: float) -> void:
 	velocity.x = planar.x * SPEED
 	velocity.z = planar.z * SPEED
 	move_and_slide()
+	steps.update(delta)
 	if planar.length() > 0.1 and not threat:
 		_face(planar)
 

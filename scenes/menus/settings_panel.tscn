@@ -17,12 +17,23 @@ theme_type_variation = &"HeadingLabel"
 text = "Settings"
 horizontal_alignment = 1
 
-[node name="Rows" type="VBoxContainer" parent="Box"]
+[node name="Scroll" type="ScrollContainer" parent="Box"]
+custom_minimum_size = Vector2(0, 430)
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="Rows" type="VBoxContainer" parent="Box/Scroll"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 14
 
-[node name="MasterVolume" parent="Box/Rows" instance=ExtResource("2_row")]
+[node name="AudioHeader" type="Label" parent="Box/Scroll/Rows"]
+layout_mode = 2
+theme_type_variation = &"AccentLabel"
+text = "Audio"
+
+[node name="MasterVolume" parent="Box/Scroll/Rows" instance=ExtResource("2_row")]
 layout_mode = 2
 title = "Master volume"
 key = "master_volume"
@@ -31,7 +42,39 @@ max_value = 1.0
 step = 0.05
 format = 0
 
-[node name="MouseSensitivity" parent="Box/Rows" instance=ExtResource("2_row")]
+[node name="SfxVolume" parent="Box/Scroll/Rows" instance=ExtResource("2_row")]
+layout_mode = 2
+title = "SFX volume"
+key = "sfx_volume"
+min_value = 0.0
+max_value = 1.0
+step = 0.05
+format = 0
+
+[node name="VoiceVolume" parent="Box/Scroll/Rows" instance=ExtResource("2_row")]
+layout_mode = 2
+title = "Voice volume"
+key = "voice_volume"
+min_value = 0.0
+max_value = 1.0
+step = 0.05
+format = 0
+
+[node name="MusicVolume" parent="Box/Scroll/Rows" instance=ExtResource("2_row")]
+layout_mode = 2
+title = "Music volume"
+key = "music_volume"
+min_value = 0.0
+max_value = 1.0
+step = 0.05
+format = 0
+
+[node name="GameHeader" type="Label" parent="Box/Scroll/Rows"]
+layout_mode = 2
+theme_type_variation = &"AccentLabel"
+text = "Game"
+
+[node name="MouseSensitivity" parent="Box/Scroll/Rows" instance=ExtResource("2_row")]
 layout_mode = 2
 title = "Mouse sensitivity"
 key = "mouse_sensitivity"
@@ -40,7 +83,7 @@ max_value = 0.006
 step = 0.0005
 format = 1
 
-[node name="FieldOfView" parent="Box/Rows" instance=ExtResource("2_row")]
+[node name="FieldOfView" parent="Box/Scroll/Rows" instance=ExtResource("2_row")]
 layout_mode = 2
 title = "Field of view"
 key = "fov"
@@ -49,7 +92,7 @@ max_value = 110.0
 step = 1.0
 format = 2
 
-[node name="ViewDistance" parent="Box/Rows" instance=ExtResource("2_row")]
+[node name="ViewDistance" parent="Box/Scroll/Rows" instance=ExtResource("2_row")]
 layout_mode = 2
 title = "View distance"
 key = "view_distance"

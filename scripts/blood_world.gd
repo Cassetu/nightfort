@@ -277,7 +277,7 @@ func start_music(seconds: float) -> void:
 		stream.loop = true
 		music = AudioStreamPlayer.new()
 		music.stream = stream
-		music.bus = "SFX"
+		music.bus = "Music"
 		music.volume_db = MUSIC_SILENT_DB
 		add_child(music)
 	if not music.playing:

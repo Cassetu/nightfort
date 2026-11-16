@@ -16,7 +16,8 @@ func _ready() -> void:
 
 func refresh() -> void:
 	for row in rows.get_children():
-		row.refresh()
+		if row.has_method("refresh"):
+			row.refresh()
 	fullscreen.set_pressed_no_signal(Game.settings["fullscreen"])
 
 

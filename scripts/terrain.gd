@@ -56,6 +56,7 @@ const COL_SAND := Color(0.76, 0.68, 0.45)
 const RUIN_RADIUS := 10
 const RIVER_NOISE_CAP := 0.22
 const RIVER_MIN_GRAD := 0.004
+const RAIN_CATCH_LAYER := 1 << 19
 const WATER_SURFACE_DROP := 0.1
 const WATER_MATERIAL_PATH := "res://resources/water.gdshader"
 const COL_DIRT := Color(0.42, 0.29, 0.18)
@@ -229,6 +230,7 @@ var n_biome: FastNoiseLite
 var n_snowy: FastNoiseLite
 var n_river: FastNoiseLite
 var n_river_w: FastNoiseLite
+var rain_catch_material: StandardMaterial3D
 var water_material: ShaderMaterial
 var mount_dir: Vector2 = Vector2.RIGHT
 var mouth_y: int = 0
@@ -960,6 +962,16 @@ func _add_water(chunk: Chunk, data: Dictionary) -> void:
 	wmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	chunk.root.add_child(wmi)
 	chunk.water = wmi
+	if rain_catch_material == null:
+		rain_catch_material = StandardMaterial3D.new()
+		rain_catch_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var catcher := MeshInstance3D.new()
+	catcher.name = "RainCatch"
+	catcher.mesh = mesh
+	catcher.material_override = rain_catch_material
+	catcher.layers = RAIN_CATCH_LAYER
+	catcher.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	chunk.root.add_child(catcher)
 
 
 func _add_occluder(chunk: Chunk, heights: PackedInt32Array) -> void:

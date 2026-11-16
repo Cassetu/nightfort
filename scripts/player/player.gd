@@ -39,6 +39,9 @@ const TileArt = preload("res://scripts/tile_art.gd")
 const ArrowScript = preload("res://scripts/arrow.gd")
 const Sfx = preload("res://scripts/core/sfx.gd")
 const SwimScript = preload("res://scripts/player/swim.gd")
+const Footsteps = preload("res://scripts/core/footsteps.gd")
+const STEP_STRIDE := 1.4
+const STEP_VOLUME_DB := -7.0
 const DRAW_TIME = 0.9
 const MIN_DRAW = 0.25
 const ARROW_MIN_SPEED = 0.45
@@ -98,6 +101,7 @@ var shown_health: int = 100
 var draw: float = 0.0
 var bow_ready: bool = false
 var swim
+var steps
 
 @onready var head = $Head
 @onready var camera = $Head/Camera3D
@@ -110,9 +114,11 @@ func _ready():
 	add_child(BloodDrips.new())
 	add_to_group("player")
 	swim = SwimScript.new(self)
+	steps = Footsteps.new(self, STEP_STRIDE, STEP_VOLUME_DB, false)
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	ghost_block.top_level = true
 	ghost_block.layers = 2
+	camera.cull_mask &= ~(1 << 19)
 	ghost_block.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var ladder_shape := BoxShape3D.new()
 	ladder_shape.size = Vector3(0.9, 1.2, 0.9)
@@ -355,6 +361,7 @@ func _physics_process(delta):
 			_begin_stun(drop)
 		if drop >= FALL_TRIGGER_DROP:
 			take_damage(roundi((drop - FALL_FREE_DROP) * FALL_DAMAGE))
+	steps.update(delta, not crouching and not in_water and not stunned)
 	was_on_floor = is_on_floor()
 
 	since_damage += delta
@@ -582,9 +589,19 @@ func can_place(type, cell):
 			return false
 	if type == "barricade" and not full_block_below(cell):
 		return false
+	if type == "torch" and _underwater_cell(cell):
+		return false
 	if stability_of(type, cell) < 0:
 		return false
 	return true
+
+
+func _underwater_cell(cell) -> bool:
+	var terrain = get_tree().get_first_node_in_group("terrain")
+	if terrain == null:
+		return false
+	var surface: float = terrain.water_surface_at(float(cell.x) + 0.5, float(cell.z) + 0.5)
+	return surface > floorf(float(cell.y)) + 0.3
 
 
 func wall_aim(type) -> bool:

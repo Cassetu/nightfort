@@ -42,6 +42,7 @@ static func register_speaker(speaker: String, color: Color) -> void:
 
 
 func _ready() -> void:
+	voice.bus = "Voice"
 	var base := speaker_text.get_theme_font("font")
 	if base != null:
 		italic_font = FontVariation.new()

@@ -2,6 +2,7 @@ extends CharacterBody3D
 
 const ChipBurst = preload("res://scripts/chip_burst.gd")
 const Sfx = preload("res://scripts/core/sfx.gd")
+const Footsteps = preload("res://scripts/core/footsteps.gd")
 const GloomBake = preload("res://scripts/enemies/gloom_bake.gd")
 
 signal died(enemy)
@@ -53,6 +54,7 @@ var flow
 var core
 var player
 var terrain
+var steps = Footsteps.new(self, 1.0, -9.0)
 var attack_timer: float = 0.0
 var stun: float = 0.0
 var knock := Vector3.ZERO
@@ -155,6 +157,7 @@ func _step(delta: float, stride: int) -> void:
 	move_and_slide()
 	if stride > 1:
 		velocity /= float(stride)
+	steps.update(delta, stun <= 0.0)
 
 	if attack_timer <= 0.0 and not wild:
 		for i in get_slide_collision_count():
