@@ -11,9 +11,10 @@ const LIGHT_SCALE := 3.2
 @onready var tutorial: Label = %Tutorial
 @onready var prompt: Label = %Prompt
 @onready var army_label: Label = %ArmyLabel
+@onready var heart_box: Control = %HeartBox
+@onready var heart_bar: ProgressBar = %HeartBar
+@onready var heart_label: Label = %HeartLabel
 @onready var heal_glow: TextureRect = %HealGlow
-@onready var boss_box: Control = %BossBox
-@onready var boss_bar: ProgressBar = %BossBar
 @onready var light: TextureRect = %Light
 @onready var white: ColorRect = %White
 @onready var title_box: Control = %TitleBox
@@ -106,20 +107,22 @@ func pulse_heal() -> void:
 	tween.tween_property(heal_glow, "modulate:a", 0.0, 0.7)
 
 
-func show_boss() -> void:
+func show_heart(current: int, maximum: int) -> void:
+	set_heart(current, maximum)
 	var tween := create_tween()
-	tween.tween_property(boss_box, "modulate:a", 1.0, 0.8)
+	tween.tween_property(heart_box, "modulate:a", 1.0, 0.8)
 
 
-func hide_boss() -> void:
+func hide_heart() -> void:
 	var tween := create_tween()
-	tween.tween_property(boss_box, "modulate:a", 0.0, 0.4)
+	tween.tween_property(heart_box, "modulate:a", 0.0, 0.4)
 
 
-func set_boss(current: float, maximum: float) -> void:
-	boss_bar.max_value = maximum
+func set_heart(current: int, maximum: int) -> void:
+	heart_bar.max_value = maximum
+	heart_label.text = "HEART  %d / %d" % [current, maximum]
 	var tween := create_tween()
-	tween.tween_property(boss_bar, "value", current, 0.15)
+	tween.tween_property(heart_bar, "value", current, 0.15)
 
 
 func show_red(seconds: float) -> void:
@@ -194,10 +197,10 @@ func clear_layers() -> void:
 	vignette.modulate.a = 0.0
 	orb.modulate.a = 0.0
 	light.visible = false
-	boss_box.modulate.a = 0.0
 	tutorial.modulate.a = 0.0
 	prompt.modulate.a = 0.0
 	army_label.modulate.a = 0.0
+	heart_box.modulate.a = 0.0
 	heal_glow.modulate.a = 0.0
 
 

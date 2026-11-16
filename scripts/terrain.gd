@@ -56,6 +56,13 @@ const COL_SAND := Color(0.76, 0.68, 0.45)
 const RUIN_RADIUS := 10
 const RIVER_NOISE_CAP := 0.22
 const RIVER_MIN_GRAD := 0.004
+const CANYON_NOISE_CAP := 0.2
+const CANYON_MIN_GRAD := 0.003
+const CANYON_TERRACES := 4.0
+const CANYON_TERRACE_WEIGHT := 0.4
+const STRATA_PERIOD := 14
+const STRATA_MIN_Y := 3
+const CLIFF_STEP := 2
 const RAIN_CATCH_LAYER := 1 << 19
 const WATER_SURFACE_DROP := 0.1
 const WATER_MATERIAL_PATH := "res://resources/water.gdshader"
@@ -114,9 +121,10 @@ var tree_center: Vector2i = Vector2i.ZERO
 
 @export_group("Shape")
 @export var plateau_radius: float = 14.0
-@export var plateau_blend: float = 26.0
-@export var hill_amplitude: float = 12.0
-@export var mountain_amplitude: float = 46.0
+@export var plateau_blend: float = 56.0
+@export var hill_amplitude: float = 26.0
+@export var mountain_amplitude: float = 98.0
+@export var warp_strength: float = 55.0
 @export var border_width: float = 140.0
 @export var border_height: float = 70.0
 @export var mount_dist: float = 72.0
@@ -126,8 +134,8 @@ var tree_center: Vector2i = Vector2i.ZERO
 @export var tunnel_length: float = 52.0
 @export var tunnel_slope: float = 0.3
 @export var tunnel_half_width: float = 2.6
-@export var rock_line: float = 17.0
-@export var snow_line: float = 32.0
+@export var rock_line: float = 30.0
+@export var snow_line: float = 66.0
 
 @export_group("Rivers")
 @export var rivers_enabled: bool = true
@@ -137,6 +145,14 @@ var tree_center: Vector2i = Vector2i.ZERO
 @export var river_bank: float = 9.0
 @export var river_depth: float = 3.4
 @export var river_clear_radius: float = 70.0
+
+@export_group("Canyons")
+@export var canyons_enabled: bool = true
+@export var canyon_freq: float = 0.0042
+@export var canyon_half_width: float = 5.0
+@export var canyon_bank: float = 18.0
+@export var canyon_depth: float = 24.0
+@export var canyon_clear_radius: float = 110.0
 
 @export_group("Underground")
 @export var caves_enabled: bool = true
@@ -152,7 +168,7 @@ var tree_center: Vector2i = Vector2i.ZERO
 @export var tree_attempts: int = 48
 @export var tree_spacing: float = 3.0
 @export var tree_clear_radius: float = 40.0
-@export var tree_line: int = 24
+@export var tree_line: int = 34
 
 @export_group("Plants")
 @export var plants_enabled: bool = true
@@ -229,6 +245,9 @@ var n_stone_b: FastNoiseLite
 var n_biome: FastNoiseLite
 var n_snowy: FastNoiseLite
 var n_river: FastNoiseLite
+var n_warp_x: FastNoiseLite
+var n_warp_z: FastNoiseLite
+var n_canyon: FastNoiseLite
 var n_river_w: FastNoiseLite
 var rain_catch_material: StandardMaterial3D
 var water_material: ShaderMaterial
@@ -517,6 +536,9 @@ func _setup_noise() -> void:
 	n_snowy = _make_noise(17, 0.0032, 2)
 	n_river = _make_noise(18, river_freq, 1)
 	n_river_w = _make_noise(19, 0.012, 1)
+	n_warp_x = _make_noise(20, 0.006, 2)
+	n_warp_z = _make_noise(21, 0.006, 2)
+	n_canyon = _make_noise(22, canyon_freq, 1)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = world_seed ^ 0x5EED
 	mount_dir = Vector2.RIGHT.rotated(rng.randf() * TAU)
@@ -1587,28 +1609,87 @@ func _on_depleted(_resource_type, _amount, key) -> void:
 	depleted[key] = true
 
 
+func _mount_fade(fx: float, fz: float) -> float:
+	var to_mount := Vector2(fx - mount_dir.x * mount_dist, fz - mount_dir.y * mount_dist).length()
+	return smoothstep(mount_radius * 1.4, mount_radius * 3.2, to_mount)
+
+
 func _height(x: int, z: int) -> int:
 	var fx := x + 0.5
 	var fz := z + 0.5
-	var cont := clampf(n_cont.get_noise_2d(fx, fz) * 0.5 + 0.5, 0.0, 1.0)
-	var hills := clampf(n_hills.get_noise_2d(fx, fz) * 0.5 + 0.5, 0.0, 1.0)
-	var ridge := 1.0 - absf(n_ridge.get_noise_2d(fx, fz))
+	var wx := fx + n_warp_x.get_noise_2d(fx, fz) * warp_strength
+	var wz := fz + n_warp_z.get_noise_2d(fx, fz) * warp_strength
+	var cont := clampf(n_cont.get_noise_2d(wx, wz) * 0.5 + 0.5, 0.0, 1.0)
+	var hills := clampf(n_hills.get_noise_2d(wx, wz) * 0.5 + 0.5, 0.0, 1.0)
 	var rough := n_rough.get_noise_2d(fx, fz) * 0.5 + 0.5
+	var r1 := 1.0 - absf(n_ridge.get_noise_2d(wx, wz))
+	var r2 := 1.0 - absf(n_ridge.get_noise_2d(wx * 2.3 + 71.0, wz * 2.3 - 43.0))
+	var r3 := 1.0 - absf(n_ridge.get_noise_2d(wx * 5.1 - 19.0, wz * 5.1 + 97.0))
+	var ridge := r1 * r1 * 0.6 + r2 * r2 * 0.28 + r3 * r3 * 0.12
 
-	var hill_scale := 0.22 + 0.78 * smoothstep(0.34, 0.6, cont)
-	var mount := smoothstep(0.54, 0.74, cont)
-	var massif := mount * (0.45 + 0.55 * ridge) * (0.75 + 0.5 * rough)
-	var detail := n_detail.get_noise_2d(fx, fz) * 1.6 * (0.4 + 0.6 * hill_scale)
+	var hill_scale := 0.3 + 0.7 * smoothstep(0.3, 0.6, cont)
+	var mount := smoothstep(0.52, 0.72, cont)
+	var massif := mount * (0.25 + 0.75 * ridge) * (0.8 + 0.4 * rough)
+	var detail := n_detail.get_noise_2d(fx, fz) * 2.0 * (0.4 + 0.6 * hill_scale)
 	var dry := _desert(fx, fz)
-	var relief := (pow(hills, 1.4) * hill_amplitude * hill_scale + massif * mountain_amplitude * (1.0 - 0.75 * dry) + detail) * (1.0 - 0.5 * dry)
+	var rolling := pow(hills, 1.5) * hill_amplitude * hill_scale
+	var relief := (rolling + massif * mountain_amplitude * (1.0 - 0.7 * dry) + detail) * (1.0 - 0.45 * dry)
+	var away := _mount_fade(fx, fz)
+	relief *= lerpf(0.3, 1.0, away)
 
 	var dist := Vector2(fx, fz).length()
 	var blend := smoothstep(plateau_radius, plateau_radius + plateau_blend, dist)
 	var wall := pow(clampf((dist - (world_radius - border_width)) / border_width, 0.0, 1.0), 2.0) * border_height
 
 	var top := float(base_height) + maxf(relief, 0.0) * blend + wall + _mount_bump(fx, fz, rough) * blend
+	top = _strata_ledges(top, mount * blend * away)
+	top = _carve_canyon(fx, fz, top, dist, away)
 	top = _carve_river(fx, fz, top, dist)
 	return clampi(roundi(top), Y_MIN + 8, Y_MAX - 2)
+
+
+func _strata_ledges(top: float, amount: float) -> float:
+	if amount <= 0.01 or top < 16.0:
+		return top
+	var t := top / 6.0
+	var f := floorf(t)
+	var stepped := (f + smoothstep(0.0, 0.5, t - f)) * 6.0
+	return lerpf(top, stepped, 0.45 * amount * smoothstep(16.0, 34.0, top))
+
+
+func _terrace_unit(f: float) -> float:
+	var t := f * CANYON_TERRACES
+	var base := floorf(t)
+	return (base + smoothstep(0.0, 0.55, t - base)) / CANYON_TERRACES
+
+
+func _carve_canyon(fx: float, fz: float, top: float, dist: float, away: float) -> float:
+	if not canyons_enabled or dist < canyon_clear_radius:
+		return top
+	var n := n_canyon.get_noise_2d(fx, fz)
+	if absf(n) > CANYON_NOISE_CAP:
+		return top
+	var fade := smoothstep(10.0, 26.0, top - float(base_height))
+	fade *= smoothstep(canyon_clear_radius, canyon_clear_radius + 40.0, dist) * away
+	if fade <= 0.0:
+		return top
+	var gx := n_canyon.get_noise_2d(fx + 1.0, fz) - n
+	var gz := n_canyon.get_noise_2d(fx, fz + 1.0) - n
+	var grad := maxf(sqrt(gx * gx + gz * gz), CANYON_MIN_GRAD)
+	var d := absf(n) / grad
+	var vary := n_river_w.get_noise_2d(fx * 1.3 + 200.0, fz * 1.3) * 0.5 + 0.5
+	var half := canyon_half_width * (0.7 + 0.8 * vary)
+	var rim := half + canyon_bank
+	if d >= rim:
+		return top
+	var floor_y := maxf(float(base_height) + 3.0, top - canyon_depth * (0.75 + 0.5 * vary))
+	var target := floor_y
+	if d >= half:
+		var f := (d - half) / canyon_bank
+		f = f * f * (3.0 - 2.0 * f) * 0.5 + f * 0.5
+		f = lerpf(f, _terrace_unit(f), CANYON_TERRACE_WEIGHT)
+		target = lerpf(floor_y, top, clampf(f, 0.0, 1.0))
+	return lerpf(top, minf(target, top), fade)
 
 
 func _carve_river(fx: float, fz: float, top: float, dist: float) -> float:
@@ -1619,8 +1700,7 @@ func _carve_river(fx: float, fz: float, top: float, dist: float) -> float:
 		return top
 	var fade := 1.0 - smoothstep(4.0, 14.0, top - float(base_height))
 	fade *= smoothstep(river_clear_radius, river_clear_radius + 40.0, dist)
-	var to_mount := Vector2(fx - mount_dir.x * mount_dist, fz - mount_dir.y * mount_dist).length()
-	fade *= smoothstep(mount_radius * 1.6, mount_radius * 3.0, to_mount)
+	fade *= smoothstep(mount_radius * 1.6, mount_radius * 3.0, Vector2(fx - mount_dir.x * mount_dist, fz - mount_dir.y * mount_dist).length())
 	if fade <= 0.0:
 		return top
 	var gx := n_river.get_noise_2d(fx + 1.0, fz) - n
@@ -1787,6 +1867,12 @@ func _stone_at(fx: float, fy: float, fz: float, iy: int) -> int:
 		return B_BASALT
 	if b < -0.36 and iy > -18:
 		return B_LIMESTONE
+	if iy >= STRATA_MIN_Y:
+		var band := posmod(iy, STRATA_PERIOD)
+		if band < 2:
+			return B_LIMESTONE
+		if band == 7 or band == 8:
+			return B_SANDSTONE
 	return B_STONE
 
 
@@ -1989,6 +2075,9 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 			surf[ci] = _surface_id(h, m, dv, wx0, wz0)
 			if _wet(heights, (lz + 1) * PAD + lx + 1) and surf[ci] != B_SNOW:
 				surf[ci] = B_SAND
+			elif (surf[ci] == B_GRASS or surf[ci] == B_SAND) and h > water_level + 2 and _max_step(heights, (lz + 1) * PAD + lx + 1, h) >= CLIFF_STEP:
+				surf[ci] = B_STONE
+				top_cols[ci] = COL_ROCK
 
 	var vol := PackedByteArray()
 	vol.resize(LAYER * Y_LAYERS)

@@ -127,7 +127,7 @@ func _physics_process(delta: float) -> void:
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	if not hit.is_empty():
 		var target = hit["collider"]
-		if target.is_in_group("enemy") or target.is_in_group("wild_gloom") or target.is_in_group("gloom_bird"):
+		if target.is_in_group("enemy") or target.is_in_group("wild_gloom") or target.is_in_group("gloom_bird") or target.is_in_group("pit_heart"):
 			target.take_damage(damage, from - velocity.normalized() * 2.0)
 			if target is Node3D and is_instance_valid(target):
 				_embed(target, hit)

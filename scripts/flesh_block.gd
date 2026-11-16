@@ -8,6 +8,7 @@ const CrackOverlay = preload("res://scripts/crack_overlay.gd")
 
 
 var hp: int = MAX_HP
+var max_hp: int = MAX_HP
 var dead: bool = false
 var dying: bool = false
 var resource_type: String = "flesh"
@@ -57,7 +58,7 @@ func take_damage(amount, from: Vector3 = Vector3.INF) -> void:
 
 
 func _show_crack() -> void:
-	crack = CrackOverlay.show(self, crack, 1.0 - float(hp) / float(MAX_HP))
+	crack = CrackOverlay.show(self, crack, 1.0 - float(hp) / float(max_hp))
 
 
 func _break() -> void:

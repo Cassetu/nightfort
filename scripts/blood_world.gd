@@ -9,6 +9,9 @@ const PitSpitter = preload("res://scripts/pit_spitter.gd")
 const WALL_CLAIM_COST := 9.0
 const BoneBarricade = preload("res://scripts/enemies/bone_barricade.gd")
 const PitFlora = preload("res://scripts/pit_flora.gd")
+const PitHeart = preload("res://scripts/pit_heart.gd")
+const HeartModel = preload("res://scripts/heart_model.gd")
+const NestModel = preload("res://scripts/nest_model.gd")
 const MerlonMesh = preload("res://scripts/blocks/merlon_mesh.gd")
 const Ally = preload("res://scripts/ally.gd")
 const BileSack = preload("res://scripts/enemies/bile_sack.gd")
@@ -21,12 +24,17 @@ const LAYERS := 6
 const GATE_LAYERS := 2
 const WALL_TILE := "gloom_flesh"
 const SPITTER_EVERY := 14
-const GLOOM_COUNTS := [60, 48, 36]
-const PACK_SIZE := 6
-const PACK_SPREAD := 2.6
-const PACK_DEPTH_MIN := 7.0
-const PACK_DEPTH_MAX := 14.0
+const GLOOM_COUNTS := [112, 48, 36]
+const NEST_COUNTS := [14, 8, 6]
+const NEST_DEPTH_MIN := 8.0
+const NEST_DEPTH_MAX := [20.0, 16.0, 18.0]
+const NEST_CLEAR := 6.0
 const PACK_INNER_LIMIT := 4.8
+const NEST_RING_FLOOR := 14.0
+const GLOOM_NEST_MIN := 4.6
+const GLOOM_NEST_MAX := 9.5
+const WALL_HP := [8, 28, 6000]
+const WALL_TINTS := [Color(1.0, 1.0, 1.0), Color(0.8, 0.74, 0.92), Color(0.5, 0.45, 0.62)]
 const WALL_ROWS := 3
 const ACTIVATE_R2 := 2.2
 const BONE_BAND_MIN := 1.5
@@ -41,14 +49,11 @@ const BONE_COLOR := Color(0.78, 0.74, 0.62)
 const INNER_GLOOM := 14
 const SOLDIERS := 32
 const ARCHERS := 10
-const DOOM_MARGIN := 8.0
 const LANDING_Z := -165.0
 const FLASH_MIN := 5.0
 const FLASH_MAX := 11.0
 const PRESSURE_START := 80.0
 const PRESSURE_RAMP := 120.0
-const DRAIN_START := 150.0
-const DRAIN_AMOUNT := 3
 const RAIN_AMOUNT := 1600
 const TREE_COUNT := 220
 const SPIKE_COUNT := 140
@@ -73,7 +78,6 @@ var sky_mat: ShaderMaterial
 var sun: DirectionalLight3D
 var heart: Node3D
 var heart_light: OmniLight3D
-var heart_mat: StandardMaterial3D
 var rain: GPUParticles3D
 var heartbeat: AudioStreamPlayer
 var columns: Array = [{}, {}, {}]
@@ -82,7 +86,6 @@ var wall_shape: BoxShape3D
 var wall_meshes: Array = []
 var bones: Dictionary = {}
 var bone_tick: float = 0.0
-var doomed: bool = false
 var heartbeat_gain: float = 1.0
 var heartbeat_tween: Tween
 var music: AudioStreamPlayer
@@ -96,7 +99,6 @@ var commanded: bool = false
 var command_time: float = 0.0
 var flash_timer: float = 6.0
 var flash_tween: Tween
-var drain_timer: float = 0.0
 var last_count: int = -1
 
 
@@ -190,64 +192,18 @@ func _make_rain() -> void:
 
 
 func _build_heart() -> void:
+	var ground_y: float = BloodTerrain.PAD_H
+	var heart_y: float = ground_y + float(HeartModel.TOWER_HEIGHT) + HeartModel.HEART_LIFT
 	var body := StaticBody3D.new()
+	body.set_script(PitHeart)
 	body.collision_layer = 1
-	body.position = Vector3(0.0, BloodTerrain.PAD_H + 5.5, 0.0)
+	body.position = Vector3(0.0, heart_y, 0.0)
 	add_child(body)
 	heart = body
-	heart_mat = StandardMaterial3D.new()
-	heart_mat.albedo_color = Color(0.85, 0.7, 0.7)
-	heart_mat.albedo_texture = TileArt.mip_texture("blood", Color(0.5, 0.05, 0.1))
-	heart_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
-	heart_mat.uv1_scale = Vector3(5.0, 4.0, 1.0)
-	heart_mat.roughness = 0.3
-	heart_mat.emission_enabled = true
-	heart_mat.emission = Color(0.6, 0.05, 0.1)
-	heart_mat.emission_energy_multiplier = 1.2
-	var core := SphereMesh.new()
-	core.radius = 5.0
-	core.height = 9.0
-	core.material = heart_mat
-	var core_node := MeshInstance3D.new()
-	core_node.mesh = core
-	body.add_child(core_node)
-	for i in 5:
-		var lobe := SphereMesh.new()
-		lobe.radius = randf_range(1.6, 2.6)
-		lobe.height = lobe.radius * 1.8
-		lobe.material = heart_mat
-		var lobe_node := MeshInstance3D.new()
-		lobe_node.mesh = lobe
-		var a := TAU * float(i) / 5.0
-		lobe_node.position = Vector3(cos(a) * 3.8, randf_range(0.5, 3.5), sin(a) * 3.8)
-		body.add_child(lobe_node)
-	var vein_mat := StandardMaterial3D.new()
-	vein_mat.albedo_color = Color(0.3, 0.08, 0.4)
-	vein_mat.emission_enabled = true
-	vein_mat.emission = Color(0.36, 0.2, 0.46)
-	vein_mat.emission_energy_multiplier = 1.5
-	for i in 8:
-		var cyl := CylinderMesh.new()
-		cyl.top_radius = 0.35
-		cyl.bottom_radius = 0.6
-		cyl.height = 14.0
-		cyl.material = vein_mat
-		var vn := MeshInstance3D.new()
-		vn.mesh = cyl
-		var a2 := TAU * float(i) / 8.0 + 0.2
-		vn.position = Vector3(cos(a2) * 7.0, -2.0, sin(a2) * 7.0)
-		vn.rotation = Vector3(sin(a2) * 0.9, 0.0, -cos(a2) * 0.9)
-		body.add_child(vn)
-	var cs := CollisionShape3D.new()
-	var ball := SphereShape3D.new()
-	ball.radius = 5.4
-	cs.shape = ball
-	body.add_child(cs)
-	heart_light = OmniLight3D.new()
-	heart_light.light_color = Color(1.0, 0.15, 0.22)
-	heart_light.light_energy = 3.0
-	heart_light.omni_range = 70.0
-	body.add_child(heart_light)
+	heart.health_changed.connect(func(_current: int, _maximum: int) -> void: pulse_heart(2.0))
+	heart_light = HeartModel.build_heart(body)
+	HeartModel.build_tower(self, ground_y)
+	HeartModel.build_vessels(self, heart_y, ground_y)
 	var beat := create_tween().set_loops()
 	beat.tween_property(body, "scale", Vector3.ONE * 1.09, 0.16)
 	beat.tween_property(body, "scale", Vector3.ONE, 0.22)
@@ -333,9 +289,16 @@ func _ring_cells(r: float, lo: float, hi: float) -> Array:
 	return cells
 
 
+func _tinted(ring: int, tone: float, green: float) -> Color:
+	var t: Color = WALL_TINTS[ring]
+	return Color(tone * t.r, tone * green * t.g, tone * t.b)
+
+
 func _spawn_wall_block(ring: int, column_index: int, layer: int, depth: int, slot: int, pos: Vector3, batch: MultiMesh = null):
 	var block = FleshBlock.new()
 	block.setup(wall_shape, batch if batch != null else wall_meshes[ring], slot, ring, column_index, layer)
+	block.max_hp = WALL_HP[ring]
+	block.hp = block.max_hp
 	block.depth = depth
 	block.on_break = _on_wall_break
 	add_child(block)
@@ -402,14 +365,14 @@ func _build_walls() -> void:
 				var pos := Vector3(float(cell.x) + 0.5, floor_y + BLOCK * (float(layer) + 0.5), float(cell.y) + 0.5)
 				mm.set_instance_transform(slot, Transform3D(Basis.IDENTITY, pos))
 				var tone := rng.randf_range(0.8, 1.15)
-				mm.set_instance_color(slot, Color(tone, tone * rng.randf_range(0.85, 1.05), tone))
+				mm.set_instance_color(slot, _tinted(ring, tone, rng.randf_range(0.85, 1.05)))
 				column.append(_spawn_wall_block(ring, i, layer, 0, slot, pos))
 			if i % 2 == 0:
 				var mslot := i / 2
 				var mpos := Vector3(float(cell.x) + 0.5, floor_y + BLOCK * (float(LAYERS) + 0.5), float(cell.y) + 0.5)
 				merlon_mm.set_instance_transform(mslot, Transform3D(Basis.IDENTITY, mpos))
 				var mtone := rng.randf_range(0.85, 1.1)
-				merlon_mm.set_instance_color(mslot, Color(mtone, mtone * rng.randf_range(0.85, 1.05), mtone))
+				merlon_mm.set_instance_color(mslot, _tinted(ring, mtone, rng.randf_range(0.85, 1.05)))
 				column.append(_spawn_wall_block(ring, i, LAYERS, 0, mslot, mpos, merlon_mm))
 			columns[ring][cell] = column
 		for j in inner.size():
@@ -421,7 +384,7 @@ func _build_walls() -> void:
 				var pos2 := Vector3(float(icell.x) + 0.5, floor_y + BLOCK * (float(layer) + 0.5), float(icell.y) + 0.5)
 				mm.set_instance_transform(slot2, Transform3D(Basis.IDENTITY, pos2))
 				var tone2 := rng.randf_range(0.7, 1.0)
-				mm.set_instance_color(slot2, Color(tone2, tone2 * rng.randf_range(0.85, 1.05), tone2))
+				mm.set_instance_color(slot2, _tinted(ring, tone2, rng.randf_range(0.85, 1.05)))
 				pending[ring][layer].append({"pos": pos2, "depth": depth, "slot": slot2, "column": j, "block": null})
 		for i in range(0, count, SPITTER_EVERY):
 			var ocell: Vector2i = cells[i]
@@ -603,17 +566,24 @@ func _spawn_gloom(local: Vector3) -> void:
 
 
 func _build_gloom() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 77
+	var nest_seed := 0
 	for ring in BloodTerrain.RINGS.size():
 		var r: float = BloodTerrain.RINGS[ring]
-		var packs: int = maxi(GLOOM_COUNTS[ring] / PACK_SIZE, 1)
-		for i in packs:
-			var a := TAU * (float(i) + randf_range(-0.3, 0.3)) / float(packs)
-			var depth := randf_range(PACK_DEPTH_MIN, PACK_DEPTH_MAX)
+		var floor_r: float = BloodTerrain.RINGS[ring + 1] + NEST_CLEAR if ring + 1 < BloodTerrain.RINGS.size() else NEST_RING_FLOOR
+		var nests: int = NEST_COUNTS[ring]
+		var per_nest: int = int(round(float(GLOOM_COUNTS[ring]) / float(nests)))
+		for i in nests:
+			var a := TAU * (float(i) + rng.randf_range(-0.35, 0.35)) / float(nests)
+			var depth := rng.randf_range(NEST_DEPTH_MIN, NEST_DEPTH_MAX[ring])
 			var center := Vector2(cos(a), sin(a)) * (r - depth)
-			for j in PACK_SIZE:
-				var jitter := Vector2.from_angle(randf() * TAU) * randf_range(0.0, PACK_SPREAD)
+			nest_seed += 1
+			NestModel.build(self, Vector3(center.x, BloodTerrain.PAD_H, center.y), nest_seed)
+			for j in per_nest:
+				var jitter := Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(GLOOM_NEST_MIN, GLOOM_NEST_MAX)
 				var spot := center + jitter
-				var radius := clampf(spot.length(), r - 16.0, r - PACK_INNER_LIMIT)
+				var radius := clampf(spot.length(), floor_r, r - PACK_INNER_LIMIT)
 				spot = spot.normalized() * radius
 				_spawn_gloom(Vector3(spot.x, BloodTerrain.PAD_H + 1.0, spot.y))
 	for i in INNER_GLOOM:
@@ -870,23 +840,9 @@ func hold_point(pos: Vector3) -> Vector3:
 	return heart_position + out * (BloodTerrain.RINGS[2] + 14.0)
 
 
-func doom_reached(pos: Vector3) -> bool:
-	return distance_from_heart(pos) < BloodTerrain.RINGS[1] + DOOM_MARGIN
-
-
-func army_breached() -> bool:
-	for s in soldiers:
-		if is_instance_valid(s) and not s.dead and distance_from_heart(s.global_position) < BloodTerrain.RINGS[1] - 2.0:
-			return true
-	return false
-
-
-func wipe_army() -> void:
-	for a in get_tree().get_nodes_in_group("ally_unit"):
-		var t := get_tree().create_timer(randf_range(0.2, 1.8))
-		t.timeout.connect(func() -> void:
-			if is_instance_valid(a):
-				a.take_damage(9999))
+func hush() -> void:
+	get_tree().call_group("pit_gloom", "set_physics_process", false)
+	get_tree().call_group("ally_unit", "set_physics_process", false)
 
 
 func _gloom_snapshot() -> void:
@@ -1003,12 +959,6 @@ func _process(delta: float) -> void:
 		PitGloom.pressure = p
 		PitSpitter.pressure = p
 		BileSack.unit_scale = 1.0 + p * 0.5
-		if command_time > DRAIN_START:
-			drain_timer += delta
-			if drain_timer >= 1.0:
-				drain_timer = 0.0
-				for a in get_tree().get_nodes_in_group("ally_unit"):
-					a.take_damage(DRAIN_AMOUNT)
 	var count := alive_count()
 	if count != last_count:
 		last_count = count

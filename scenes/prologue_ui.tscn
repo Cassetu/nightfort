@@ -1,14 +1,31 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://scripts/prologue_ui.gd" id="1_ui"]
 [ext_resource type="Theme" uid="uid://gr2kk87lccmd" path="res://resources/main-theme.tres" id="2_theme"]
 [ext_resource type="Shader" path="res://resources/prologue_fade.gdshader" id="3_fade"]
+[ext_resource type="Texture2D" path="res://art/ui/heart_frame.png" id="4_hframe"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_fade"]
 shader = ExtResource("3_fade")
 shader_parameter/blur = 0.0
 shader_parameter/dark = 0.0
 shader_parameter/red = 0.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_heart_bg"]
+bg_color = Color(0.08, 0.02, 0.04, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_heart_fill"]
+bg_color = Color(0.62, 0.12, 0.28, 1)
+border_width_top = 3
+border_color = Color(0.45, 0.22, 0.6, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
 
 [sub_resource type="Gradient" id="Gradient_red"]
 offsets = PackedFloat32Array(0.45, 1)
@@ -201,38 +218,56 @@ theme_override_font_sizes/font_size = 30
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="BossBox" type="VBoxContainer" parent="Root"]
+[node name="HeartBox" type="Control" parent="Root"]
 unique_name_in_owner = true
 modulate = Color(1, 1, 1, 0)
 layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -260.0
-offset_top = 36.0
-offset_right = 260.0
-offset_bottom = 96.0
+offset_left = -170.0
+offset_top = 90.0
+offset_right = 170.0
+offset_bottom = 114.0
 grow_horizontal = 2
 mouse_filter = 2
-theme_override_constants/separation = 4
 
-[node name="BossName" type="Label" parent="Root/BossBox"]
-layout_mode = 2
-theme_type_variation = &"NoticeLabel"
-theme_override_colors/font_color = Color(0.9, 0.82, 0.95, 1)
-theme_override_font_sizes/font_size = 26
-text = "Bile Dreadnaught"
-horizontal_alignment = 1
-
-[node name="BossBar" type="ProgressBar" parent="Root/BossBox"]
+[node name="HeartBar" type="ProgressBar" parent="Root/HeartBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 20)
-layout_mode = 2
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 2
-theme_type_variation = &"HealthBar"
-max_value = 1000.0
-value = 1000.0
+theme_override_styles/background = SubResource("StyleBoxFlat_heart_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_heart_fill")
+value = 100.0
 show_percentage = false
+
+[node name="Frame" type="TextureRect" parent="Root/HeartBox"]
+texture_filter = 1
+layout_mode = 0
+offset_left = -20.0
+offset_top = -6.0
+offset_right = 360.0
+offset_bottom = 30.0
+mouse_filter = 2
+texture = ExtResource("4_hframe")
+
+[node name="HeartLabel" type="Label" parent="Root/HeartBox"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"BarLabel"
+text = "HEART"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="Light" type="TextureRect" parent="Root"]
 unique_name_in_owner = true

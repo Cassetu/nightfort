@@ -2,7 +2,6 @@ extends Node
 
 const CaveScript = preload("res://scripts/prologue_cave.gd")
 const UIScene = preload("res://scenes/prologue_ui.tscn")
-const BossScene = preload("res://scenes/bile_dreadnaught.tscn")
 const BlockIndex = preload("res://scripts/block_index.gd")
 const PitScript = preload("res://scripts/blood_world.gd")
 const LoadingScene = preload("res://scenes/ui/loading_screen.tscn")
@@ -39,12 +38,8 @@ const BATTLE_CRY_PATH := "res://audio/voice/lucius_for_sastria.mp3"
 const FALL_TRIGGER := 9.0
 const LEAVE_RADIUS := 235.0
 const BACKUP_DISTANCE := 22.0
-const HEAL_INTERVAL := 0.5
-const HEAL_AMOUNT := 2.5
 const FALL_HEIGHT := 14.0
 const FALL_DROP_TIME := 1.5
-const BOSS_DISTANCE := 26.0
-const DOOM_SPAWN_DISTANCE := 9.0
 const LINES := [
 	["You", "Hello?.."],
 	["???", "Hush. You cannot perish now."],
@@ -67,7 +62,6 @@ var terrain
 var ui
 var root: Node3D
 var cave: Dictionary = {}
-var boss
 var pit
 var origin: Vector3 = ORIGIN
 var start_position := Vector3.ZERO
@@ -76,8 +70,7 @@ var saved_modes: Dictionary = {}
 var env: Environment
 var shake: float = 0.0
 var died_flag: bool = false
-var boss_awake: bool = false
-var doomed: bool = false
+var fighting: bool = false
 var running: bool = false
 var swing_pressed: bool = false
 var box
@@ -161,8 +154,6 @@ func _run() -> void:
 	if not await _command():
 		return
 	if not await _siege():
-		return
-	if not await _emerge():
 		return
 	if not await _death():
 		return
@@ -364,11 +355,14 @@ func _landing_dialogue() -> bool:
 
 
 func _command() -> bool:
+	pit.heart.health_changed.connect(ui.set_heart)
+	ui.show_heart(pit.heart.health, pit.heart.MAX_HEALTH)
 	ui.show_prompt(COMMAND_PROMPT)
 	if not await _until(func() -> bool: return Input.is_physical_key_pressed(KEY_F)):
 		return false
 	ui.hide_prompt()
 	pit.command()
+	fighting = true
 	_battle_cry()
 	ui.show_army(pit.alive_count())
 	if not await _until(func() -> bool: return not Input.is_physical_key_pressed(KEY_F)):
@@ -390,22 +384,11 @@ func _battle_cry() -> void:
 
 
 func _siege() -> bool:
-	var heal_timer := 0.0
 	var leaving := false
 	while is_inside_tree():
 		await get_tree().process_frame
-		var delta := get_process_delta_time()
-		if pit.alive_count() <= 0:
+		if died_flag:
 			return true
-		if (not player.dead and pit.doom_reached(player.global_position)) or pit.army_breached():
-			doomed = true
-			return true
-		heal_timer += delta
-		if heal_timer >= HEAL_INTERVAL:
-			heal_timer = 0.0
-			if not player.dead and player.health < float(player.max_health):
-				player.heal(HEAL_AMOUNT)
-				ui.pulse_heal()
 		if not leaving and not player.dead and pit.distance_from_heart(player.global_position) > LEAVE_RADIUS:
 			leaving = true
 			await _turn_back()
@@ -431,53 +414,14 @@ func _turn_back() -> void:
 	player.frozen = false
 
 
-func _emerge() -> bool:
-	ui.hide_army()
-	shake = 3.0
-	pit.pulse_heart(9.0)
-	var from: Vector3 = player.global_position
-	var to_heart: Vector3 = pit.heart_position - from
-	to_heart.y = 0.0
-	var at: Vector3 = pit.heart_position
-	if doomed:
-		pit.wipe_army()
-		if not await _wait(0.8):
-			return false
-		at = from + to_heart.normalized() * DOOM_SPAWN_DISTANCE
-		at.y = pit.origin.y + pit.gen.height(at.x - pit.origin.x, at.z - pit.origin.z) + 0.6
-	else:
-		if not await _wait(1.6):
-			return false
-		if to_heart.length() > 40.0:
-			at = from + to_heart.normalized() * BOSS_DISTANCE
-			at.y = pit.origin.y + pit.gen.height(at.x - pit.origin.x, at.z - pit.origin.z) + 0.6
-		else:
-			at += Vector3(0.0, 6.0, 0.0)
-	boss = BossScene.instantiate()
-	world.add_child(boss)
-	boss.global_position = at
-	boss.stomp.connect(_on_stomp)
-	boss.health_changed.connect(ui.set_boss)
-	boss.wake(player)
-	if doomed:
-		boss.rush()
-	boss_awake = true
-	ui.show_boss()
-	return await _until(func() -> bool: return died_flag)
-
-
 func _on_died() -> void:
-	if boss_awake:
+	if fighting:
 		died_flag = true
 		return
 	if is_instance_valid(pit):
 		player.respawn(pit.landing)
 	else:
 		player.respawn(cave["spawn"])
-
-
-func _on_stomp(power: float) -> void:
-	shake = maxf(shake, power)
 
 
 func _process(delta: float) -> void:
@@ -506,9 +450,10 @@ func _fade_targets() -> Array:
 func _death() -> bool:
 	if is_instance_valid(pit):
 		pit.stop_music(1.2)
-	boss.freeze()
-	ui.hide_boss()
+	if is_instance_valid(pit):
+		pit.hush()
 	ui.hide_army()
+	ui.hide_heart()
 	player.held.visible = false
 	var cam: Camera3D = player.camera
 	var tween := create_tween()
@@ -559,8 +504,6 @@ func _finale() -> void:
 func _exit() -> void:
 	_close_box()
 	ui.clear_layers()
-	if is_instance_valid(boss):
-		boss.queue_free()
 	_clear_cave()
 	if is_instance_valid(pit):
 		pit.queue_free()
