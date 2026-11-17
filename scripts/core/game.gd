@@ -27,6 +27,7 @@ var settings := {
 	"fov": 75.0,
 	"view_distance": 7,
 	"fullscreen": true,
+	"head_bob": true,
 }
 
 var has_session: bool = false

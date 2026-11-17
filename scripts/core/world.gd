@@ -16,6 +16,7 @@ const StabilityScript = preload("res://scripts/stability.gd")
 const WildSpawnerScript = preload("res://scripts/enemies/wild_spawner.gd")
 const WeatherScript = preload("res://scripts/core/weather.gd")
 const TerritoryScript = preload("res://scripts/territory.gd")
+const StarsScript = preload("res://scripts/core/stars.gd")
 const TroopScene = preload("res://scenes/troop.tscn")
 const TroopScript = preload("res://scripts/troop.gd")
 const MinimapScene = preload("res://scenes/minimap.tscn")
@@ -111,6 +112,10 @@ func _ready() -> void:
 	roof_map.setup(terrain, player)
 	weather.roof_map = roof_map
 	weather.setup(sun, $WorldEnvironment.environment, player, terrain)
+	var stars := MeshInstance3D.new()
+	stars.set_script(StarsScript)
+	add_child(stars)
+	stars.setup(sun, weather)
 	var audio = Node.new()
 	audio.name = "Audio"
 	audio.set_script(AudioScript)

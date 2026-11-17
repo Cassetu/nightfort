@@ -16,6 +16,13 @@ signal chest_used
 
 const OutlineMesh = preload("res://scripts/outline_mesh.gd")
 const SPEED = 5.0
+const BOB_STRIDE := 1.35
+const BOB_LIFT := 0.032
+const BOB_SWAY := 0.022
+const BOB_ROLL := 0.005
+const BOB_CROUCH := 0.55
+const BOB_BLEND := 7.0
+const BOB_MAX_RATIO := 1.2
 const CROUCH_SPEED = 0.45
 const STAND_EYE = 0.6
 const CROUCH_EYE = 0.15
@@ -104,6 +111,10 @@ var swim
 var steps
 
 @onready var head = $Head
+var bob_phase: float = 0.0
+var bob_amp: float = 0.0
+var bob_offset := Vector3.ZERO
+var bob_roll: float = 0.0
 @onready var camera = $Head/Camera3D
 @onready var ghost_block = $GhostBlock
 @onready var held = $Head/Camera3D/HeldItem
@@ -186,6 +197,32 @@ func _update_crouch(delta: float, on_ladder: bool) -> void:
 	var eased = crouch_t * crouch_t * (3.0 - 2.0 * crouch_t)
 	var eye := lerpf(lerpf(STAND_EYE, CROUCH_EYE, eased), TIGHT_EYE, tight_t)
 	head.position.y = eye - _land_sink()
+
+
+func _update_bob(delta: float, suppressed: bool) -> void:
+	var flat := Vector2(velocity.x, velocity.z).length()
+	var target := 0.0
+	if Game.settings.get("head_bob", true) and is_on_floor() and not suppressed:
+		target = clampf(flat / SPEED, 0.0, BOB_MAX_RATIO)
+		if crouching:
+			target *= BOB_CROUCH
+	bob_amp = move_toward(bob_amp, target, delta * BOB_BLEND)
+	if flat > 0.1 and is_on_floor():
+		bob_phase = fposmod(bob_phase + flat * BOB_STRIDE * delta, TAU)
+	_apply_bob(bob_amp)
+
+
+func _apply_bob(amp: float) -> void:
+	if amp <= 0.0 and bob_offset == Vector3.ZERO and bob_roll == 0.0:
+		return
+	if amp <= 0.0:
+		bob_amp = 0.0
+	var offset := Vector3(sin(bob_phase) * BOB_SWAY, sin(bob_phase * 2.0) * BOB_LIFT, 0.0) * amp
+	var roll := sin(bob_phase) * BOB_ROLL * amp
+	camera.position += offset - bob_offset
+	camera.rotation.z += roll - bob_roll
+	bob_offset = offset
+	bob_roll = roll
 
 
 func _land_sink() -> float:
@@ -307,6 +344,7 @@ func _physics_process(delta):
 		velocity.y -= gravity * delta
 
 	if dead or frozen:
+		_apply_bob(0.0)
 		ghost_block.hide()
 		velocity.x = 0.0
 		velocity.z = 0.0
@@ -377,6 +415,7 @@ func _physics_process(delta):
 	_update_banner_range()
 	held.set_item(held_visual_id())
 	held.set_motion(Vector2(velocity.x, velocity.z).length() / SPEED if is_on_floor() else 0.0)
+	_update_bob(delta, on_ladder or in_water or stunned)
 
 	var bow: Dictionary = Inventory.held_bow()
 	_bow_update(delta, bow)

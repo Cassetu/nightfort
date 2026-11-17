@@ -5,6 +5,7 @@ const TerritoryScript = preload("res://scripts/territory.gd")
 
 const ORBIT_RADIUS := 24.0
 const ORBIT_HEIGHT := 17.0
+const MAX_ORBIT := 48.0
 const ORBIT_SPEED := 0.1
 const BOB := 1.5
 const BLEND_TIME := 0.9
@@ -106,7 +107,8 @@ func _finish_close() -> void:
 
 func _orbit_transform() -> Transform3D:
 	var c: Vector3 = core.global_position
-	var radius := maxf(ORBIT_RADIUS, float(TerritoryScript.BASE_HALF) * 1.45 + 6.0)
+	var half := TerritoryScript.BASE_HALF + TerritoryScript.LEVEL_STEP * (int(core.level) - 1)
+	var radius := minf(maxf(ORBIT_RADIUS, float(half) * 1.45 + 6.0), MAX_ORBIT)
 	var pos := c + Vector3(sin(angle) * radius, ORBIT_HEIGHT + sin(angle * 0.7) * BOB, cos(angle) * radius)
 	var ground := float(terrain.surface_y(floori(pos.x), floori(pos.z)))
 	pos.y = maxf(pos.y, ground + MIN_CLEARANCE)

@@ -36,6 +36,7 @@ func setup(s, c, p, t, o) -> void:
 func _process(delta: float) -> void:
 	if spawner == null or not is_instance_valid(core):
 		return
+	radius = spawner.spawn_radius * sin(deg_to_rad(spawner.focus_spread_degrees)) * 1.05 + spawner.spawn_jitter + 3.0
 	_sync_patches()
 	var inside := 0.0
 	for i in range(patches.size() - 1, -1, -1):
