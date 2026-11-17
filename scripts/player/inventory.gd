@@ -33,9 +33,12 @@ var BLOCK_TYPES := {
 	"basalt": {"name": "Basalt", "resource": "basalt", "tile": "basalt", "health": 8, "color": Color(0.20, 0.20, 0.23)},
 	"basalt_brick": {"name": "Basalt Bricks", "resource": "basalt_brick", "tile": "basalt_brick", "health": 11, "color": Color(0.20, 0.20, 0.23)},
 	"limestone": {"name": "Limestone", "resource": "limestone", "tile": "limestone", "health": 4, "color": Color(0.72, 0.68, 0.58)},
+	"road": {"name": "Road", "resource": "road", "tile": "road", "health": 5, "color": Color(0.42, 0.40, 0.37)},
 	"limestone_brick": {"name": "Limestone Bricks", "resource": "limestone_brick", "tile": "limestone_brick", "health": 7, "color": Color(0.72, 0.68, 0.58)},
 	"merlon": {"name": "Merlon", "resource": "merlon", "tile": "stone_brick", "weight": 2, "health": 8, "color": Color(0.55, 0.55, 0.6), "scene": "res://scenes/blocks/merlon.tscn"},
 	"door": {"name": "Door", "resource": "door", "weight": 1, "health": 6, "color": Color(0.45, 0.3, 0.17), "scene": "res://scenes/door.tscn", "height": 2, "needs_support": true},
+	"stone_window": {"name": "Stone Window", "resource": "stone_window", "tile": "stone_brick", "weight": 2, "health": 6, "color": Color(0.55, 0.55, 0.6), "scene": "res://scenes/stone_window.tscn"},
+	"reinforced_door": {"name": "Reinforced Door", "resource": "reinforced_door", "weight": 2, "health": 16, "color": Color(0.5, 0.5, 0.55), "scene": "res://scenes/reinforced_door.tscn", "height": 2, "needs_support": true},
 	"sand": {"name": "Sand Block", "resource": "sand", "tile": "sand", "falls": true, "weight": 2, "health": 2, "color": Color(0.76, 0.68, 0.45)},
 	"ruined_brick": {"name": "Ruined Bricks", "resource": "stone", "tile": "ruined_brick", "weight": 3, "health": 3, "color": Color(0.36, 0.38, 0.33)},
 	"stone_forge": {"name": "Stone Forge", "resource": "stone_forge", "tile": "stone_brick", "weight": 3, "health": 14, "color": Color(0.5, 0.5, 0.52), "scene": "res://scenes/forge.tscn", "height": 2, "wide": true},
@@ -73,9 +76,12 @@ var ITEMS := {
 	"basalt": {"name": "Basalt", "kind": "block", "tile": "basalt", "color": Color(0.20, 0.20, 0.23)},
 	"basalt_brick": {"name": "Basalt Bricks", "kind": "block", "tile": "basalt_brick", "color": Color(0.20, 0.20, 0.23)},
 	"limestone": {"name": "Limestone", "kind": "block", "tile": "limestone", "color": Color(0.72, 0.68, 0.58)},
+	"road": {"name": "Road", "kind": "block", "tile": "road", "color": Color(0.42, 0.40, 0.37)},
 	"limestone_brick": {"name": "Limestone Bricks", "kind": "block", "tile": "limestone_brick", "color": Color(0.72, 0.68, 0.58)},
 	"merlon": {"name": "Merlon", "kind": "block", "tile": "stone_brick", "color": Color(0.55, 0.55, 0.6)},
 	"door": {"name": "Door", "kind": "block", "color": Color(0.45, 0.3, 0.17)},
+	"stone_window": {"name": "Stone Window", "kind": "block", "tile": "stone_brick", "color": Color(0.55, 0.55, 0.6)},
+	"reinforced_door": {"name": "Reinforced Door", "kind": "block", "color": Color(0.5, 0.5, 0.55)},
 	"barricade": {"name": "Spiked Barricade", "kind": "block", "color": Color(0.5, 0.36, 0.2)},
 	"scaffold": {"name": "Scaffold", "kind": "block", "tile": "plank", "color": Color(0.72, 0.55, 0.32)},
 	"bow": {"name": "Bow", "kind": "bow", "slot": "weapon", "max_stack": 1, "damage": 3, "cooldown": 1.1, "range": 24.0, "color": Color(0.5, 0.36, 0.2)},
@@ -207,6 +213,8 @@ func set_equip(slot_name: String, item: Dictionary) -> void:
 	if not item.is_empty() and ["head", "chest", "legs", "feet"].has(slot_name):
 		Sfx.play(self, "equip_armor")
 	changed.emit()
+	if not item.is_empty():
+		Game.achievements.check_iron_set()
 
 
 func add_item(id: String, amount: int) -> int:
@@ -231,6 +239,8 @@ func add_item(id: String, amount: int) -> int:
 		discover(id)
 		changed.emit()
 		item_added.emit(id, amount - left)
+		if id == "soul_gem":
+			Game.achievements.put_progress("graverobber", 1)
 	return left
 
 

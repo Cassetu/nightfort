@@ -113,6 +113,7 @@ var steps
 func _ready():
 	add_child(BloodDrips.new())
 	add_to_group("player")
+	collision_mask |= 1024
 	swim = SwimScript.new(self)
 	steps = Footsteps.new(self, STEP_STRIDE, STEP_VOLUME_DB, false)
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)

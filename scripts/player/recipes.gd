@@ -9,6 +9,7 @@ const LIST := [
 	{"id": "granite_brick", "out": "granite_brick", "count": 4, "shape": [["granite", "granite"], ["granite", "granite"]]},
 	{"id": "basalt_brick", "out": "basalt_brick", "count": 4, "shape": [["basalt", "basalt"], ["basalt", "basalt"]]},
 	{"id": "limestone_brick", "out": "limestone_brick", "count": 4, "shape": [["limestone", "limestone"], ["limestone", "limestone"]]},
+	{"id": "road", "out": "road", "count": 4, "shapeless": ["granite", "diorite"]},
 	{"id": "torch", "out": "torch", "count": 4, "shape": [["coal"], ["stick"]]},
 	{"id": "chest", "out": "chest", "count": 1, "shape": [["plank", "plank", "plank"], ["plank", "", "plank"], ["plank", "plank", "plank"]]},
 	{"id": "lantern", "out": "lantern", "count": 1, "shape": [["iron"], ["torch"], ["iron"]]},
@@ -36,6 +37,8 @@ const LIST := [
 	{"id": "iron_block", "out": "iron_block", "count": 1, "shape": [["iron", "iron", "iron"], ["iron", "iron", "iron"], ["iron", "iron", "iron"]]},
 	{"id": "stone_forge", "out": "stone_forge", "count": 1, "shape": [["stone_brick", "stone_brick", "stone_brick"], ["stone_brick", "coal", "stone_brick"], ["stone_brick", "stone_brick", "stone_brick"]]},
 	{"id": "merlon", "out": "merlon", "count": 4, "shape": [["stone_brick", "", "stone_brick"], ["stone_brick", "stone_brick", "stone_brick"]]},
+	{"id": "stone_window", "out": "stone_window", "count": 2, "shape": [["stone_brick", "stone_brick", "stone_brick"], ["stone_brick", "", "stone_brick"]]},
+	{"id": "reinforced_door", "out": "reinforced_door", "count": 1, "shape": [["stone_brick", "stone_brick", "stone_brick"], ["stone_brick", "door", "stone_brick"]]},
 	{"id": "fortified_brick", "out": "fortified_brick", "count": 4, "shape": [["stone_brick", "stone_brick", "stone_brick"], ["stone_brick", "", "stone_brick"], ["stone_brick", "stone_brick", "stone_brick"]]},
 ]
 

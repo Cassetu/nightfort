@@ -16,6 +16,9 @@ const FLY_RADIUS := 40.0
 const FLY_CLOSE := 10.0
 const FLY_HEIGHT := 16.0
 const FLY_LOOK_DROP := 7.0
+const GROUND_SPAN := 8.0
+const GROUND_STEP := 4.0
+const RISE_RATE := 2.2
 const FADE_IN := 3.0
 const FADE_OUT := 3.5
 const SIT_DROP := 0.85
@@ -32,6 +35,9 @@ var camera: Camera3D
 var gaius
 var hud_state: Dictionary = {}
 var sit_cell := Vector2i.ZERO
+var fly_y: float = 0.0
+var fly_ready: bool = false
+var fly_stamp: int = 0
 
 
 func run(w, p, t, prologue_ui: Node) -> void:
@@ -152,8 +158,16 @@ func _fly(t: float) -> void:
 	var angle := FLY_START + FLY_SWEEP * t
 	var radius := lerpf(FLY_RADIUS, FLY_CLOSE + 14.0, t)
 	var pos := center + Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)
-	var ground: float = maxf(terrain.height_at(pos.x, pos.z), center.y)
-	pos.y = ground + FLY_HEIGHT + sin(t * PI) * 3.0
+	var goal := _ground_near(pos, center.y) + FLY_HEIGHT + sin(t * PI) * 3.0
+	var now := Time.get_ticks_msec()
+	if not fly_ready:
+		fly_y = goal
+		fly_ready = true
+	else:
+		var dt := clampf(float(now - fly_stamp) / 1000.0, 0.0, 0.1)
+		fly_y = lerpf(fly_y, goal, 1.0 - exp(-RISE_RATE * dt))
+	fly_stamp = now
+	pos.y = fly_y
 	camera.global_position = pos
 	var ahead_angle := angle + 0.14
 	var ahead := center + Vector3(cos(ahead_angle) * radius, 0.0, sin(ahead_angle) * radius)
@@ -161,6 +175,20 @@ func _fly(t: float) -> void:
 	var toward_core := center + Vector3(0.0, 2.0, 0.0)
 	var target := ahead.lerp(toward_core, smoothstep(0.55, 1.0, t) * 0.55)
 	camera.look_at(target)
+
+
+func _ground_near(pos: Vector3, floor_y: float) -> float:
+	var total := 0.0
+	var peak := floor_y
+	var count := 0
+	var steps := int(GROUND_SPAN * 2.0 / GROUND_STEP)
+	for i in range(steps + 1):
+		for j in range(steps + 1):
+			var h: float = terrain.height_at(pos.x - GROUND_SPAN + float(i) * GROUND_STEP, pos.z - GROUND_SPAN + float(j) * GROUND_STEP)
+			total += h
+			peak = maxf(peak, h)
+			count += 1
+	return maxf(lerpf(total / float(count), peak, 0.5), floor_y)
 
 
 func _hide_hud() -> void:

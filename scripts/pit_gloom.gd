@@ -40,7 +40,7 @@ func _ready() -> void:
 	add_to_group("enemy")
 	add_to_group("pit_gloom")
 	collision_layer = 2
-	collision_mask = 1 | 2
+	collision_mask = 1 | 2 | 1024
 	speed_mult = randf_range(0.9, 1.1)
 	cooldown = randf_range(0.2, 0.8)
 	health = MAX_HEALTH * (1.0 + pressure * 0.5)

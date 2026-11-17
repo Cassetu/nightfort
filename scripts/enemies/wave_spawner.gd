@@ -6,6 +6,12 @@ const BirdScript = preload("res://scripts/enemies/gloom_bird.gd")
 const RepairWave = preload("res://scripts/repair_wave.gd")
 const GloomNest = preload("res://scripts/enemies/gloom_nest.gd")
 const NEST_INTERVAL := 0.5
+const SpitterScript = preload("res://scripts/enemies/spitter.gd")
+const DEFAULT_HALF := 9
+const SPAWN_GAP_MIN := 3
+const SPAWN_GAP_MAX := 10
+const ROAD_LO := -2
+const ROAD_HI := 1
 
 @export var enemy_scene: PackedScene
 @export var spawn_radius: float = 38.0
@@ -103,6 +109,7 @@ func _process(delta: float) -> void:
 	if sun == null:
 		return
 
+	spawn_radius = float(_territory_half() + (SPAWN_GAP_MIN + SPAWN_GAP_MAX) / 2)
 	_sync_nests(delta)
 	var e: float = sun.elevation
 	if not night_active and attack_dirs.is_empty() and e < last_elevation and e < warn_elevation and wave_size(night + 1) > 0:
@@ -160,7 +167,9 @@ func _sync_nests(delta: float) -> void:
 		var pos := Vector3(c.x + cos(a) * spawn_radius, 0.0, c.z + sin(a) * spawn_radius)
 		if not terrain.collision_ready(pos):
 			continue
-		pos.y = float(terrain.surface_y(floori(pos.x), floori(pos.z))) - 0.1
+		pos.x = floorf(pos.x) + 0.5
+		pos.z = floorf(pos.z) + 0.5
+		pos.y = float(terrain.surface_y(floori(pos.x), floori(pos.z)))
 		var nest := Node3D.new()
 		nest.set_script(GloomNest)
 		nest.set_meta("ground_y", pos.y)
@@ -193,10 +202,10 @@ func _spawn_curve(p: float) -> float:
 
 func _choose_directions(for_night: int) -> void:
 	attack_dirs.clear()
-	var first := randf() * TAU
+	var first := float(randi() % 4) * PI * 0.5
 	attack_dirs.append(first)
 	if for_night >= two_front_night:
-		attack_dirs.append(first + randf_range(deg_to_rad(100.0), deg_to_rad(260.0)))
+		attack_dirs.append(first + float(randi_range(1, 3)) * PI * 0.5)
 
 
 func _begin_night() -> void:
@@ -254,6 +263,13 @@ func _spawn_bird() -> bool:
 	return true
 
 
+func _territory_half() -> int:
+	var territory := get_tree().get_first_node_in_group("territory")
+	if territory != null:
+		return int(territory.half)
+	return DEFAULT_HALF
+
+
 func _spawn_one() -> bool:
 	if enemy_scene == null or not is_instance_valid(core) or terrain == null:
 		return false
@@ -261,9 +277,19 @@ func _spawn_one() -> bool:
 	if not attack_dirs.is_empty() and randf() < focus_share:
 		var base: float = attack_dirs[randi() % attack_dirs.size()]
 		angle = base + randf_range(-1.0, 1.0) * deg_to_rad(focus_spread_degrees)
-	var radius := spawn_radius + randf_range(-spawn_jitter, spawn_jitter)
+	var reach := float(_territory_half() + randi_range(SPAWN_GAP_MIN, SPAWN_GAP_MAX)) + 0.5
 	var c: Vector3 = core.global_position
-	var pos := Vector3(c.x + cos(angle) * radius, 0.0, c.z + sin(angle) * radius)
+	var pos: Vector3
+	if randf() < road_share:
+		var lane := Vector3(roundf(cos(angle)), 0.0, roundf(sin(angle)))
+		if lane == Vector3.ZERO:
+			lane = Vector3.RIGHT
+		var side := Vector3(-lane.z, 0.0, lane.x)
+		pos = c + lane * reach + side * (float(randi_range(ROAD_LO, ROAD_HI)) + 0.5)
+	else:
+		var dir := Vector2(cos(angle), sin(angle))
+		var scale := reach / maxf(absf(dir.x), absf(dir.y))
+		pos = Vector3(c.x + dir.x * scale, 0.0, c.z + dir.y * scale)
 	if not terrain.collision_ready(pos):
 		return false
 	if is_instance_valid(player):
@@ -273,10 +299,19 @@ func _spawn_one() -> bool:
 	pos.y = float(terrain.surface_y(floori(pos.x), floori(pos.z))) + 1.2
 
 	var enemy = enemy_scene.instantiate()
+	if _wants_spitter():
+		enemy.set_script(SpitterScript)
 	enemies_root.add_child(enemy)
 	enemy.global_position = pos
 	enemy.setup(flow, core, player, night)
 	return true
+
+
+func _wants_spitter() -> bool:
+	if night < spitter_start_night or randf() > spitter_share:
+		return false
+	var cap := mini(spitter_cap_base + (night - spitter_start_night) / 2, spitter_cap_max)
+	return get_tree().get_node_count_in_group("spitter") < cap
 
 
 func _update_status() -> void:

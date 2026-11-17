@@ -1,6 +1,7 @@
 extends Node3D
 
-const HALF := 12
+const BASE_HALF := 9
+const LEVEL_STEP := 10
 const STEP := 3
 const SHOW_DISTANCE := 11.0
 const FULL_DISTANCE := 7.0
@@ -9,6 +10,9 @@ const POST_SIZE := Vector3(0.12, 1.1, 0.12)
 const CAP_SIZE := Vector3(0.2, 0.12, 0.2)
 
 var terrain
+var core_ref
+var half: int = BASE_HALF
+var built_level: int = 0
 var center := Vector3.ZERO
 var center_cell := Vector2i.ZERO
 var posts: Array = []
@@ -21,16 +25,22 @@ func _ready() -> void:
 
 func setup(t, c) -> void:
 	terrain = t
+	core_ref = c
 	center = c.global_position
 	center_cell = Vector2i(floori(center.x), floori(center.z))
 	_build()
 
 
 func contains(p: Vector3) -> bool:
-	return absf(p.x - (center_cell.x + 0.5)) <= HALF + 0.5 and absf(p.z - (center_cell.y + 0.5)) <= HALF + 0.5
+	return absf(p.x - (center_cell.x + 0.5)) <= half + 0.5 and absf(p.z - (center_cell.y + 0.5)) <= half + 0.5
 
 
 func _build() -> void:
+	for old: Node3D in posts:
+		old.queue_free()
+	posts.clear()
+	built_level = int(core_ref.level) if core_ref != null and is_instance_valid(core_ref) else 1
+	half = BASE_HALF + LEVEL_STEP * (built_level - 1)
 	var post_mat := StandardMaterial3D.new()
 	post_mat.albedo_color = Color(0.3, 0.27, 0.24)
 	post_mat.roughness = 1.0
@@ -47,8 +57,8 @@ func _build() -> void:
 	cap_mesh.material = cap_mat
 
 	var seen: Dictionary = {}
-	for i in range(-HALF, HALF + 1, STEP):
-		for cell in [Vector2i(i, -HALF), Vector2i(i, HALF), Vector2i(-HALF, i), Vector2i(HALF, i)]:
+	for i in range(-half, half + 1, STEP):
+		for cell in [Vector2i(i, -half), Vector2i(i, half), Vector2i(-half, i), Vector2i(half, i)]:
 			if seen.has(cell):
 				continue
 			seen[cell] = true
@@ -77,6 +87,8 @@ func _refresh_heights() -> void:
 
 
 func _process(delta: float) -> void:
+	if core_ref != null and is_instance_valid(core_ref) and int(core_ref.level) != built_level:
+		_build()
 	var cam := get_viewport().get_camera_3d()
 	if cam == null:
 		return

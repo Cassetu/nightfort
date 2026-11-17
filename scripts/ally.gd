@@ -109,7 +109,7 @@ func setup(unit_role: String, world_arena) -> void:
 			max_hp = 70.0
 	hp = max_hp
 	collision_layer = 8
-	collision_mask = 1 | 8
+	collision_mask = 1 | 8 | 1024
 	add_to_group("ally_unit")
 	var cs := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()

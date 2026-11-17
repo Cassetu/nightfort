@@ -59,6 +59,9 @@ var ui_saved: Dictionary = {}
 func _ready() -> void:
 	var loading = LoadingScene.instantiate()
 	add_child(loading)
+	var ground_y := float(terrain.surface_y(0, 0))
+	core.global_position.y = ground_y + 1.0
+	player.global_position.y = ground_y + 2.15
 	loading.begin(terrain, player)
 	Inventory.clear_banners()
 	terrain.pin(core.global_position, 4)

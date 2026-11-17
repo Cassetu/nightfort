@@ -6,6 +6,7 @@ const BlockBatch = preload("res://scripts/block_batch.gd")
 const CrackOverlay = preload("res://scripts/crack_overlay.gd")
 const BLOCK_SCRIPT := "res://scripts/blocks/block.gd"
 
+const CHAIN_TYPES := ["stone_window", "reinforced_door"]
 const SUPPORT_INTERVAL := 0.25
 const REINFORCE_HP := 2.5
 const DARKEN := 0.55
@@ -163,17 +164,27 @@ func extra_cells() -> Array:
 
 
 func is_brick() -> bool:
+	if CHAIN_TYPES.has(block_type):
+		return true
 	return body_mesh != null and ((block_type.ends_with("_brick") and block_type != "ruined_brick") or block_type == "merlon")
 
 
-func set_reinforced(value: bool) -> void:
-	if value == reinforced or body_mesh == null:
-		return
-	_unbatch()
+func _scale_health(value: bool) -> void:
 	reinforced = value
 	var ratio := float(current_health) / float(maxi(max_health, 1))
 	max_health = roundi(base_health * REINFORCE_HP) if value else base_health
 	current_health = clampi(roundi(ratio * max_health), 1, max_health)
+
+
+func set_reinforced(value: bool) -> void:
+	if value == reinforced:
+		return
+	if body_mesh == null:
+		if CHAIN_TYPES.has(block_type):
+			_scale_health(value)
+		return
+	_unbatch()
+	_scale_health(value)
 	if value:
 		decal_mesh = MeshInstance3D.new()
 		decal_mesh.mesh = _decal_shape()

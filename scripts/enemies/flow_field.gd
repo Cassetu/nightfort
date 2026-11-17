@@ -1,11 +1,14 @@
 extends Node
 
-const RADIUS := 48
+const RADIUS := 64
 const SIZE := RADIUS * 2 + 1
 const MAX_UP := 1
 const MAX_DOWN := 3
 const BLOCK_EXTRA := 6.0
 const OBSTACLE_EXTRA := 30.0
+const DOOR_EXTRA := 2.0
+const ROAD_STEP := 0.5
+const WALL_LINE_EXTRA := 5.0
 const REBUILD_INTERVAL := 1.0
 const HEIGHT_SLICE := 700
 const NONE := 255
@@ -73,6 +76,8 @@ var origin := Vector2i.ZERO
 var goal_cells := PackedInt32Array()
 var heights := PackedInt32Array()
 var extra := PackedFloat32Array()
+var road := PackedByteArray()
+var fixed := PackedFloat32Array()
 var flow := PackedByteArray()
 var job_flow := PackedByteArray()
 var built: int = 0
@@ -92,6 +97,8 @@ func setup(t, c) -> void:
 	origin = Vector2i(cx - RADIUS, cz - RADIUS)
 	heights.resize(SIZE * SIZE)
 	extra.resize(SIZE * SIZE)
+	road.resize(SIZE * SIZE)
+	fixed.resize(SIZE * SIZE)
 	flow.resize(SIZE * SIZE)
 	flow.fill(NONE)
 	goal_cells.clear()
@@ -157,7 +164,7 @@ func _process(delta: float) -> void:
 		return
 	signature = sig
 	dirty = false
-	job = WorkerThreadPool.add_task(_solve.bind(heights, extra, goal_cells), false, "flow field")
+	job = WorkerThreadPool.add_task(_solve.bind(heights, extra, goal_cells, road), false, "flow field")
 
 
 func _build_heights() -> void:
@@ -165,7 +172,12 @@ func _build_heights() -> void:
 	for i in range(built, end):
 		var gx := i % SIZE
 		var gz := i / SIZE
-		heights[i] = terrain.surface_y(origin.x + gx, origin.y + gz)
+		var wx: int = origin.x + gx
+		var wz: int = origin.y + gz
+		heights[i] = terrain.surface_y(wx, wz)
+		var on_road: bool = terrain.is_road(wx, wz)
+		road[i] = 1 if on_road else 0
+		fixed[i] = WALL_LINE_EXTRA if (not on_road and terrain.on_wall_line(wx, wz)) else 0.0
 	built = end
 	if built >= SIZE * SIZE:
 		heights_ready = true
@@ -173,7 +185,7 @@ func _build_heights() -> void:
 
 
 func _collect_extra() -> int:
-	extra.fill(0.0)
+	extra = fixed.duplicate()
 	var sig := 17
 	var nodes: Array = get_tree().get_nodes_in_group("resource")
 	nodes.append_array(get_tree().get_nodes_in_group("torch"))
@@ -186,7 +198,9 @@ func _collect_extra() -> int:
 		if gx < 0 or gz < 0 or gx >= SIZE or gz >= SIZE:
 			continue
 		var idx := gz * SIZE + gx
-		if node.is_in_group("block"):
+		if node.is_in_group("door"):
+			extra[idx] = maxf(extra[idx], DOOR_EXTRA)
+		elif node.is_in_group("block"):
 			extra[idx] = maxf(extra[idx], BLOCK_EXTRA)
 		else:
 			extra[idx] = maxf(extra[idx], OBSTACLE_EXTRA)
@@ -194,7 +208,7 @@ func _collect_extra() -> int:
 	return sig
 
 
-func _solve(h: PackedInt32Array, ex: PackedFloat32Array, goals: PackedInt32Array) -> void:
+func _solve(h: PackedInt32Array, ex: PackedFloat32Array, goals: PackedInt32Array, rd: PackedByteArray) -> void:
 	var n := SIZE * SIZE
 	var cost := PackedFloat32Array()
 	cost.resize(n)
@@ -231,6 +245,8 @@ func _solve(h: PackedInt32Array, ex: PackedFloat32Array, goals: PackedInt32Array
 				if a > MAX_UP or a < -MAX_DOWN or b > MAX_UP or b < -MAX_DOWN:
 					continue
 				step = 1.4142
+			if rd[v] == 1:
+				step *= ROAD_STEP
 			var nc := ck + step + ex[u] + 0.35 * absf(float(dh))
 			if nc < cost[v]:
 				cost[v] = nc

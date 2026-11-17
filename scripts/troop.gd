@@ -65,7 +65,7 @@ var since_hit: float = 99.0
 func _ready() -> void:
 	add_to_group("troop")
 	collision_layer = 4
-	collision_mask = 1
+	collision_mask = 1 | 1024
 	var player_node := get_tree().get_first_node_in_group("player") as PhysicsBody3D
 	if player_node != null:
 		add_collision_exception_with(player_node)

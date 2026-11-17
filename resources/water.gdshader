@@ -77,7 +77,8 @@ void fragment() {
 	float h0 = height(p, w, t);
 	float hx = height(p + vec2(0.07, 0.0), w, t);
 	float hz = height(p + vec2(0.0, 0.07), w, t);
-	vec2 g = vec2(hx - h0, hz - h0) / 0.07 * wave_amp;
+	float far_fade = smoothstep(16.0, 85.0, length(VERTEX));
+	vec2 g = vec2(hx - h0, hz - h0) / 0.07 * wave_amp * (1.0 - 0.9 * far_fade);
 	vec3 n_world = normalize(vec3(-g.x, 1.0, -g.y));
 	vec3 n_view = normalize((VIEW_MATRIX * vec4(n_world, 0.0)).xyz);
 	NORMAL = FRONT_FACING ? n_view : -n_view;
@@ -97,10 +98,10 @@ void fragment() {
 	float breakup = fbm(q * vec2(2.2, 3.4) - vec2(t * 0.9, 0.0));
 	float streak = fbm(q * vec2(5.5, 11.0) - vec2(t * 1.6, 0.0));
 	float crest_mask = smoothstep(crest_foam, crest_foam + 0.16, h0 + (breakup - 0.5) * 0.34);
-	crest_mask *= 0.45 + 0.55 * smoothstep(0.25, 0.7, streak);
+	crest_mask *= (0.45 + 0.55 * smoothstep(0.25, 0.7, streak)) * (1.0 - 0.85 * far_fade);
 	float shore_break = fbm(q * vec2(3.0, 3.0) - vec2(t * 0.7, 0.0));
 	float shore = (1.0 - smoothstep(0.0, foam_width * (0.55 + 0.9 * shore_break), thick)) * (0.5 + 0.5 * smoothstep(0.2, 0.7, streak));
-	float foam = clamp(crest_mask * (0.35 + 0.65 * (1.0 - deep * 0.4)) + shore, 0.0, 1.0);
+	float foam = clamp(crest_mask * (0.35 + 0.65 * (1.0 - deep * 0.4)) + shore * (1.0 - 0.6 * far_fade), 0.0, 1.0);
 
 	ALBEDO = mix(col, foam_color, foam);
 	ALPHA = clamp(mix(shallow_alpha, deep_alpha, deep) + foam * 0.5, 0.0, 0.97);

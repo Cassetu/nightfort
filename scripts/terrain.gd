@@ -47,6 +47,7 @@ const B_GRANITE := 11
 const B_BASALT := 12
 const B_LIMESTONE := 13
 const B_SANDSTONE := 14
+const B_ROAD := 15
 
 const AO_LEVELS := [0.55, 0.7, 0.85, 1.0]
 
@@ -54,6 +55,12 @@ const COL_DRY := Color(0.62, 0.60, 0.28)
 const COL_LUSH := Color(0.18, 0.46, 0.16)
 const COL_SAND := Color(0.76, 0.68, 0.45)
 const RUIN_RADIUS := 10
+const RUIN_RINGS := 4
+const RUIN_OUTER := 40
+const RUIN_RAISE := 3
+const RUIN_SKIRT := 18.0
+const ROAD_LO := -2
+const ROAD_HI := 1
 const RIVER_NOISE_CAP := 0.22
 const RIVER_MIN_GRAD := 0.004
 const CANYON_NOISE_CAP := 0.2
@@ -78,11 +85,12 @@ const COL_GRANITE := Color(0.55, 0.40, 0.36)
 const COL_BASALT := Color(0.20, 0.20, 0.23)
 const COL_LIMESTONE := Color(0.72, 0.68, 0.58)
 const COL_SANDSTONE := Color(0.62, 0.54, 0.38)
+const COL_ROAD := Color(0.42, 0.40, 0.37)
 
-const BASE_COL := [COL_DIRT, COL_DIRT, COL_DIRT, COL_STONE, COL_BEDROCK, COL_SAND, COL_SNOW, COL_COAL, COL_IRON, COL_STONE, COL_DIORITE, COL_GRANITE, COL_BASALT, COL_LIMESTONE, COL_SANDSTONE]
-const HARDNESS := [0.0, 2.0, 2.0, 5.0, -1.0, 1.0, 1.0, 6.0, 8.0, 5.0, 5.5, 6.5, 8.0, 4.0, 3.0]
-const DROP_ITEM := ["", "dirt", "dirt", "stone", "", "sand", "snow", "coal", "iron", "stone_brick", "diorite", "granite", "basalt", "limestone", "sandstone"]
-const DROP_AMOUNT := [0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+const BASE_COL := [COL_DIRT, COL_DIRT, COL_DIRT, COL_STONE, COL_BEDROCK, COL_SAND, COL_SNOW, COL_COAL, COL_IRON, COL_STONE, COL_DIORITE, COL_GRANITE, COL_BASALT, COL_LIMESTONE, COL_SANDSTONE, COL_ROAD]
+const HARDNESS := [0.0, 2.0, 2.0, 5.0, -1.0, 1.0, 1.0, 6.0, 8.0, 5.0, 5.5, 6.5, 8.0, 4.0, 3.0, 4.0]
+const DROP_ITEM := ["", "dirt", "dirt", "stone", "", "sand", "snow", "coal", "iron", "stone_brick", "diorite", "granite", "basalt", "limestone", "sandstone", "road"]
+const DROP_AMOUNT := [0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 
 const FACE_CORNERS := [
 	[Vector3(1, 0, 0), Vector3(1, 0, 1), Vector3(1, 1, 1), Vector3(1, 1, 0)],
@@ -94,9 +102,9 @@ const FACE_CORNERS := [
 ]
 const FACE_NORMALS := [Vector3.RIGHT, Vector3.LEFT, Vector3.UP, Vector3.DOWN, Vector3.BACK, Vector3.FORWARD]
 const FACE_DIRS := [Vector3i(1, 0, 0), Vector3i(-1, 0, 0), Vector3i(0, 1, 0), Vector3i(0, -1, 0), Vector3i(0, 0, 1), Vector3i(0, 0, -1)]
-const TILE_NAMES := ["grass_top", "grass_side", "dirt", "stone", "bedrock", "sand", "snow", "coal_ore", "iron_ore", "stone_brick", "diorite", "granite", "basalt", "limestone", "sandstone"]
-const TILE_FALLBACK := [COL_LUSH, COL_DIRT, COL_DIRT, COL_STONE, COL_BEDROCK, COL_SAND, COL_SNOW, COL_COAL, COL_IRON, COL_STONE, COL_DIORITE, COL_GRANITE, COL_BASALT, COL_LIMESTONE, COL_SANDSTONE]
-const FACE_TILE := [[0, 0, 0], [0, 1, 2], [2, 2, 2], [3, 3, 3], [4, 4, 4], [5, 5, 5], [6, 6, 6], [7, 7, 7], [8, 8, 8], [9, 9, 9], [10, 10, 10], [11, 11, 11], [12, 12, 12], [13, 13, 13], [14, 14, 14]]
+const TILE_NAMES := ["grass_top", "grass_side", "dirt", "stone", "bedrock", "sand", "snow", "coal_ore", "iron_ore", "stone_brick", "diorite", "granite", "basalt", "limestone", "sandstone", "road"]
+const TILE_FALLBACK := [COL_LUSH, COL_DIRT, COL_DIRT, COL_STONE, COL_BEDROCK, COL_SAND, COL_SNOW, COL_COAL, COL_IRON, COL_STONE, COL_DIORITE, COL_GRANITE, COL_BASALT, COL_LIMESTONE, COL_SANDSTONE, COL_ROAD]
+const FACE_TILE := [[0, 0, 0], [0, 1, 2], [2, 2, 2], [3, 3, 3], [4, 4, 4], [5, 5, 5], [6, 6, 6], [7, 7, 7], [8, 8, 8], [9, 9, 9], [10, 10, 10], [11, 11, 11], [12, 12, 12], [13, 13, 13], [14, 14, 14], [15, 15, 15]]
 const FACE_DY := [0, 0, 1, -1, 0, 0]
 const FACE_DCOL := [1, -1, 0, 0, PAD, -PAD]
 
@@ -1645,7 +1653,16 @@ func _height(x: int, z: int) -> int:
 	top = _strata_ledges(top, mount * blend * away)
 	top = _carve_canyon(fx, fz, top, dist, away)
 	top = _carve_river(fx, fz, top, dist)
+	top = _raise_ruins(fx, fz, top)
 	return clampi(roundi(top), Y_MIN + 8, Y_MAX - 2)
+
+
+func _raise_ruins(fx: float, fz: float, top: float) -> float:
+	var reach := maxf(absf(fx), absf(fz))
+	var w := 1.0 - smoothstep(float(RUIN_OUTER) + 1.0, float(RUIN_OUTER) + 1.0 + RUIN_SKIRT, reach)
+	if w <= 0.0:
+		return top
+	return lerpf(top, float(base_height + RUIN_RAISE), w)
 
 
 func _strata_ledges(top: float, amount: float) -> float:
@@ -1816,10 +1833,27 @@ func _top_color(h: int, moist: float, desert: float, snowy: float) -> Color:
 
 
 func in_ruins(x: int, z: int) -> bool:
-	return absi(x) <= RUIN_RADIUS and absi(z) <= RUIN_RADIUS
+	return absi(x) <= RUIN_OUTER and absi(z) <= RUIN_OUTER
+
+
+func is_road(x: int, z: int) -> bool:
+	if absf(float(x)) > world_radius or absf(float(z)) > world_radius:
+		return false
+	return (x >= ROAD_LO and x <= ROAD_HI) or (z >= ROAD_LO and z <= ROAD_HI)
+
+
+func on_wall_line(x: int, z: int) -> bool:
+	var reach := maxi(absi(x), absi(z))
+	return reach > 0 and reach <= RUIN_RADIUS * RUIN_RINGS and reach % RUIN_RADIUS == 0
+
+
+func _ruin_keepout(wx: float, wz: float) -> bool:
+	return maxf(absf(wx), absf(wz)) <= float(RUIN_OUTER) + 3.0 or is_road(floori(wx), floori(wz))
 
 
 func _surface_id(h: int, moist: float, desert: float, x: int, z: int) -> int:
+	if is_road(x, z):
+		return B_ROAD
 	if in_ruins(x, z):
 		return B_DIRT
 	var hf := float(h)
@@ -1892,7 +1926,7 @@ func _gen_block(x: int, iy: int, z: int, h: int, surf: int, in_desert: bool) -> 
 		return surf
 	if caves_enabled and depth >= cave_cover and iy > Y_MIN + 1 and Vector2(x + 0.5, z + 0.5).length() > core_protect_radius + 3.0 and _is_cave(x, iy, z):
 		return B_AIR
-	if surf == B_GRASS and depth <= 3:
+	if (surf == B_GRASS or surf == B_ROAD) and depth <= 3:
 		return B_DIRT
 	if surf == B_SNOW and depth <= 3 and float(h) < snow_line + 2.0:
 		return B_DIRT
@@ -2071,7 +2105,7 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 			var wz0: int = coord.y * CHUNK + lz
 			var sv := _snowy(wx0 + 0.5, wz0 + 0.5)
 			snowy[ci] = sv
-			top_cols[ci] = COL_DIRT if in_ruins(wx0, wz0) else _top_color(h, m, dv, sv)
+			top_cols[ci] = COL_DIRT if in_ruins(wx0, wz0) or is_road(wx0, wz0) else _top_color(h, m, dv, sv)
 			surf[ci] = _surface_id(h, m, dv, wx0, wz0)
 			if _wet(heights, (lz + 1) * PAD + lx + 1) and surf[ci] != B_SNOW:
 				surf[ci] = B_SAND
@@ -2210,7 +2244,7 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 			if h > tree_line or _max_step(heights, i, h) > 1 or desert[lz * CHUNK + lx] > 0.3 or _wet(heights, i):
 				continue
 			var world := origin2 + Vector2(px, pz)
-			if world.length() < tree_clear_radius:
+			if world.length() < tree_clear_radius or _ruin_keepout(world.x, world.y):
 				continue
 			var spruce := snowy[lz * CHUNK + lx] > 0.5
 			var density := smoothstep(-0.7, 0.2, n_forest.get_noise_2d(world.x, world.y)) * (0.55 + 0.45 * moist[lz * CHUNK + lx])
@@ -2250,7 +2284,7 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 			var i := (lz + 1) * PAD + lx + 1
 			var h := heights[i]
 			var world := origin2 + Vector2(px, pz)
-			if world.length() < rock_clear_radius or desert[lz * CHUNK + lx] > 0.3 or _wet(heights, i):
+			if world.length() < rock_clear_radius or _ruin_keepout(world.x, world.y) or desert[lz * CHUNK + lx] > 0.3 or _wet(heights, i):
 				continue
 			var chance := clampf(0.2 + float(h) / 30.0 + 0.25 * (1.0 - moist[lz * CHUNK + lx]), 0.0, 0.8)
 			if rng.randf() > chance:
