@@ -62,7 +62,7 @@ static func _gatehouse(world, terrain, rng: RandomNumberGenerator, ox: int, oz: 
 		var c := _cell(ox, oz, dir, along, radius)
 		var ground: int = terrain.surface_y(c.x, c.y)
 		for layer in 3:
-			var top := layer == 2 and along == 1
+			var top = layer == 2 and along == 1
 			world.restore_block("ruined_brick" if top else "stone_brick", Vector3(c.x + 0.5, ground + layer + 0.5, c.y + 0.5))
 		var torch = load(TORCH_SCENE).instantiate()
 		torch.fixture = true

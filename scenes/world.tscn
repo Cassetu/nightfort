@@ -9,7 +9,7 @@
 [ext_resource type="PackedScene" uid="uid://cbsouelol0coa" path="res://scenes/game_ui.tscn" id="7_ui"]
 [ext_resource type="Script" uid="uid://kgpr645xbsjp" path="res://scripts/enemies/flow_field.gd" id="8_flow"]
 [ext_resource type="Script" uid="uid://bhg34p6owcff4" path="res://scripts/enemies/wave_spawner.gd" id="9_waves"]
-[ext_resource type="PackedScene" path="res://scenes/gloom.tscn" id="10_gloom"]
+[ext_resource type="PackedScene" uid="uid://cql7iq0m66kp" path="res://scenes/gloom.tscn" id="10_gloom"]
 [ext_resource type="PackedScene" path="res://scenes/intro.tscn" id="11_intro"]
 [ext_resource type="PackedScene" path="res://scenes/inventory_ui.tscn" id="12_inv"]
 [ext_resource type="Shader" uid="uid://bm1k2kcxxt0g5" path="res://resources/post.gdshader" id="13_post"]

@@ -106,7 +106,7 @@ func _finish_close() -> void:
 
 func _orbit_transform() -> Transform3D:
 	var c: Vector3 = core.global_position
-	var radius := maxf(ORBIT_RADIUS, float(TerritoryScript.HALF) * 1.45 + 6.0)
+	var radius := maxf(ORBIT_RADIUS, float(TerritoryScript.BASE_HALF) * 1.45 + 6.0)
 	var pos := c + Vector3(sin(angle) * radius, ORBIT_HEIGHT + sin(angle * 0.7) * BOB, cos(angle) * radius)
 	var ground := float(terrain.surface_y(floori(pos.x), floori(pos.z)))
 	pos.y = maxf(pos.y, ground + MIN_CLEARANCE)

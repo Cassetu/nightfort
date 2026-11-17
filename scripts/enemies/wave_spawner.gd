@@ -13,6 +13,11 @@ const SPAWN_GAP_MAX := 10
 const ROAD_LO := -2
 const ROAD_HI := 1
 
+@export_range(0.0, 1.0) var road_share: float = 0.65
+@export var spitter_start_night: int = 2
+@export_range(0.0, 1.0) var spitter_share: float = 0.14
+@export var spitter_cap_base: int = 1
+@export var spitter_cap_max: int = 6
 @export var enemy_scene: PackedScene
 @export var spawn_radius: float = 38.0
 @export var spawn_jitter: float = 5.0
