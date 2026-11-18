@@ -61,6 +61,49 @@ const RUIN_RAISE := 3
 const RUIN_SKIRT := 18.0
 const ROAD_LO := -2
 const ROAD_HI := 1
+const NORTH_FOREST_END := 230.0
+const NORTH_TUNDRA_START := 260.0
+const NORTH_AMP := 52.0
+const NORTH_WAVE := 300.0
+const NORTH_STEP := 4
+const ROAD_HALF := 2.0
+const ROAD_SKIRT := 9.0
+const ROAD_GRADE := 0.15
+const FORT_S := 740
+const FORT_R_O := 62
+const FORT_R_I := 14
+const FORT_WALL := 5
+const FORT_WALL_H := 9
+const FORT_INNER_H := 11
+const FORT_TOWER_H := 3
+const FORT_SKIRT := 22.0
+const FORT_GATE_LO := -2
+const FORT_GATE_HI := 1
+const S_STRATA := 100
+const SOUTH_DESERT_END := 250.0
+const SOUTH_CANYON_START := 280.0
+const SOUTH_WIND_START := 470.0
+const SOUTH_AMP := 50.0
+const SOUTH_WAVE := 300.0
+const SOUTH_FLOOR_HW := 7.0
+const SOUTH_WALL_RUN := 22.0
+const SOUTH_RISE := 44.0
+const SOUTH_GRADE := 0.12
+const SFORT_S := 960
+const SFORT_R_O := 68
+const SFORT_WALL := 5
+const SFORT_WALL_H := 9
+const SFORT_TOWER_H := 3
+const SFORT_ARENA := 78.0
+const SFORT_PAR_IN := 38.0
+const SFORT_PAR_OUT := 41.0
+const SFORT_PAR_H := 4
+const PIT_R0 := 34.0
+const PIT_TURNS := 4
+const PIT_PITCH := 6.0
+const PIT_RAMP_W := 4.6
+const PIT_ENTRY := -1.5707963
+const CANYON_BANDS := [B_SANDSTONE, B_SANDSTONE, B_SANDSTONE, B_SANDSTONE, B_SANDSTONE, B_GRANITE, B_GRANITE, B_GRANITE, B_GRANITE, B_LIMESTONE, B_LIMESTONE, B_LIMESTONE, B_SANDSTONE, B_SANDSTONE, B_SANDSTONE, B_SANDSTONE, B_GRANITE, B_GRANITE, B_GRANITE, B_GRANITE, B_GRANITE, B_BASALT, B_SANDSTONE, B_SANDSTONE, B_SANDSTONE, B_SANDSTONE]
 const RIVER_NOISE_CAP := 0.22
 const RIVER_MIN_GRAD := 0.004
 const CANYON_NOISE_CAP := 0.2
@@ -261,6 +304,11 @@ var rain_catch_material: StandardMaterial3D
 var water_material: ShaderMaterial
 var mount_dir: Vector2 = Vector2.RIGHT
 var mouth_y: int = 0
+var north_profile: PackedFloat32Array = PackedFloat32Array()
+var fort_floor: int = 4
+var south_profile: PackedFloat32Array = PackedFloat32Array()
+var sfort_floor: int = 4
+var chasm_depth: int = 30
 
 var material: ShaderMaterial
 var plant_meshes: Dictionary = {}
@@ -375,6 +423,11 @@ func _exit_tree() -> void:
 
 func height_at(world_x: float, world_z: float) -> float:
 	return float(_height(floori(world_x), floori(world_z)))
+
+
+func snow_amount(world_x: float, world_z: float) -> float:
+	var h := float(_height(floori(world_x), floori(world_z)))
+	return maxf(_snowy(world_x, world_z), smoothstep(snow_line - 4.0, snow_line + 4.0, h))
 
 
 func on_platform(x: int, z: int) -> bool:
@@ -552,6 +605,8 @@ func _setup_noise() -> void:
 	mount_dir = Vector2.RIGHT.rotated(rng.randf() * TAU)
 	mouth_y = 0
 	mouth_y = _height(roundi(mount_dir.x * mouth_dist), roundi(mount_dir.y * mouth_dist))
+	_build_north_profile()
+	_build_south_profile()
 
 
 func _make_noise(seed_offset: int, frequency: float, octaves: int) -> FastNoiseLite:
@@ -1625,6 +1680,18 @@ func _mount_fade(fx: float, fz: float) -> float:
 func _height(x: int, z: int) -> int:
 	var fx := x + 0.5
 	var fz := z + 0.5
+	var top := _relief_top(fx, fz)
+	top = _raise_ruins(fx, fz, top)
+	top = _south_gorge(fx, fz, top)
+	top = _carve_north_road(fx, fz, top)
+	top = _carve_south_road(fx, fz, top)
+	top = _level_fort(fx, fz, top)
+	var h := clampi(roundi(top), Y_MIN + 8, Y_MAX - 2)
+	h = _fort_columns(x, z, h)
+	return _sfort_columns(x, z, h)
+
+
+func _relief_top(fx: float, fz: float) -> float:
 	var wx := fx + n_warp_x.get_noise_2d(fx, fz) * warp_strength
 	var wz := fz + n_warp_z.get_noise_2d(fx, fz) * warp_strength
 	var cont := clampf(n_cont.get_noise_2d(wx, wz) * 0.5 + 0.5, 0.0, 1.0)
@@ -1635,13 +1702,15 @@ func _height(x: int, z: int) -> int:
 	var r3 := 1.0 - absf(n_ridge.get_noise_2d(wx * 5.1 - 19.0, wz * 5.1 + 97.0))
 	var ridge := r1 * r1 * 0.6 + r2 * r2 * 0.28 + r3 * r3 * 0.12
 
+	var zone := _north_zone(fx, fz)
 	var hill_scale := 0.3 + 0.7 * smoothstep(0.3, 0.6, cont)
 	var mount := smoothstep(0.52, 0.72, cont)
+	mount = maxf(mount * (1.0 - zone.x * 0.85), smoothstep(0.05, 0.45, zone.y) * 0.95)
 	var massif := mount * (0.25 + 0.75 * ridge) * (0.8 + 0.4 * rough)
 	var detail := n_detail.get_noise_2d(fx, fz) * 2.0 * (0.4 + 0.6 * hill_scale)
 	var dry := _desert(fx, fz)
-	var rolling := pow(hills, 1.5) * hill_amplitude * hill_scale
-	var relief := (rolling + massif * mountain_amplitude * (1.0 - 0.7 * dry) + detail) * (1.0 - 0.45 * dry)
+	var rolling := pow(hills, 1.5) * hill_amplitude * hill_scale * (1.0 - zone.x * 0.55)
+	var relief := (rolling + massif * mountain_amplitude * (1.0 + 0.15 * zone.y) * (1.0 - 0.7 * dry) + detail) * (1.0 - 0.45 * dry)
 	var away := _mount_fade(fx, fz)
 	relief *= lerpf(0.3, 1.0, away)
 
@@ -1653,8 +1722,320 @@ func _height(x: int, z: int) -> int:
 	top = _strata_ledges(top, mount * blend * away)
 	top = _carve_canyon(fx, fz, top, dist, away)
 	top = _carve_river(fx, fz, top, dist)
-	top = _raise_ruins(fx, fz, top)
-	return clampi(roundi(top), Y_MIN + 8, Y_MAX - 2)
+	return top
+
+
+func north_center(s: float) -> float:
+	var ramp := smoothstep(NORTH_FOREST_END, NORTH_FOREST_END + 90.0, s) * (1.0 - smoothstep(float(FORT_S) - 130.0, float(FORT_S) - 40.0, s))
+	if ramp <= 0.0:
+		return 0.0
+	var a := (s - NORTH_FOREST_END) / NORTH_WAVE * TAU
+	return ramp * NORTH_AMP * (sin(a) + 0.18 * sin(a * 2.1 + 1.3))
+
+
+func _north_zone(fx: float, fz: float) -> Vector2:
+	var s := -fz
+	if s < 20.0 or s > float(FORT_S) + 260.0:
+		return Vector2.ZERO
+	var lat := absf(fx - north_center(s))
+	if lat > 260.0:
+		return Vector2.ZERO
+	var along := smoothstep(30.0, 90.0, s) * (1.0 - smoothstep(float(FORT_S) + 90.0, float(FORT_S) + 240.0, s))
+	var band := 1.0 - smoothstep(110.0, 260.0, lat)
+	var zone := along * band
+	var t := smoothstep(NORTH_FOREST_END - 20.0, NORTH_TUNDRA_START + 90.0, s)
+	return Vector2(zone * (1.0 - t), zone * t)
+
+
+func north_road_lateral(fx: float, fz: float) -> float:
+	var s := -fz
+	if s < float(RUIN_OUTER) or s > float(FORT_S) - 9.0:
+		return 9999.0
+	var c := north_center(s)
+	var d := (north_center(s + 1.0) - north_center(s - 1.0)) * 0.5
+	return absf(fx - c) - ROAD_HALF * sqrt(1.0 + d * d)
+
+
+func north_road_height(s: float) -> float:
+	if north_profile.is_empty():
+		return float(base_height + RUIN_RAISE)
+	var f := clampf((s - float(RUIN_OUTER)) / float(NORTH_STEP), 0.0, float(north_profile.size() - 1))
+	var i := mini(floori(f), north_profile.size() - 2)
+	return lerpf(north_profile[i], north_profile[i + 1], f - float(i))
+
+
+func _carve_north_road(fx: float, fz: float, top: float) -> float:
+	var lat := north_road_lateral(fx, fz)
+	if lat >= ROAD_SKIRT:
+		return top
+	var w := 1.0 - smoothstep(0.0, ROAD_SKIRT, maxf(lat, 0.0))
+	return lerpf(top, north_road_height(-fz), w)
+
+
+func _build_north_profile() -> void:
+	var s0 := float(RUIN_OUTER)
+	var count := int((float(FORT_S) + 80.0 - s0) / float(NORTH_STEP)) + 2
+	var raw := PackedFloat32Array()
+	raw.resize(count)
+	for i in count:
+		var s := s0 + float(i * NORTH_STEP)
+		raw[i] = _relief_top(north_center(s) + 0.5, -s + 0.5)
+	var smooth := PackedFloat32Array()
+	smooth.resize(count)
+	for i in count:
+		var sum := 0.0
+		var n := 0
+		for j in range(maxi(i - 8, 0), mini(i + 9, count)):
+			sum += raw[j]
+			n += 1
+		smooth[i] = sum / float(n)
+	var tail_i := clampi(int((float(FORT_S) - 70.0 - s0) / float(NORTH_STEP)), 0, count - 1)
+	var out := PackedFloat32Array()
+	out.resize(count)
+	var start := float(base_height + RUIN_RAISE)
+	out[0] = start
+	for i in range(1, count):
+		var s := s0 + float(i * NORTH_STEP)
+		var ramp := start + smoothstep(NORTH_FOREST_END - 30.0, float(FORT_S) - 60.0, s) * 54.0
+		var flat_w := 1.0 - smoothstep(NORTH_FOREST_END - 40.0, NORTH_FOREST_END + 60.0, s)
+		var t := lerpf(smooth[i], ramp, 0.5 + 0.4 * flat_w)
+		if i > tail_i:
+			t = out[tail_i]
+		var lim := ROAD_GRADE * float(NORTH_STEP)
+		out[i] = clampf(t, out[i - 1] - lim, out[i - 1] + lim)
+	north_profile = out
+	fort_floor = roundi(out[tail_i])
+
+
+func south_center(s: float) -> float:
+	if s < SOUTH_WIND_START:
+		return 0.0
+	var ramp := smoothstep(SOUTH_WIND_START, SOUTH_WIND_START + 130.0, s) * (1.0 - smoothstep(float(SFORT_S) - 190.0, float(SFORT_S) - 70.0, s))
+	if ramp <= 0.0:
+		return 0.0
+	var a := (s - SOUTH_WIND_START) / SOUTH_WAVE * TAU
+	return ramp * SOUTH_AMP * (sin(a) + 0.15 * sin(a * 2.3 + 0.7))
+
+
+func _south_zone(fx: float, fz: float) -> Vector2:
+	if fz < 20.0 or fz > float(SFORT_S) + 260.0:
+		return Vector2.ZERO
+	var lat := _south_lat(fx, fz)
+	if lat > 240.0:
+		return Vector2.ZERO
+	var along := smoothstep(30.0, 90.0, fz) * (1.0 - smoothstep(float(SFORT_S) + 120.0, float(SFORT_S) + 250.0, fz))
+	var band := 1.0 - smoothstep(140.0, 230.0, lat)
+	var zone := along * band
+	var t := smoothstep(SOUTH_DESERT_END - 20.0, SOUTH_CANYON_START + 60.0, fz)
+	return Vector2(zone * (1.0 - t), zone * t)
+
+
+func _south_lat(fx: float, fz: float) -> float:
+	if fz > float(SFORT_S):
+		return Vector2(fx, fz - float(SFORT_S)).length()
+	return absf(fx - south_center(fz))
+
+
+func south_road_lateral(fx: float, fz: float) -> float:
+	if fz < float(RUIN_OUTER) or fz > float(SFORT_S) - 38.0:
+		return 9999.0
+	var c := south_center(fz)
+	var d := (south_center(fz + 1.0) - south_center(fz - 1.0)) * 0.5
+	return absf(fx - c) - ROAD_HALF * sqrt(1.0 + d * d)
+
+
+func south_road_height(s: float) -> float:
+	if south_profile.is_empty():
+		return float(base_height + RUIN_RAISE)
+	var f := clampf((s - float(RUIN_OUTER)) / float(NORTH_STEP), 0.0, float(south_profile.size() - 1))
+	var i := mini(floori(f), south_profile.size() - 2)
+	return lerpf(south_profile[i], south_profile[i + 1], f - float(i))
+
+
+func _carve_south_road(fx: float, fz: float, top: float) -> float:
+	var lat := south_road_lateral(fx, fz)
+	if lat >= ROAD_SKIRT:
+		return top
+	var w := 1.0 - smoothstep(0.0, ROAD_SKIRT, maxf(lat, 0.0))
+	return lerpf(top, south_road_height(fz), w)
+
+
+func _mesa_height(fx: float, fz: float, floor_h: float) -> float:
+	var hills := n_hills.get_noise_2d(fx, fz) * 0.5 + 0.5
+	var rough := n_rough.get_noise_2d(fx, fz) * 0.5 + 0.5
+	return floor_h + 50.0 + hills * 16.0 + rough * 6.0
+
+
+func _south_gorge(fx: float, fz: float, top: float) -> float:
+	var zone := _south_zone(fx, fz)
+	var w := smoothstep(0.12, 0.6, zone.y)
+	if w <= 0.0:
+		return top
+	var lat := _south_lat(fx, fz)
+	var floor_h := south_road_height(fz)
+	var hw := SOUTH_FLOOR_HW + (SFORT_ARENA - SOUTH_FLOOR_HW) * smoothstep(float(SFORT_S) - 140.0, float(SFORT_S) - 40.0, fz)
+	var mesa := _mesa_height(fx, fz, floor_h)
+	var t := clampf((lat - hw) / SOUTH_WALL_RUN, 0.0, 1.0)
+	var f := t * t * (3.0 - 2.0 * t)
+	f = lerpf(f, _terrace_unit(f), 0.8)
+	var gorge := lerpf(floor_h, mesa, clampf(f, 0.0, 1.0))
+	var out := lerpf(top, gorge, w)
+	return _strata_ledges(out, w * 0.6 * smoothstep(0.0, 0.3, t))
+
+
+func _build_south_profile() -> void:
+	var s0 := float(RUIN_OUTER)
+	var count := int((float(SFORT_S) + 80.0 - s0) / float(NORTH_STEP)) + 2
+	var raw := PackedFloat32Array()
+	raw.resize(count)
+	for i in count:
+		var s := s0 + float(i * NORTH_STEP)
+		raw[i] = _relief_top(south_center(s) + 0.5, s + 0.5)
+	var smooth := PackedFloat32Array()
+	smooth.resize(count)
+	for i in count:
+		var sum := 0.0
+		var n := 0
+		for j in range(maxi(i - 8, 0), mini(i + 9, count)):
+			sum += raw[j]
+			n += 1
+		smooth[i] = sum / float(n)
+	var tail_i := clampi(int((float(SFORT_S) - 70.0 - s0) / float(NORTH_STEP)), 0, count - 1)
+	var out := PackedFloat32Array()
+	out.resize(count)
+	var start := float(base_height + RUIN_RAISE)
+	out[0] = start
+	for i in range(1, count):
+		var s := s0 + float(i * NORTH_STEP)
+		var ramp := start + smoothstep(SOUTH_CANYON_START - 60.0, float(SFORT_S) - 110.0, s) * SOUTH_RISE
+		var t := lerpf(smooth[i], ramp, 0.85)
+		if i > tail_i:
+			t = out[tail_i]
+		var lim := SOUTH_GRADE * float(NORTH_STEP)
+		out[i] = clampf(t, out[i - 1] - lim, out[i - 1] + lim)
+	south_profile = out
+	sfort_floor = roundi(out[tail_i])
+	chasm_depth = clampi(sfort_floor - 3, 16, 46)
+
+
+func sfort_kind(x: int, z: int) -> int:
+	var dz := z - SFORT_S
+	if absi(x) > SFORT_R_O or absi(dz) > SFORT_R_O:
+		return 0
+	var fx := float(x) + 0.5
+	var fz := float(dz) + 0.5
+	var r := sqrt(fx * fx + fz * fz)
+	if r > float(SFORT_R_O):
+		return 0
+	if r > float(SFORT_R_O - SFORT_WALL):
+		if dz < 0 and x >= FORT_GATE_LO and x <= FORT_GATE_HI:
+			return 3
+		return 2
+	if r >= SFORT_PAR_IN and r < SFORT_PAR_OUT:
+		if dz < 0 and absi(x) <= 4:
+			return 1
+		return 5
+	if r < PIT_R0 + PIT_RAMP_W * 0.5:
+		return 6
+	return 1
+
+
+func pit_height(fx: float, fz: float) -> float:
+	var r := sqrt(fx * fx + fz * fz)
+	var f := float(sfort_floor)
+	var depth := float(chasm_depth)
+	if r >= PIT_R0 + PIT_RAMP_W * 0.5:
+		return f
+	var end_r := PIT_R0 - PIT_PITCH * float(PIT_TURNS)
+	if r <= end_r - PIT_RAMP_W * 0.5:
+		return f - depth
+	var th := fposmod(atan2(fz, fx) - PIT_ENTRY, TAU)
+	var m := roundi((PIT_R0 - r) / PIT_PITCH - th / TAU)
+	if m < 0:
+		return f
+	if m >= PIT_TURNS:
+		return f - depth
+	var phi := th + TAU * float(m)
+	var ramp_r := PIT_R0 - PIT_PITCH * phi / TAU
+	var e := r - ramp_r
+	var delta := depth / float(PIT_TURNS)
+	var hs := f - depth * phi / (float(PIT_TURNS) * TAU)
+	var half := PIT_RAMP_W * 0.5
+	if absf(e) <= half:
+		return hs
+	var span := PIT_PITCH * 0.5 - half
+	var u := clampf((absf(e) - half) / span, 0.0, 1.0)
+	u = u * u * (3.0 - 2.0 * u)
+	if e > 0.0:
+		var up := f if m == 0 else hs + delta * 0.5
+		return lerpf(hs, up, u)
+	var down := f - depth if m == PIT_TURNS - 1 else hs - delta * 0.5
+	return lerpf(hs, down, u)
+
+
+func _sfort_columns(x: int, z: int, h: int) -> int:
+	var dz := z - SFORT_S
+	if absi(x) > SFORT_R_O or absi(dz) > SFORT_R_O:
+		return h
+	var kind := sfort_kind(x, z)
+	if kind == 0:
+		return h
+	if kind == 2:
+		var top := sfort_floor + SFORT_WALL_H
+		if dz < 0 and absi(x) <= 9:
+			top += SFORT_TOWER_H
+		return top
+	if kind == 5:
+		return sfort_floor + SFORT_PAR_H
+	if kind == 6:
+		return roundi(pit_height(float(x) + 0.5, float(dz) + 0.5))
+	return sfort_floor
+
+
+func _strata_block(x: int, iy: int, z: int) -> int:
+	var tilt := (x * 3 + z * 2) >> 5
+	return CANYON_BANDS[posmod(iy + tilt, CANYON_BANDS.size())]
+
+
+func _level_fort(fx: float, fz: float, top: float) -> float:
+	var reach := maxf(absf(fx), absf(fz + float(FORT_S)))
+	var w := 1.0 - smoothstep(float(FORT_R_O) + 2.0, float(FORT_R_O) + 2.0 + FORT_SKIRT, reach)
+	if w <= 0.0:
+		return top
+	return lerpf(top, float(fort_floor), w)
+
+
+func fort_kind(x: int, z: int) -> int:
+	var dz := z + FORT_S
+	var d := maxi(absi(x), absi(dz))
+	if d > FORT_R_O:
+		return 0
+	for ring in [FORT_R_O, FORT_R_I]:
+		if d <= ring and d > ring - FORT_WALL:
+			if dz > 0 and x >= FORT_GATE_LO and x <= FORT_GATE_HI:
+				return 3
+			return 2
+	if absi(x) <= 2 and absi(dz) <= 2:
+		return 4
+	return 1
+
+
+func _fort_columns(x: int, z: int, h: int) -> int:
+	var dz := z + FORT_S
+	if absi(x) > FORT_R_O or absi(dz) > FORT_R_O:
+		return h
+	var kind := fort_kind(x, z)
+	if kind == 0:
+		return h
+	if kind == 2:
+		var d := maxi(absi(x), absi(dz))
+		var top := fort_floor + (FORT_WALL_H if d > FORT_R_I else FORT_INNER_H)
+		if d > FORT_R_I and dz > 0 and absi(x) <= 9:
+			top += FORT_TOWER_H
+		return top
+	if kind == 4:
+		return fort_floor + 1
+	return fort_floor
 
 
 func _raise_ruins(fx: float, fz: float, top: float) -> float:
@@ -1804,7 +2185,10 @@ func _desert(x: float, z: float) -> float:
 	var n := n_biome.get_noise_2d(x, z)
 	var base := smoothstep(desert_threshold, desert_threshold + 0.14, n)
 	var away := smoothstep(desert_clear_radius, desert_clear_radius + 50.0, Vector2(x, z).length())
-	return base * away
+	var zone := _north_zone(x, z)
+	var plain := base * away * (1.0 - smoothstep(0.05, 0.3, zone.x + zone.y))
+	var sz := _south_zone(x, z)
+	return maxf(plain, smoothstep(0.1, 0.4, sz.x + sz.y * 0.6))
 
 
 func _snowy(x: float, z: float) -> float:
@@ -1814,12 +2198,14 @@ func _snowy(x: float, z: float) -> float:
 	var base := smoothstep(snowy_threshold, snowy_threshold + 0.14, n)
 	var away := smoothstep(snowy_clear_radius, snowy_clear_radius + 50.0, Vector2(x, z).length())
 	var dry := _desert(x, z)
-	return base * away * (1.0 - clampf(dry * 4.0, 0.0, 1.0))
+	var plain := base * away * (1.0 - clampf(dry * 4.0, 0.0, 1.0))
+	return maxf(plain, smoothstep(0.12, 0.35, _north_zone(x, z).y))
 
 
 func _moisture(x: float, z: float) -> float:
 	var m := n_moist.get_noise_2d(x, z) * 0.5 + 0.5
-	return clampf((m - 0.5) * 1.8 + 0.5, 0.0, 1.0)
+	var base := clampf((m - 0.5) * 1.8 + 0.5, 0.0, 1.0)
+	return maxf(base, _north_zone(x, z).x * 0.8)
 
 
 func _top_color(h: int, moist: float, desert: float, snowy: float) -> Color:
@@ -1839,7 +2225,13 @@ func in_ruins(x: int, z: int) -> bool:
 func is_road(x: int, z: int) -> bool:
 	if absf(float(x)) > world_radius or absf(float(z)) > world_radius:
 		return false
-	return (x >= ROAD_LO and x <= ROAD_HI) or (z >= ROAD_LO and z <= ROAD_HI)
+	if z >= ROAD_LO and z <= ROAD_HI:
+		return true
+	if z <= -RUIN_OUTER - 1:
+		return north_road_lateral(x + 0.5, z + 0.5) <= 0.0
+	if z >= RUIN_OUTER + 1:
+		return south_road_lateral(x + 0.5, z + 0.5) <= 0.0
+	return x >= ROAD_LO and x <= ROAD_HI
 
 
 func on_wall_line(x: int, z: int) -> bool:
@@ -1848,6 +2240,12 @@ func on_wall_line(x: int, z: int) -> bool:
 
 
 func _ruin_keepout(wx: float, wz: float) -> bool:
+	if absf(wx) <= float(FORT_R_O) + 10.0 and absf(wz + float(FORT_S)) <= float(FORT_R_O) + 10.0:
+		return true
+	if north_road_lateral(wx, wz) < 3.0 or south_road_lateral(wx, wz) < 3.0:
+		return true
+	if absf(wx) <= float(SFORT_R_O) + 10.0 and absf(wz - float(SFORT_S)) <= float(SFORT_R_O) + 10.0:
+		return true
 	return maxf(absf(wx), absf(wz)) <= float(RUIN_OUTER) + 3.0 or is_road(floori(wx), floori(wz))
 
 
@@ -1856,6 +2254,22 @@ func _surface_id(h: int, moist: float, desert: float, x: int, z: int) -> int:
 		return B_ROAD
 	if in_ruins(x, z):
 		return B_DIRT
+	var fk := fort_kind(x, z)
+	if fk == 2 or fk == 4:
+		return B_BRICK
+	if fk != 0:
+		return B_DIRT
+	var sk := sfort_kind(x, z)
+	if sk == 2 or sk == 5:
+		return B_BRICK
+	if sk == 6:
+		return B_SAND
+	if sk != 0:
+		return B_DIRT
+	if z > RUIN_OUTER and _south_zone(x + 0.5, z + 0.5).y > 0.35:
+		if float(h) <= south_road_height(z + 0.5) + 2.5:
+			return B_SAND
+		return S_STRATA
 	var hf := float(h)
 	if hf >= snow_line + 2.0:
 		return B_SNOW
@@ -1923,9 +2337,15 @@ func _gen_block(x: int, iy: int, z: int, h: int, surf: int, in_desert: bool) -> 
 	if depth == 0:
 		if on_platform(x, z):
 			return B_BRICK
+		if surf == S_STRATA:
+			return _strata_block(x, iy, z)
 		return surf
+	if surf == S_STRATA:
+		return _strata_block(x, iy, z)
 	if caves_enabled and depth >= cave_cover and iy > Y_MIN + 1 and Vector2(x + 0.5, z + 0.5).length() > core_protect_radius + 3.0 and _is_cave(x, iy, z):
 		return B_AIR
+	if surf == B_BRICK and depth <= 24:
+		return B_BRICK
 	if (surf == B_GRASS or surf == B_ROAD) and depth <= 3:
 		return B_DIRT
 	if surf == B_SNOW and depth <= 3 and float(h) < snow_line + 2.0:
@@ -2107,6 +2527,15 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 			snowy[ci] = sv
 			top_cols[ci] = COL_DIRT if in_ruins(wx0, wz0) or is_road(wx0, wz0) else _top_color(h, m, dv, sv)
 			surf[ci] = _surface_id(h, m, dv, wx0, wz0)
+			if surf[ci] == S_STRATA:
+				top_cols[ci] = BASE_COL[_strata_block(wx0, h - 1, wz0)]
+				continue
+			if surf[ci] == B_BRICK:
+				top_cols[ci] = COL_STONE
+			elif (fort_kind(wx0, wz0) != 0 or sfort_kind(wx0, wz0) != 0) and not is_road(wx0, wz0):
+				top_cols[ci] = COL_SAND if surf[ci] == B_SAND else COL_DIRT
+			if surf[ci] == B_BRICK or fort_kind(wx0, wz0) != 0 or sfort_kind(wx0, wz0) != 0:
+				continue
 			if _wet(heights, (lz + 1) * PAD + lx + 1) and surf[ci] != B_SNOW:
 				surf[ci] = B_SAND
 			elif (surf[ci] == B_GRASS or surf[ci] == B_SAND) and h > water_level + 2 and _max_step(heights, (lz + 1) * PAD + lx + 1, h) >= CLIFF_STEP:
@@ -2234,7 +2663,10 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 		var placed: Array = []
 		var origin2 := Vector2(coord.x * CHUNK, coord.y * CHUNK)
 
-		for _t in tree_attempts:
+		var attempts := tree_attempts
+		if _north_zone(origin2.x + 8.0, origin2.y + 8.0).x > 0.3:
+			attempts = tree_attempts * 2
+		for _t in attempts:
 			var px := rng.randf_range(2.0, CHUNK - 2.0)
 			var pz := rng.randf_range(2.0, CHUNK - 2.0)
 			var lx := int(px)
@@ -2250,10 +2682,15 @@ func _build(coord: Vector2i, snapshot: Dictionary, with_objects: bool) -> Dictio
 			var density := smoothstep(-0.7, 0.2, n_forest.get_noise_2d(world.x, world.y)) * (0.55 + 0.45 * moist[lz * CHUNK + lx])
 			if spruce:
 				density = spruce_density * (0.55 + 0.45 * smoothstep(-0.9, 0.1, n_forest.get_noise_2d(world.x, world.y)))
+			var woods := _north_zone(world.x, world.y).x
+			if woods > 0.2 and not spruce:
+				density = maxf(density, 0.95 * woods)
 			if rng.randf() > density:
 				continue
 			var pos := Vector2(lx + 0.5 + rng.randf_range(-0.15, 0.15), lz + 0.5 + rng.randf_range(-0.15, 0.15))
 			var gap := tree_spacing
+			if woods > 0.2 and not spruce:
+				gap = tree_spacing * 0.75
 			if spruce:
 				gap = spruce_spacing
 			var blocked := false

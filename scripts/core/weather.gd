@@ -34,6 +34,9 @@ const SPLASH_RATE := 240.0
 const SPLASH_RADIUS := 16.0
 const SPLASH_LIFE := 0.45
 const SPLASH_SIZE := 0.5
+const SNOW_AMOUNT := 2400
+const SNOW_HEIGHT := 12.0
+const SNOW_FOG := 1.1
 const BOLT_MIN := 5.0
 const BOLT_MAX := 14.0
 
@@ -52,6 +55,10 @@ var dark: float = 0.0
 var wind: float = 1.0
 var wind_offset: Vector2 = Vector2.ZERO
 var rain_shown: float = 0.0
+var snow_zone: float = 0.0
+var snow_shown: float = 0.0
+var rain_fx: float = 0.0
+var snow_particles: GPUParticles3D
 var wet: float = 0.0
 
 var clouds: MeshInstance3D
@@ -83,6 +90,7 @@ func setup(sun_node, environment: Environment, player_node, terrain_node) -> voi
 	terrain = terrain_node
 	_build_clouds()
 	_build_rain()
+	_build_snow()
 	_build_bolt()
 
 
@@ -142,6 +150,45 @@ func _build_rain() -> void:
 	roof_field.heightfield_mask = 1 | (1 << 19)
 	roof_field.top_level = true
 	add_child(roof_field)
+
+
+func _build_snow() -> void:
+	snow_particles = GPUParticles3D.new()
+	snow_particles.name = "Snow"
+	snow_particles.amount = SNOW_AMOUNT
+	snow_particles.lifetime = 6.0
+	snow_particles.local_coords = false
+	snow_particles.emitting = true
+	snow_particles.amount_ratio = 0.0
+	snow_particles.visibility_aabb = AABB(Vector3(-26, -26, -26), Vector3(52, 40, 52))
+	snow_particles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var mat := ParticleProcessMaterial.new()
+	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	mat.emission_box_extents = Vector3(20.0, 0.5, 20.0)
+	mat.direction = Vector3(0.2, -1.0, 0.05)
+	mat.spread = 12.0
+	mat.initial_velocity_min = 1.6
+	mat.initial_velocity_max = 2.8
+	mat.gravity = Vector3.ZERO
+	mat.scale_min = 0.6
+	mat.scale_max = 1.4
+	mat.turbulence_enabled = true
+	mat.turbulence_noise_strength = 1.4
+	mat.turbulence_noise_scale = 3.0
+	mat.turbulence_noise_speed_random = 0.4
+	mat.collision_mode = ParticleProcessMaterial.COLLISION_HIDE_ON_CONTACT
+	snow_particles.process_material = mat
+	var flake := QuadMesh.new()
+	flake.size = Vector2(0.09, 0.09)
+	var flake_mat := StandardMaterial3D.new()
+	flake_mat.albedo_color = Color(0.95, 0.97, 1.0, 0.85)
+	flake_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	flake_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	flake_mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	flake.material = flake_mat
+	snow_particles.draw_pass_1 = flake
+	snow_particles.top_level = true
+	add_child(snow_particles)
 
 
 func _build_splashes() -> void:
@@ -350,6 +397,11 @@ func _process(delta: float) -> void:
 
 	var ppos: Vector3 = player.global_position
 	wind_offset += WIND_DIR * wind * 4.0 * delta
+	var zone_target := 0.0
+	if terrain != null:
+		zone_target = terrain.snow_amount(ppos.x, ppos.z)
+	snow_zone = move_toward(snow_zone, zone_target, delta * 0.3)
+	rain_fx = rain * (1.0 - snow_zone)
 
 	_update_lightning(delta, ppos)
 	_apply_clouds(ppos)
@@ -359,8 +411,8 @@ func _process(delta: float) -> void:
 
 
 func _apply_wetness(delta: float) -> void:
-	if rain > 0.05:
-		wet = move_toward(wet, 1.0, rain * 0.25 * delta)
+	if rain_fx > 0.05:
+		wet = move_toward(wet, 1.0, rain_fx * 0.25 * delta)
 	else:
 		wet = move_toward(wet, 0.0, 0.012 * delta)
 	BlockScript.apply_wetness(wet)
@@ -385,7 +437,14 @@ func _apply_rain(delta: float, ppos: Vector3) -> void:
 		var ground: int = terrain.surface_y(floori(ppos.x), floori(ppos.z))
 		if ppos.y < ground - 3.0:
 			outside = 0.0
-	rain_shown = move_toward(rain_shown, rain * outside, delta * 0.8)
+	rain_shown = move_toward(rain_shown, rain_fx * outside, delta * 0.8)
+	var flurry := clampf(maxf(rain, cover * 0.4 - 0.12), 0.0, 1.0) * snow_zone
+	snow_shown = move_toward(snow_shown, flurry * outside, delta * 0.5)
+	snow_particles.amount_ratio = clampf(snow_shown, 0.0, 1.0)
+	snow_particles.emitting = snow_shown > 0.01
+	snow_particles.global_position = ppos + Vector3(0.0, SNOW_HEIGHT, 0.0)
+	var snow_mat := snow_particles.process_material as ParticleProcessMaterial
+	snow_mat.direction = Vector3(0.12 + 0.3 * wind, -1.0, 0.05 * wind)
 	rain_particles.amount_ratio = clampf(rain_shown, 0.0, 1.0)
 	rain_particles.emitting = rain_shown > 0.01
 	_emit_ripples(delta, ppos)
@@ -404,7 +463,7 @@ func _apply_environment() -> void:
 	sky_material.ground_horizon_color = sky_material.sky_horizon_color
 	sky_material.ground_bottom_color = sky_material.sky_top_color.darkened(0.5)
 	env.fog_light_color = _grade(env.fog_light_color, minf(gray_mix + fog * 0.3, 0.95), shade)
-	env.fog_density = BASE_FOG * (1.0 + fog * FOG_BOOST + rain * 0.5)
+	env.fog_density = BASE_FOG * (1.0 + fog * FOG_BOOST + rain * 0.5 + snow_shown * SNOW_FOG)
 	env.ambient_light_energy *= 1.0 - dark * 0.25
 	sun.light_energy *= 1.0 - dark * 0.85
 	if flash > 0.01:
@@ -428,7 +487,7 @@ func _update_lightning(delta: float, ppos: Vector3) -> void:
 		if bolt_age >= 0.6:
 			flash = 0.0
 			bolt.visible = false
-	if state != State.STORM or rain < 0.7:
+	if state != State.STORM or rain_fx < 0.7:
 		return
 	bolt_left -= delta
 	if bolt_left > 0.0:
