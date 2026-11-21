@@ -6,8 +6,14 @@ const STEP := 3
 const SHOW_DISTANCE := 11.0
 const FULL_DISTANCE := 7.0
 const REFRESH := 0.4
-const POST_SIZE := Vector3(0.12, 1.1, 0.12)
-const CAP_SIZE := Vector3(0.2, 0.12, 0.2)
+const TileArt = preload("res://scripts/tile_art.gd")
+const PLINTH_SIZE := Vector3(0.56, 0.16, 0.56)
+const SHAFT_BOTTOM := 0.38
+const SHAFT_TOP := 0.26
+const SHAFT_H := 1.05
+const CAP_SIZE := Vector3(0.42, 0.1, 0.42)
+const RUNE_SIZE := Vector3(0.08, 0.22, 0.05)
+const GEM_SIZE := Vector3(0.1, 0.1, 0.1)
 
 var terrain
 var core_ref
@@ -35,26 +41,49 @@ func contains(p: Vector3) -> bool:
 	return absf(p.x - (center_cell.x + 0.5)) <= half + 0.5 and absf(p.z - (center_cell.y + 0.5)) <= half + 0.5
 
 
+func _tapered(bottom: float, top: float, height: float, material: Material) -> ArrayMesh:
+	var hb := bottom * 0.5
+	var ht := top * 0.5
+	var corners_b: Array = [Vector3(-hb, 0.0, hb), Vector3(hb, 0.0, hb), Vector3(hb, 0.0, -hb), Vector3(-hb, 0.0, -hb)]
+	var corners_t: Array = [Vector3(-ht, height, ht), Vector3(ht, height, ht), Vector3(ht, height, -ht), Vector3(-ht, height, -ht)]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in 4:
+		var n := (i + 1) % 4
+		var quad: Array = [corners_t[i], corners_t[n], corners_b[n], corners_b[i]]
+		var uv: Array = [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)]
+		for k in [0, 1, 2, 0, 2, 3]:
+			st.set_uv(uv[k])
+			st.add_vertex(quad[k])
+	for k in [0, 1, 2, 0, 2, 3]:
+		var uv_top: Array = [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)]
+		var order: Array = [corners_t[3], corners_t[2], corners_t[1], corners_t[0]]
+		st.set_uv(uv_top[k])
+		st.add_vertex(order[k])
+	st.generate_normals()
+	var mesh := st.commit()
+	mesh.surface_set_material(0, material)
+	return mesh
+
+
 func _build() -> void:
 	for old: Node3D in posts:
 		old.queue_free()
 	posts.clear()
 	built_level = int(core_ref.level) if core_ref != null and is_instance_valid(core_ref) else 1
 	half = BASE_HALF + LEVEL_STEP * (built_level - 1)
-	var post_mat := StandardMaterial3D.new()
-	post_mat.albedo_color = Color(0.3, 0.27, 0.24)
-	post_mat.roughness = 1.0
-	var cap_mat := StandardMaterial3D.new()
-	cap_mat.albedo_color = Color(0.45, 0.8, 0.78)
-	cap_mat.emission_enabled = true
-	cap_mat.emission = Color(0.4, 0.95, 0.9)
-	cap_mat.emission_energy_multiplier = 1.4
-	var post_mesh := BoxMesh.new()
-	post_mesh.size = POST_SIZE
-	post_mesh.material = post_mat
-	var cap_mesh := BoxMesh.new()
-	cap_mesh.size = CAP_SIZE
-	cap_mesh.material = cap_mat
+	var stone_mat := TileArt.uv_material("stone_brick", Color(0.5, 0.5, 0.54), Vector3.ONE).duplicate() as StandardMaterial3D
+	stone_mat.albedo_color = Color(0.66, 0.66, 0.7)
+	var rune_mat := StandardMaterial3D.new()
+	rune_mat.albedo_color = Color(0.45, 0.8, 0.78)
+	rune_mat.emission_enabled = true
+	rune_mat.emission = Color(0.4, 0.95, 0.9)
+	rune_mat.emission_energy_multiplier = 1.4
+	var plinth_mesh := TileArt.box_mesh(PLINTH_SIZE, stone_mat)
+	var shaft_mesh := _tapered(SHAFT_BOTTOM, SHAFT_TOP, SHAFT_H, stone_mat)
+	var cap_mesh := TileArt.box_mesh(CAP_SIZE, stone_mat)
+	var rune_mesh := TileArt.box_mesh(RUNE_SIZE, rune_mat)
+	var gem_mesh := TileArt.box_mesh(GEM_SIZE, rune_mat)
 
 	var seen: Dictionary = {}
 	for i in range(-half, half + 1, STEP):
@@ -63,15 +92,36 @@ func _build() -> void:
 				continue
 			seen[cell] = true
 			var post := Node3D.new()
-			var body := MeshInstance3D.new()
-			body.mesh = post_mesh
-			body.position = Vector3(0.0, POST_SIZE.y * 0.5, 0.0)
-			post.add_child(body)
+			var plinth := MeshInstance3D.new()
+			plinth.mesh = plinth_mesh
+			plinth.position = Vector3(0.0, PLINTH_SIZE.y * 0.5, 0.0)
+			post.add_child(plinth)
+			var shaft := MeshInstance3D.new()
+			shaft.mesh = shaft_mesh
+			shaft.position = Vector3(0.0, PLINTH_SIZE.y, 0.0)
+			post.add_child(shaft)
 			var cap := MeshInstance3D.new()
 			cap.mesh = cap_mesh
-			cap.position = Vector3(0.0, POST_SIZE.y + CAP_SIZE.y * 0.5, 0.0)
-			cap.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			cap.position = Vector3(0.0, PLINTH_SIZE.y + SHAFT_H + CAP_SIZE.y * 0.5, 0.0)
 			post.add_child(cap)
+			var rune := MeshInstance3D.new()
+			rune.mesh = rune_mesh
+			rune.position = Vector3(0.0, PLINTH_SIZE.y + SHAFT_H * 0.62, SHAFT_BOTTOM * 0.5 - 0.06)
+			rune.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			post.add_child(rune)
+			var gem := MeshInstance3D.new()
+			gem.mesh = gem_mesh
+			gem.position = Vector3(0.0, PLINTH_SIZE.y + SHAFT_H + CAP_SIZE.y + GEM_SIZE.y * 0.5, 0.0)
+			gem.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			post.add_child(gem)
+			var outward := Vector2(float(cell.x), float(cell.y))
+			if absi(cell.x) == half and absi(cell.y) == half:
+				outward = Vector2(float(cell.x), float(cell.y))
+			elif absi(cell.x) == half:
+				outward = Vector2(float(cell.x), 0.0)
+			else:
+				outward = Vector2(0.0, float(cell.y))
+			post.rotation.y = atan2(outward.x, outward.y)
 			post.visible = false
 			add_child(post)
 			post.global_position = Vector3(center_cell.x + cell.x + 0.5, 0.0, center_cell.y + cell.y + 0.5)

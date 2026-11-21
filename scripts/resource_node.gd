@@ -3,8 +3,8 @@ extends StaticBody3D
 const ChipBurst = preload("res://scripts/chip_burst.gd")
 
 const Sfx = preload("res://scripts/core/sfx.gd")
-const STONE_TYPES := ["stone", "road", "basalt", "diorite", "granite", "limestone", "sandstone", "stone_brick", "merlon", "stone_window", "reinforced_door", "basalt_brick", "diorite_brick", "granite_brick", "limestone_brick", "fortified_brick", "ruined_brick", "stone_forge", "iron_block"]
-const CHOP_TYPES := ["wood", "plank", "scaffold", "door", "ladder", "chest", "workbench", "barricade"]
+const STONE_TYPES := ["stone", "road", "basalt", "diorite", "granite", "limestone", "sandstone", "stone_brick", "merlon", "stone_window", "reinforced_door", "basalt_brick", "diorite_brick", "granite_brick", "limestone_brick", "fortified_brick", "ruined_brick", "stone_forge", "iron_block", "stone_stairs"]
+const CHOP_TYPES := ["wood", "plank", "scaffold", "door", "ladder", "chest", "workbench", "barricade", "roof", "bed", "tether"]
 
 signal harvested(resource_type: String, amount: int)
 

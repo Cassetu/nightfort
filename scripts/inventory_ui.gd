@@ -181,7 +181,7 @@ func open_chest(c) -> void:
 	craft_col.visible = false
 	troop_panel.visible = false
 	chest_panel.visible = true
-	title.text = "Chest"
+	title.text = Inventory.BLOCK_TYPES["chest"]["name"]
 	current_recipe = {}
 	_enter()
 

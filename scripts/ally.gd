@@ -7,6 +7,7 @@ const ChipBurst = preload("res://scripts/chip_burst.gd")
 const Footsteps = preload("res://scripts/core/footsteps.gd")
 const AllySkin = preload("res://scripts/ally_skin.gd")
 const BileSack = preload("res://scripts/enemies/bile_sack.gd")
+const Roads = preload("res://scripts/core/roads.gd")
 const PUDDLE_MARGIN := 1.0
 
 const SPEED := 3.5
@@ -191,8 +192,9 @@ func _physics_process(delta: float) -> void:
 		think_timer = (FAR_THINK if far else THINK) + randf() * 0.03
 	if face_dir.length_squared() > 0.0001:
 		rotation.y = lerp_angle(rotation.y, atan2(-face_dir.x, -face_dir.z), minf(TURN * delta, 1.0))
-	velocity.x = move_toward(velocity.x, desired.x, 30.0 * delta)
-	velocity.z = move_toward(velocity.z, desired.z, 30.0 * delta)
+	var road_boost: float = Roads.factor(global_position)
+	velocity.x = move_toward(velocity.x, desired.x * road_boost, 30.0 * delta)
+	velocity.z = move_toward(velocity.z, desired.z * road_boost, 30.0 * delta)
 	jump_timer = maxf(jump_timer - delta, 0.0)
 	if desired != Vector3.ZERO and jump_timer <= 0.0 and is_on_floor() and is_on_wall() and not mining:
 		_try_hop(desired)

@@ -44,17 +44,24 @@ static func _ensure_materials() -> void:
 	if flesh_material != null:
 		return
 	flesh_material = TileArt.uv_material("gloom_flesh", Color(0.2, 0.08, 0.11), Vector3.ONE)
+	var skin_texture: ImageTexture = TileArt.mip_texture("gloom_skin", Color(0.46, 0.45, 0.47))
 	wing_material = StandardMaterial3D.new()
-	wing_material.albedo_color = Color(0.11, 0.05, 0.09)
+	wing_material.albedo_color = Color(0.24, 0.11, 0.19)
+	wing_material.albedo_texture = skin_texture
+	wing_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
 	wing_material.roughness = 0.9
 	wing_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	eye_material = StandardMaterial3D.new()
-	eye_material.albedo_color = Color(0.1, 0.0, 0.0)
+	eye_material.albedo_color = Color(0.2, 0.0, 0.0)
+	eye_material.albedo_texture = skin_texture
+	eye_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
 	eye_material.emission_enabled = true
 	eye_material.emission = Color(0.9, 0.2, 0.5)
 	eye_material.emission_energy_multiplier = 1.6
 	sack_material = StandardMaterial3D.new()
-	sack_material.albedo_color = Color(0.22, 0.1, 0.28)
+	sack_material.albedo_color = Color(0.7, 0.6, 0.8)
+	sack_material.albedo_texture = TileArt.mip_texture("bile", Color(0.2, 0.1, 0.26))
+	sack_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
 	sack_material.emission_enabled = true
 	sack_material.emission = BILE
 	sack_material.emission_energy_multiplier = 0.8

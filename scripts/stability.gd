@@ -88,10 +88,11 @@ func _update_reinforcement() -> void:
 				break
 			run.append(m)
 			at += Vector3i.UP
-		var tall := run.size() > REINFORCE_HEIGHT
-		for m in run:
+		var tall: bool = run.size() >= REINFORCE_HEIGHT
+		for i in run.size():
+			var m = run[i]
 			seen[m] = true
-			m.set_reinforced(tall)
+			m.set_reinforced(tall, maxi(0, i - (REINFORCE_HEIGHT - 1)))
 
 
 func _recompute() -> void:

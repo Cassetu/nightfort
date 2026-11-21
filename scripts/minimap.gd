@@ -2,11 +2,14 @@ extends CanvasLayer
 const BlockIndex = preload("res://scripts/block_index.gd")
 
 const RADIUS := 24
-const SIZE := RADIUS * 2 + 1
+const TERRITORY_PAD := 4.0
+const TERRITORY_OUTLINE := Color(0.45, 0.9, 0.88, 0.7)
+const SMOOTH := 6.0
+const SLACK := 8
 const CELL := 4.0
 const UPDATE := 0.4
 const CELLS_PER_FRAME := 140
-const CACHE_LIMIT := 6000
+const CACHE_LIMIT := 24000
 const EVICT_INTERVAL := 3.0
 const EDGE := 6.0
 const WATER_COLOR := Color(0.2, 0.4, 0.46)
@@ -27,6 +30,12 @@ var terrain
 var image: Image
 var texture: ImageTexture
 var origin := Vector2i.ZERO
+var radius: int = RADIUS
+var size_cells: int = RADIUS * 2 + 1
+var view_center := Vector2.ZERO
+var view_cell: float = CELL
+var territory_mode: bool = false
+var territory_node
 var timer: float = 0.0
 var heights := PackedInt32Array()
 var cache_h: Dictionary = {}
@@ -44,9 +53,8 @@ func setup(p, c, t) -> void:
 	player = p
 	core = c
 	terrain = t
-	image = Image.create_empty(SIZE, SIZE, false, Image.FORMAT_RGBA8)
-	texture = ImageTexture.create_from_image(image)
-	heights.resize(SIZE * SIZE)
+	view_center = Vector2(player.global_position.x, player.global_position.z)
+	_ensure_size(RADIUS)
 	map.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	map.draw.connect(_on_draw)
 	var frame := map.get_parent() as PanelContainer
@@ -63,9 +71,49 @@ func setup(p, c, t) -> void:
 	_rebuild()
 
 
+func _ensure_size(r: int) -> void:
+	if image != null and r == radius:
+		return
+	radius = r
+	size_cells = r * 2 + 1
+	image = Image.create_empty(size_cells, size_cells, false, Image.FORMAT_RGBA8)
+	texture = ImageTexture.create_from_image(image)
+	heights.resize(size_cells * size_cells)
+	timer = UPDATE
+
+
+func _update_view(delta: float) -> void:
+	if territory_node == null or not is_instance_valid(territory_node):
+		territory_node = get_tree().get_first_node_in_group("territory")
+	var pp := Vector2(player.global_position.x, player.global_position.z)
+	var target_center := pp
+	var target_cell := CELL
+	var was_territory := territory_mode
+	territory_mode = false
+	if territory_node != null and is_instance_valid(core) and territory_node.contains(player.global_position):
+		territory_mode = true
+		var th: int = territory_node.half
+		var span := float(th * 2 + 1) + TERRITORY_PAD * 2.0
+		target_center = Vector2(float(territory_node.center_cell.x) + 0.5, float(territory_node.center_cell.y) + 0.5)
+		target_cell = minf(map.size.x, map.size.y) / span
+		_ensure_size(maxi(RADIUS, th + SLACK))
+	elif radius != RADIUS and absf(view_cell - CELL) < 0.05:
+		_ensure_size(RADIUS)
+	if was_territory != territory_mode:
+		timer = UPDATE
+	var k := 1.0 - exp(-SMOOTH * delta)
+	view_center = view_center.lerp(target_center, k)
+	view_cell = lerpf(view_cell, target_cell, k)
+	if view_center.distance_to(target_center) < 0.02:
+		view_center = target_center
+	if absf(view_cell - target_cell) < 0.01:
+		view_cell = target_cell
+
+
 func _process(delta: float) -> void:
 	if player == null:
 		return
+	_update_view(delta)
 	timer += delta
 	if timer >= UPDATE or incomplete:
 		timer = 0.0
@@ -88,7 +136,7 @@ func _evict() -> void:
 		return
 	var pc := Vector2i(floori(player.global_position.x), floori(player.global_position.z))
 	for key: Vector2i in cache_h.keys():
-		if absi(key.x - pc.x) > RADIUS + 12 or absi(key.y - pc.y) > RADIUS + 12:
+		if absi(key.x - pc.x) > radius + 12 or absi(key.y - pc.y) > radius + 12:
 			cache_h.erase(key)
 			cache_c.erase(key)
 
@@ -120,7 +168,8 @@ func _shade(c: Color, rise: int) -> Color:
 
 func _rebuild() -> void:
 	var pc := Vector2i(floori(player.global_position.x), floori(player.global_position.z))
-	origin = pc - Vector2i(RADIUS, RADIUS)
+	var vc := Vector2i(floori(view_center.x), floori(view_center.y))
+	origin = vc - Vector2i(radius, radius)
 	var pkey := Vector2i(pc.x, pc.y)
 	var ph: int
 	if cache_h.has(pkey):
@@ -129,10 +178,10 @@ func _rebuild() -> void:
 		ph = terrain.surface_y(pc.x, pc.y)
 	var budget := CELLS_PER_FRAME
 	incomplete = false
-	for j in SIZE:
-		for i in SIZE:
+	for j in size_cells:
+		for i in size_cells:
 			var key := Vector2i(origin.x + i, origin.y + j)
-			var idx := j * SIZE + i
+			var idx := j * size_cells + i
 			if cache_h.has(key):
 				var h: int = cache_h[key]
 				heights[idx] = h
@@ -152,12 +201,12 @@ func _rebuild() -> void:
 				incomplete = true
 				heights[idx] = ph
 				image.set_pixel(i, j, BACKDROP)
-	var px := float(pc.x)
-	var pz := float(pc.y)
+	var px := float(vc.x)
+	var pz := float(vc.y)
 	for n in BlockIndex.list:
 		if n.dying:
 			continue
-		if absf(n.global_position.x - px) > RADIUS + 3.0 or absf(n.global_position.z - pz) > RADIUS + 3.0:
+		if absf(n.global_position.x - px) > float(radius) + 3.0 or absf(n.global_position.z - pz) > float(radius) + 3.0:
 			continue
 		var info: Dictionary = Inventory.BLOCK_TYPES.get(n.block_type, {})
 		var base: Color = info.get("color", Color(0.6, 0.6, 0.6))
@@ -165,11 +214,11 @@ func _rebuild() -> void:
 		for c: Vector3i in n.cells():
 			var i := c.x - origin.x
 			var j := c.z - origin.y
-			if i < 0 or j < 0 or i >= SIZE or j >= SIZE:
+			if i < 0 or j < 0 or i >= size_cells or j >= size_cells:
 				continue
 			var top := c.y + 1
-			if top >= heights[j * SIZE + i]:
-				heights[j * SIZE + i] = top
+			if top >= heights[j * size_cells + i]:
+				heights[j * size_cells + i] = top
 				image.set_pixel(i, j, _shade(tile, top - ph))
 	texture.update(image)
 
@@ -185,7 +234,7 @@ func _underground(pos: Vector3) -> bool:
 
 
 func _to_map(world: Vector3, pp: Vector2, center: Vector2) -> Vector2:
-	return center + (Vector2(world.x, world.z) - pp) * CELL
+	return center + (Vector2(world.x, world.z) - pp) * view_cell
 
 
 func _on_draw() -> void:
@@ -193,9 +242,15 @@ func _on_draw() -> void:
 		return
 	var size := map.size
 	var center := size * 0.5
-	var pp := Vector2(player.global_position.x, player.global_position.z)
+	var pp := view_center
 	map.draw_rect(Rect2(Vector2.ZERO, size), BACKDROP)
-	map.draw_texture_rect(texture, Rect2(center + (Vector2(origin) - pp) * CELL, Vector2(SIZE, SIZE) * CELL), false)
+	map.draw_texture_rect(texture, Rect2(center + (Vector2(origin) - pp) * view_cell, Vector2(size_cells, size_cells) * view_cell), false)
+	if territory_mode and territory_node != null:
+		var th: float = float(territory_node.half) + 0.5
+		var tc := Vector2(float(territory_node.center_cell.x) + 0.5, float(territory_node.center_cell.y) + 0.5)
+		var corner := center + (tc - Vector2(th, th) - pp) * view_cell
+		map.draw_rect(Rect2(corner, Vector2(th, th) * 2.0 * view_cell), TERRITORY_OUTLINE, false, 1.5)
+	var arrow_at := _to_map(player.global_position, pp, center)
 
 	var limit := size * 0.5 - Vector2(EDGE, EDGE)
 	if is_instance_valid(core):
@@ -234,10 +289,10 @@ func _on_draw() -> void:
 	if dir.length() < 0.01:
 		dir = Vector2(0.0, -1.0)
 	var side := Vector2(-dir.y, dir.x)
-	var tip := center + dir * 11.0
-	var left := center - dir * 6.0 + side * 5.0
-	var right := center - dir * 6.0 - side * 5.0
-	var notch := center - dir * 2.5
+	var tip := arrow_at + dir * 11.0
+	var left := arrow_at - dir * 6.0 + side * 5.0
+	var right := arrow_at - dir * 6.0 - side * 5.0
+	var notch := arrow_at - dir * 2.5
 	var arrow := PackedVector2Array([tip, right, notch, left])
 	var shell := PackedVector2Array([tip + dir * 1.5, right - dir * 1.0 - side * 1.2, notch - dir * 0.6, left - dir * 1.0 + side * 1.2])
 	map.draw_colored_polygon(shell, OUTLINE)

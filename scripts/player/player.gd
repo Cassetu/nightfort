@@ -12,6 +12,7 @@ signal workbench_used
 signal forge_used
 signal troop_used
 signal core_used
+signal trader_used(folk)
 signal chest_used
 
 const OutlineMesh = preload("res://scripts/outline_mesh.gd")
@@ -31,6 +32,9 @@ const CROUCH_HEIGHT = 1.3
 const FEET_OFFSET = 0.85
 const HURT_SOUND_GAP_MS := 400
 const TIGHT_HEIGHT := 1.0
+const CLEAR_RADIUS := 0.36
+const CLEAR_TRIM := 0.04
+const CLEAR_LIFT := 0.06
 const TIGHT_CENTER := 0.1
 const TIGHT_EYE := 0.25
 const LEDGE_LOOK = 0.15
@@ -43,6 +47,7 @@ const MINE_REACH = 3.5
 const PLACE_REACH = 5.0
 const MINE_DAMAGE = 1
 const TileArt = preload("res://scripts/tile_art.gd")
+const Roads = preload("res://scripts/core/roads.gd")
 const ArrowScript = preload("res://scripts/arrow.gd")
 const Sfx = preload("res://scripts/core/sfx.gd")
 const SwimScript = preload("res://scripts/player/swim.gd")
@@ -53,7 +58,7 @@ const DRAW_TIME = 0.9
 const MIN_DRAW = 0.25
 const ARROW_MIN_SPEED = 0.45
 const ARROW_BASE_DAMAGE = 2
-const AXE_RESOURCES = ["wood", "plank", "cactus", "door", "workbench", "torch", "scaffold"]
+const AXE_RESOURCES = ["wood", "plank", "cactus", "door", "workbench", "torch", "scaffold", "tether"]
 const SHOVEL_RESOURCES = ["dirt", "sand", "snow"]
 const SHOVEL_BLOCKS = [1, 2, 5, 6]
 const MINE_COOLDOWN = 0.35
@@ -174,12 +179,12 @@ func _ready():
 
 func _update_crouch(delta: float, on_ladder: bool) -> void:
 	var want = Input.is_action_pressed("crouch") and not dead and not frozen and not on_ladder and not swim.swimming
-	if crouching and not want and _ceiling_blocked():
+	if crouching and not want and _blocked_above(STAND_HEIGHT):
 		want = true
 	crouching = want
 	if swim.sprinting:
 		tight = true
-	elif tight and not _ceiling_blocked():
+	elif tight and not _blocked_above(STAND_HEIGHT):
 		tight = false
 	var key := 2 if tight else (1 if crouching else 0)
 	if key != shape_key:
@@ -240,11 +245,17 @@ func _begin_stun(drop: float) -> void:
 	stun_depth = lerpf(0.08, LAND_SINK_MAX, k)
 
 
-func _ceiling_blocked() -> bool:
-	var from = global_position + Vector3(0.0, 0.4, 0.0)
-	var query = PhysicsRayQueryParameters3D.create(from, from + Vector3(0.0, 0.7, 0.0), 1)
+func _blocked_above(height: float) -> bool:
+	var probe := CapsuleShape3D.new()
+	probe.radius = CLEAR_RADIUS
+	probe.height = height - CLEAR_TRIM
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = probe
+	query.collision_mask = collision_mask
 	query.exclude = [get_rid()]
-	return not get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+	query.margin = 0.0
+	query.transform = Transform3D(Basis.IDENTITY, global_position + Vector3(0.0, -FEET_OFFSET + CLEAR_LIFT + (height - CLEAR_TRIM) * 0.5, 0.0))
+	return not get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
 
 
 func _ground_at(point: Vector3) -> bool:
@@ -339,7 +350,7 @@ func _physics_process(delta):
 		swim.clear()
 	_update_crouch(delta, on_ladder)
 	var in_water: bool = swim.swimming
-	var speed_now = SPEED * slow * (CROUCH_SPEED if crouching else 1.0) * swim.wade_factor()
+	var speed_now = SPEED * slow * (CROUCH_SPEED if crouching else 1.0) * swim.wade_factor() * Roads.factor(global_position)
 	if not is_on_floor() and not on_ladder and not in_water:
 		velocity.y -= gravity * delta
 
@@ -769,7 +780,7 @@ func holds_repair_item():
 
 func repair_ruined(block):
 	if not holds_repair_item():
-		notice.emit("Repair this with Stone")
+		notice.emit("Repair this with " + str(Inventory.ITEMS["stone"]["name"]))
 		return
 	Inventory.consume_selected(1)
 	var world = get_tree().current_scene
@@ -812,6 +823,9 @@ func mine_terrain(hit):
 		return
 	mine_timer = MINE_COOLDOWN
 	var cell = terrain.cell_from_hit(hit.position, hit.normal)
+	if terrain.fort_locked(cell):
+		notice.emit("I can't mine here")
+		return
 	var category = "shovel" if terrain.block_at(cell.x, cell.y, cell.z) in SHOVEL_BLOCKS else "pickaxe"
 	var result = terrain.hit_block(cell, MINE_DAMAGE * Inventory.tool_power(category))
 	_tool_swing()
@@ -937,6 +951,9 @@ func try_place(hit):
 	if not hit.is_empty() and hit.collider.is_in_group("block") and hit.collider.block_type == "ruined_brick":
 		repair_ruined(hit.collider)
 		return
+	if not hit.is_empty() and hit.collider.is_in_group("trader"):
+		trader_used.emit(hit.collider.get_parent())
+		return
 	if not hit.is_empty() and hit.collider.is_in_group("troop"):
 		troop_used.emit(hit.collider)
 		return
@@ -945,6 +962,14 @@ func try_place(hit):
 		return
 	if not hit.is_empty() and hit.collider.is_in_group("door"):
 		hit.collider.toggle()
+		return
+	if not hit.is_empty() and hit.collider.is_in_group("bed"):
+		notice.emit("The anchor's binding prevents sleep")
+		return
+	if not hit.is_empty() and hit.collider.is_in_group("tether"):
+		var label: String = hit.collider.toggle(self)
+		if label != "":
+			notice.emit(label)
 		return
 	var type = Inventory.held_block_type()
 	if type == "" or hit.is_empty():
@@ -979,7 +1004,9 @@ func try_place(hit):
 		var terrain_node = get_tree().get_first_node_in_group("terrain")
 		if terrain_node != null:
 			terrain_node.cover_ground(Vector3i(floori(cell.x), floori(cell.y), floori(cell.z)))
-	if block_height(type) > 1:
+	if block_height(type) > 1 or Inventory.BLOCK_TYPES[type].get("oriented", false):
 		block.rotation.y = place_yaw()
 	if type == "ladder":
 		block.rotation.y = atan2(hit.normal.x, hit.normal.z)
+	if block.has_method("hook"):
+		block.hook(self)

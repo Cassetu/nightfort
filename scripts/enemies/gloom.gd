@@ -4,6 +4,7 @@ const ChipBurst = preload("res://scripts/chip_burst.gd")
 const Sfx = preload("res://scripts/core/sfx.gd")
 const Footsteps = preload("res://scripts/core/footsteps.gd")
 const GloomBake = preload("res://scripts/enemies/gloom_bake.gd")
+const Roads = preload("res://scripts/core/roads.gd")
 
 signal died(enemy)
 
@@ -141,7 +142,7 @@ func _step(delta: float, stride: int) -> void:
 	var desired: Vector3 = ai[0]
 	var facing: Vector3 = ai[1]
 
-	var move := desired * SPEED * speed_mult
+	var move := desired * SPEED * speed_mult * Roads.factor(global_position)
 	if wild and anger <= 0.0:
 		move *= WILD_SPEED
 	if stun > 0.0:
@@ -352,6 +353,9 @@ func _wild_look() -> void:
 			if base == null:
 				continue
 			if base.emission_energy_multiplier > 2.0:
+				if eye_mat.albedo_texture == null:
+					eye_mat.albedo_texture = base.albedo_texture
+					eye_mat.texture_filter = base.texture_filter
 				mi.set_surface_override_material(surface, eye_mat)
 			elif base.resource_name.begins_with("detail"):
 				if not tinted.has(base):

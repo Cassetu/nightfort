@@ -33,6 +33,8 @@ const AttackMarkerScene = preload("res://scenes/attack_marker.tscn")
 const Pool = preload("res://scripts/core/pool.gd")
 const BlockIndex = preload("res://scripts/block_index.gd")
 const MissionsScene = preload("res://scenes/missions_board.tscn")
+const SceneryCullScript = preload("res://scripts/scenery_cull.gd")
+const TradeScene = preload("res://scenes/trade_panel.tscn")
 const PrologueScript = preload("res://scripts/prologue.gd")
 
 @onready var sun = $Sun
@@ -105,6 +107,9 @@ func _ready() -> void:
 	missions = MissionsScene.instantiate()
 	add_child(missions)
 	missions.setup(self, player)
+	var trade_panel = TradeScene.instantiate()
+	add_child(trade_panel)
+	trade_panel.setup(player)
 	var weather = Node.new()
 	weather.name = "Weather"
 	weather.set_script(WeatherScript)
@@ -172,6 +177,7 @@ func _ready() -> void:
 	core.destroyed.connect(ui.on_core_destroyed)
 
 	var state := Game.take_pending()
+	var fresh_world := state.is_empty()
 	if state.is_empty():
 		RuinsScript.generate(self, terrain, terrain.world_seed)
 		OutpostsScript.generate(self, terrain, terrain.world_seed)
@@ -182,11 +188,17 @@ func _ready() -> void:
 	var fortress := FortressScript.new()
 	fortress.name = "NorthFortress"
 	add_child(fortress)
+	fortress.place_houses = fresh_world
 	fortress.setup(terrain, player, terrain.world_seed)
 	var chasm := ChasmScript.new()
 	chasm.name = "SouthFortress"
 	add_child(chasm)
+	chasm.place_houses = fresh_world
 	chasm.setup(terrain, player, terrain.world_seed)
+	var cull := SceneryCullScript.new()
+	cull.name = "SceneryCull"
+	add_child(cull)
+	cull.setup(terrain)
 	if not state.is_empty():
 		apply_state(state)
 		intro.queue_free()
@@ -205,6 +217,13 @@ func _ready() -> void:
 		add_child(prologue)
 		await loading.finished
 		prologue.begin(self)
+
+
+func prepare_exit() -> void:
+	Game.cutscene_active = false
+	var prologue = get_node_or_null("Prologue")
+	if prologue != null and prologue.has_method("abort"):
+		prologue.abort()
 
 
 func spawn_troop(data: Dictionary) -> Node:
@@ -366,6 +385,8 @@ func collect_state() -> Dictionary:
 		var wall = node.get("wall_normal")
 		if wall != null and wall != Vector3.ZERO:
 			entry["wall"] = [wall.x, wall.y, wall.z]
+		if node.has_method("export_rope"):
+			entry["rope"] = node.export_rope()
 		blocks.append(entry)
 
 	var drops: Array = []
@@ -449,6 +470,8 @@ func apply_state(d: Dictionary) -> void:
 		block.global_position = Vector3(b["pos"][0], b["pos"][1], b["pos"][2])
 		block.rotation.y = float(b.get("yaw", 0.0))
 		block.current_health = int(b["hp"])
+		if block.has_method("import_rope") and typeof(b.get("rope")) == TYPE_DICTIONARY:
+			block.import_rope(b["rope"])
 		if block.has_method("set_open"):
 			block.set_open(bool(b.get("open", false)), true)
 		var saved_items = b.get("items")

@@ -13,6 +13,7 @@ const LIST := [
 	{"id": "torch", "out": "torch", "count": 4, "shape": [["coal"], ["stick"]]},
 	{"id": "chest", "out": "chest", "count": 1, "shape": [["plank", "plank", "plank"], ["plank", "", "plank"], ["plank", "plank", "plank"]]},
 	{"id": "lantern", "out": "lantern", "count": 1, "shape": [["iron"], ["torch"], ["iron"]]},
+	{"id": "tether", "out": "tether", "count": 1, "shape": [["", "iron", ""], ["fiber", "stick", "fiber"], ["fiber", "stick", "fiber"]]},
 	{"id": "door", "out": "door", "count": 1, "shape": [["plank", "plank"], ["plank", "plank"], ["plank", "plank"]]},
 	{"id": "stick", "out": "stick", "count": 8, "shape": [["plank"], ["plank"]]},
 	{"id": "ladder", "out": "ladder", "count": 3, "shape": [["stick"], ["stick"], ["stick"]]},
@@ -39,6 +40,9 @@ const LIST := [
 	{"id": "merlon", "out": "merlon", "count": 4, "shape": [["stone_brick", "", "stone_brick"], ["stone_brick", "stone_brick", "stone_brick"]]},
 	{"id": "stone_window", "out": "stone_window", "count": 2, "shape": [["stone_brick", "stone_brick", "stone_brick"], ["stone_brick", "", "stone_brick"]]},
 	{"id": "reinforced_door", "out": "reinforced_door", "count": 1, "shape": [["stone_brick", "stone_brick", "stone_brick"], ["stone_brick", "door", "stone_brick"]]},
+	{"id": "roof", "out": "roof", "count": 4, "shape": [["", "", "stone"], ["", "stone", "plank"], ["stone", "plank", "plank"]]},
+	{"id": "stone_stairs", "out": "stone_stairs", "count": 4, "shape": [["", "", "stone_brick"], ["", "stone_brick", "stone_brick"], ["stone_brick", "stone_brick", "stone_brick"]]},
+	{"id": "bed", "out": "bed", "count": 1, "shape": [["fiber", "fiber", "fiber"], ["plank", "plank", "plank"]]},
 	{"id": "fortified_brick", "out": "fortified_brick", "count": 4, "shape": [["stone_brick", "stone_brick", "stone_brick"], ["stone_brick", "", "stone_brick"], ["stone_brick", "stone_brick", "stone_brick"]]},
 ]
 

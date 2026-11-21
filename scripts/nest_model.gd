@@ -1,6 +1,7 @@
 extends RefCounted
 
 const TileArt = preload("res://scripts/tile_art.gd")
+const NestHazard = preload("res://scripts/nest_hazard.gd")
 
 const FLESH_TINT := Color(0.72, 0.5, 0.56)
 const BILE_GLOW := Color(0.6, 0.3, 0.8)
@@ -160,6 +161,8 @@ static func build(parent: Node3D, local: Vector3, seed: int, mouth: bool = false
 	body.collision_mask = 0
 	var shared := BoxShape3D.new()
 	shared.size = Vector3.ONE
+	var hazard_blocks := PackedVector3Array()
+	var hazard_pools := PackedVector3Array()
 
 	for cell: Vector3i in cells:
 		var kind: String = cells[cell]
@@ -167,6 +170,7 @@ static func build(parent: Node3D, local: Vector3, seed: int, mouth: bool = false
 		match kind:
 			"pool":
 				bile.append_from(cube_mesh, 0, Transform3D(Basis.from_scale(Vector3(1.0, POOL_THICK, 1.0)), Vector3(cell.x, POOL_THICK * 0.5, cell.z)))
+				hazard_pools.append(Vector3(cell.x, 0.0, cell.z))
 				continue
 			"void":
 				hole.append_from(cube_mesh, 0, Transform3D(Basis.from_scale(Vector3(1.0, VOID_THICK, 1.0)), Vector3(cell.x, VOID_THICK * 0.5 + 0.02, cell.z)))
@@ -177,6 +181,7 @@ static func build(parent: Node3D, local: Vector3, seed: int, mouth: bool = false
 				bone.append_from(cube_mesh, 0, Transform3D(Basis.IDENTITY, center))
 			"bile":
 				bile.append_from(cube_mesh, 0, Transform3D(Basis.IDENTITY, center))
+				hazard_blocks.append(center)
 		if not mouth:
 			var cs := CollisionShape3D.new()
 			cs.shape = shared
@@ -192,4 +197,10 @@ static func build(parent: Node3D, local: Vector3, seed: int, mouth: bool = false
 		root.add_child(body)
 	else:
 		body.free()
+	var hazard := Node3D.new()
+	hazard.name = "BileHazard"
+	hazard.set_script(NestHazard)
+	hazard.blocks = hazard_blocks
+	hazard.pools = hazard_pools
+	root.add_child(hazard)
 	return root

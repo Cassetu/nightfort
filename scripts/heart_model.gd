@@ -8,7 +8,9 @@ const HEART_LIFT := 5.2
 const RINGS := 44
 const SEGMENTS := 60
 const GRID_EPS := 0.004
-const COLLIDER_STEP := 3
+const COLLIDER_STEP := 2
+const COLLIDER_INSET := 0.15
+const VESSEL_HUG := 0.7
 const ROOT_COUNT := 9
 const CABLE_COUNT := 5
 const ARC_COUNT := 7
@@ -119,14 +121,14 @@ static func _material(key: String, tile: String, fallback: Color, tint: Color, w
 		return materials[key]
 	var m := (TileArt.block_material(tile, fallback) as StandardMaterial3D).duplicate() as StandardMaterial3D
 	m.albedo_color = tint
-	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.cull_mode = BaseMaterial3D.CULL_BACK
 	if wet:
 		m.roughness = 0.28
 		m.clearcoat_enabled = true
 		m.clearcoat = 0.7
 		m.clearcoat_roughness = 0.12
-		m.subsurf_scatter_enabled = true
-		m.subsurf_scatter_strength = 0.55
+		m.backlight_enabled = true
+		m.backlight = Color(0.55, 0.12, 0.14)
 		m.rim_enabled = true
 		m.rim = 0.45
 		m.rim_tint = 0.6
@@ -278,6 +280,22 @@ static func _add_mesh(parent: Node3D, buf: Buf, material: Material, name_text: S
 	return mesh
 
 
+static func _collide_convex(body: CollisionObject3D, mesh: ArrayMesh, xf: Transform3D = Transform3D.IDENTITY) -> void:
+	if mesh == null:
+		return
+	var shape := mesh.create_convex_shape(true, true)
+	if shape == null:
+		return
+	var cs := CollisionShape3D.new()
+	cs.shape = shape
+	cs.transform = xf
+	body.add_child(cs)
+
+
+static func _polar(angle: float, radius: float, y: float) -> Vector3:
+	return Vector3(cos(angle) * radius, y, sin(angle) * radius)
+
+
 static func _collide(body: CollisionObject3D, mesh: ArrayMesh, xf: Transform3D = Transform3D.IDENTITY) -> void:
 	if mesh == null:
 		return
@@ -324,7 +342,7 @@ static func build_heart(body: Node3D) -> OmniLight3D:
 	var heart_mat := heart_material()
 	for i in ORGANS.size():
 		var cfg: Dictionary = ORGANS[i]
-		_collide(body as CollisionObject3D, _add_mesh(organs, _organ_buf(cfg), heart_mat, "Organ%d" % i), organs.transform)
+		_collide_convex(body as CollisionObject3D, _add_mesh(organs, _organ_buf(cfg), heart_mat, "Organ%d" % i), organs.transform)
 	var arteries := Buf.new()
 	var veins := Buf.new()
 	var main_cfg: Dictionary = ORGANS[0]
@@ -337,8 +355,8 @@ static func build_heart(body: Node3D) -> OmniLight3D:
 	for k in 5:
 		var path2 := _surface_path(rv_cfg, rng.randf(), rng.randf_range(0.15, 0.3), rng.randf_range(0.8, 0.95), rng.randf_range(0.01, 0.05), 200 + k)
 		_tube(veins if k % 2 == 0 else arteries, path2, 0.16, 0.06, 6)
-	_collide(body as CollisionObject3D, _add_mesh(organs, arteries, artery_material(), "CoronaryArteries"), organs.transform)
-	_collide(body as CollisionObject3D, _add_mesh(organs, veins, vein_material(), "CoronaryVeins"), organs.transform)
+	_add_mesh(organs, arteries, artery_material(), "CoronaryArteries")
+	_add_mesh(organs, veins, vein_material(), "CoronaryVeins")
 	var drip := CPUParticles3D.new()
 	var bead := SphereMesh.new()
 	bead.radius = 0.1
@@ -381,21 +399,23 @@ static func build_vessels(parent: Node3D, heart_y: float, ground_y: float) -> vo
 	var veins := Buf.new()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 909
+	var top_g := float(TOWER_HEIGHT) - 0.5
 	for i in ARC_COUNT:
 		var a := TAU * (float(i) + rng.randf_range(-0.2, 0.2)) / float(ARC_COUNT)
-		var dir := Vector3(cos(a), 0.0, sin(a))
-		var peak := rng.randf_range(7.5, 10.5)
-		var ctrl := PackedVector3Array([
-			dir * 1.6 + Vector3(0.0, 2.8, 0.0),
-			dir * 2.2 + Vector3(0.0, peak - 2.5, 0.0),
-			dir * rng.randf_range(4.5, 6.0) + Vector3(0.0, peak, 0.0),
-			dir * rng.randf_range(9.0, 11.0) + Vector3(0.0, peak * 0.2, 0.0),
-			dir * rng.randf_range(12.5, 15.0) + Vector3(0.0, drop * 0.45, 0.0),
-			dir * rng.randf_range(15.0, 18.0) + Vector3(0.0, drop * 0.8, 0.0),
-			dir * rng.randf_range(16.5, 20.0) + Vector3(0.0, drop - 1.4, 0.0),
-		])
-		var path := _spline(ctrl, 8)
-		_tube(arteries if i % 2 == 0 else veins, path, rng.randf_range(1.0, 1.25), rng.randf_range(0.65, 0.85), 12, 0.1, rng.randf() * TAU)
+		var spin := rng.randf_range(0.5, 1.1) * (1.0 if i % 2 == 0 else -1.0)
+		var ctrl := PackedVector3Array()
+		ctrl.append(_polar(a, 1.3, -3.6))
+		ctrl.append(_polar(a, 2.4, -5.0))
+		var steps := 9
+		for s in steps + 1:
+			var t := float(s) / float(steps)
+			var g := lerpf(top_g, 0.6, t)
+			ctrl.append(_polar(a + spin * t, tower_radius(g) + VESSEL_HUG, g + drop))
+		var end_angle := a + spin
+		ctrl.append(_polar(end_angle, tower_radius(0.0) + 3.0, 0.2 + drop))
+		ctrl.append(_polar(end_angle, tower_radius(0.0) + rng.randf_range(6.0, 9.0), -1.0 + drop))
+		var path := _spline(ctrl, 6)
+		_tube(arteries if i % 2 == 0 else veins, path, rng.randf_range(1.0, 1.25), rng.randf_range(0.65, 0.85), 12, 0.08, rng.randf() * TAU)
 	for i in TENDRIL_COUNT:
 		var a2 := TAU * (float(i) + rng.randf_range(-0.3, 0.3)) / float(TENDRIL_COUNT) + 0.4
 		var dir2 := Vector3(cos(a2), 0.0, sin(a2))
@@ -407,12 +427,8 @@ static func build_vessels(parent: Node3D, heart_y: float, ground_y: float) -> vo
 			dir2 * rng.randf_range(9.0, 13.0) + Vector3(0.0, drop - 1.2, 0.0),
 		])
 		_tube(veins if i % 2 == 0 else arteries, _spline(ctrl2, 8), 0.36, 0.2, 8, 0.15, rng.randf() * TAU)
-	var solid := StaticBody3D.new()
-	solid.collision_layer = 1
-	solid.collision_mask = 0
-	root.add_child(solid)
-	_collide(solid, _add_mesh(root, arteries, artery_material(), "Arteries"))
-	_collide(solid, _add_mesh(root, veins, vein_material(), "Veins"))
+	_add_mesh(root, arteries, artery_material(), "Arteries")
+	_add_mesh(root, veins, vein_material(), "Veins")
 
 
 static func tower_radius(y: float) -> float:
@@ -508,15 +524,18 @@ static func build_tower(parent: Node3D, ground_y: float) -> void:
 	body.collision_layer = 1
 	body.collision_mask = 0
 	root.add_child(body)
-	_collide(body, _add_mesh(root, flesh, flesh_material(), "FleshBlocks"))
-	_collide(body, _add_mesh(root, meat, meat_material(), "MeatBlocks"))
-	_collide(body, _add_mesh(root, vein, tower_vein_material(), "VeinBlocks"))
-	_collide(body, _add_mesh(root, cables, vein_material(), "Cables"))
+	_add_mesh(root, flesh, flesh_material(), "FleshBlocks")
+	_add_mesh(root, meat, meat_material(), "MeatBlocks")
+	_add_mesh(root, vein, tower_vein_material(), "VeinBlocks")
+	_add_mesh(root, cables, vein_material(), "Cables")
 	_collide(body, _add_mesh(root, roots, artery_material(), "Roots"))
 	for level in range(0, TOWER_HEIGHT, COLLIDER_STEP):
 		var cs := CollisionShape3D.new()
 		var cyl := CylinderShape3D.new()
-		cyl.radius = maxf(tower_radius(float(level) + COLLIDER_STEP * 0.5) - 0.8, 1.0)
+		var narrow := INF
+		for k in 5:
+			narrow = minf(narrow, tower_radius(float(level) + float(COLLIDER_STEP) * float(k) / 4.0))
+		cyl.radius = maxf(narrow - COLLIDER_INSET, 1.0)
 		cyl.height = float(COLLIDER_STEP)
 		cs.shape = cyl
 		cs.position = Vector3(0.0, float(level) + COLLIDER_STEP * 0.5, 0.0)

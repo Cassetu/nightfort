@@ -1,5 +1,7 @@
 extends Control
 
+const CassetuIntro = preload("res://branding/cassetu_intro.tscn")
+
 @onready var main_buttons = %MainButtons
 @onready var continue_button = %Continue
 @onready var new_button = %NewGame
@@ -33,6 +35,9 @@ func _ready() -> void:
 	load_panel.back_requested.connect(show_main)
 	settings_panel.back_requested.connect(show_main)
 	show_main()
+	if not Game.intro_played:
+		Game.intro_played = true
+		add_child(CassetuIntro.instantiate())
 
 
 func _unhandled_input(event: InputEvent) -> void:

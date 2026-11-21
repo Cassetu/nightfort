@@ -5,8 +5,10 @@ const ArrowScript = preload("res://scripts/arrow.gd")
 const Footsteps = preload("res://scripts/core/footsteps.gd")
 const BlockIndex = preload("res://scripts/block_index.gd")
 const Sfx = preload("res://scripts/core/sfx.gd")
+const Roads = preload("res://scripts/core/roads.gd")
 
-const NAMES := ["Garrick", "Mina", "Torvald", "Edda", "Bram", "Isolde", "Corwin", "Hesper", "Dunstan", "Wren", "Alaric", "Odette", "Rurik", "Nessa", "Osric", "Tamsin", "Leofric", "Maren", "Cael", "Brigid", "Ansel", "Verity", "Hollis", "Sabine"]
+const Names = preload("res://scripts/names.gd")
+const NAMES := Names.SINGLE
 const EQUIP_SLOTS := ["weapon", "head", "chest", "legs", "feet"]
 const SPEED := 3.2
 const CLIMB_SPEED := 2.6
@@ -409,8 +411,9 @@ func _move(delta: float) -> void:
 	var planar := want
 	if planar.length() > 1.0:
 		planar = planar.normalized()
-	velocity.x = planar.x * SPEED
-	velocity.z = planar.z * SPEED
+	var road_boost: float = Roads.factor(global_position)
+	velocity.x = planar.x * SPEED * road_boost
+	velocity.z = planar.z * SPEED * road_boost
 	move_and_slide()
 	steps.update(delta)
 	if planar.length() > 0.1 and not threat:

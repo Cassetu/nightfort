@@ -5,6 +5,8 @@ const ARCHER := preload("res://scenes/archer.tscn")
 const SOLDIER := preload("res://scenes/soldier.tscn")
 const WALK_SPEED := 1.3
 const SWING := 0.55
+const Names = preload("res://scripts/names.gd")
+const Trades = preload("res://scripts/trades.gd")
 
 var walker: bool = false
 var rects: Array = []
@@ -27,10 +29,13 @@ var base_yaw: float = 0.0
 var ring_center: Vector2 = Vector2.ZERO
 var ring_lo: float = 0.0
 var ring_hi: float = 0.0
+var display_name: String = ""
+var trades: Array = []
 
 
 func setup(kind: String, ground: float, facing: Vector3, wander: bool, blocked: Array, area_lo: Vector2, area_hi: Vector2) -> void:
 	walker = wander
+	add_to_group("scenery_cull")
 	rects = blocked
 	lo = area_lo
 	hi = area_hi
@@ -55,12 +60,33 @@ func setup(kind: String, ground: float, facing: Vector3, wander: bool, blocked: 
 		if hood != null:
 			hood.visible = randf() < 0.5
 		model.scale = Vector3.ONE * randf_range(0.88, 1.04)
+	if wander:
+		var rng := RandomNumberGenerator.new()
+		rng.randomize()
+		display_name = Names.person(rng)
+		trades = Trades.roll(rng)
+		_add_talk_body()
 	time = randf() * 10.0
 	if facing.length() > 0.01:
 		base_yaw = atan2(-facing.x, -facing.z)
 		rotation.y = base_yaw
 	wait = randf_range(0.5, 6.0)
 	position.y = ground
+
+
+func _add_talk_body() -> void:
+	var talk := StaticBody3D.new()
+	talk.collision_layer = 4
+	talk.collision_mask = 0
+	talk.add_to_group("trader")
+	var cs := CollisionShape3D.new()
+	var cap := CapsuleShape3D.new()
+	cap.radius = 0.4
+	cap.height = 1.8
+	cs.shape = cap
+	cs.position = Vector3(0.0, 0.9, 0.0)
+	talk.add_child(cs)
+	add_child(talk)
 
 
 func set_ring(center: Vector2, inner: float, outer: float) -> void:

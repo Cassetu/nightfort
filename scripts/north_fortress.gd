@@ -9,6 +9,7 @@ const SHOW_RANGE := 260.0
 const HOUSE_GRID := 13
 const GUARD_EVERY := 20
 const VILLAGERS := 14
+const HOUSE_CAP := 14
 
 var terrain
 var player
@@ -21,6 +22,7 @@ var time: float = 0.0
 var check: float = 0.0
 var center: Vector3 = Vector3.ZERO
 var rects: Array = []
+var place_houses: bool = false
 
 
 func setup(terrain_node, player_node, seed_value: int) -> void:
@@ -65,6 +67,7 @@ func _wz(dz: int) -> float:
 func _build_orb() -> void:
 	orb = Node3D.new()
 	orb.name = "Anchor"
+	orb.add_to_group("scenery_cull")
 	scenery.add_child(orb)
 	orb_base = float(floor_y) + 3.0
 	orb.position = Vector3(center.x, orb_base, center.z)
@@ -160,8 +163,10 @@ func _house_sites(rng: RandomNumberGenerator) -> Array:
 
 
 func _build_houses(rng: RandomNumberGenerator) -> void:
-	for site: Dictionary in _house_sites(rng):
-		_house(site)
+	var sites: Array = _house_sites(rng)
+	var stride := maxi(1, ceili(float(sites.size()) / float(HOUSE_CAP)))
+	for i in range(0, sites.size(), stride):
+		_house(sites[i])
 	var inner := float(terrain.FORT_R_I + 2)
 	rects.append(Rect2(center.x - inner, center.z - inner, inner * 2.0 + 1.0, inner * 2.0 + 1.0))
 
@@ -171,7 +176,10 @@ func _house(site: Dictionary) -> void:
 	var d: int = site["d"]
 	var cx: float = center.x + float(site["x"])
 	var cz: float = center.z + float(site["z"])
-	House.build(scenery, Vector3(cx, float(floor_y), cz), 0.0, w, d, site["side"], Color(0.62, 0.55, 0.5), Color(0.3, 0.23, 0.21))
+	if place_houses:
+		var dirs: Array = [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]
+		var door_dir: Vector2i = dirs[site["side"]]
+		House.build_blocks(get_parent(), floori(cx), floori(cz), floor_y, w, d, door_dir)
 	var fw := float(w)
 	var fd := float(d)
 	var pad := 1.2

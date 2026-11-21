@@ -9,6 +9,7 @@ const PitSpitter = preload("res://scripts/pit_spitter.gd")
 const WALL_CLAIM_COST := 9.0
 const BoneBarricade = preload("res://scripts/enemies/bone_barricade.gd")
 const PitFlora = preload("res://scripts/pit_flora.gd")
+const PitRoad = preload("res://scripts/pit_road.gd")
 const PitHeart = preload("res://scripts/pit_heart.gd")
 const HeartModel = preload("res://scripts/heart_model.gd")
 const NestModel = preload("res://scripts/nest_model.gd")
@@ -29,6 +30,9 @@ const NEST_COUNTS := [14, 8, 6]
 const NEST_DEPTH_MIN := 8.0
 const NEST_DEPTH_MAX := [20.0, 16.0, 18.0]
 const NEST_CLEAR := 6.0
+const NEST_ROAD_CLEAR := 10.0
+const BONE_LANE := 6.0
+const DECOR_ROAD_CLEAR := 3.0
 const PACK_INNER_LIMIT := 4.8
 const NEST_RING_FLOOR := 14.0
 const GLOOM_NEST_MIN := 4.6
@@ -129,6 +133,7 @@ func build(host: Node, who: Node3D, at: Vector3) -> void:
 	_build_heartbeat()
 	_build_walls()
 	_build_barricades()
+	PitRoad.build(self, gen)
 	_build_gloom()
 	_scatter()
 	_build_army()
@@ -204,11 +209,12 @@ func _build_heart() -> void:
 	heart_light = HeartModel.build_heart(body)
 	HeartModel.build_tower(self, ground_y)
 	HeartModel.build_vessels(self, heart_y, ground_y)
+	var organs: Node3D = body.get_node("Organs")
 	var beat := create_tween().set_loops()
-	beat.tween_property(body, "scale", Vector3.ONE * 1.09, 0.16)
-	beat.tween_property(body, "scale", Vector3.ONE, 0.22)
-	beat.tween_property(body, "scale", Vector3.ONE * 1.05, 0.12)
-	beat.tween_property(body, "scale", Vector3.ONE, 0.2)
+	beat.tween_property(organs, "scale", Vector3.ONE * 1.09, 0.16)
+	beat.tween_property(organs, "scale", Vector3.ONE, 0.22)
+	beat.tween_property(organs, "scale", Vector3.ONE * 1.05, 0.12)
+	beat.tween_property(organs, "scale", Vector3.ONE, 0.2)
 	beat.tween_interval(0.7)
 
 
@@ -460,7 +466,8 @@ func _build_barricades() -> void:
 		var r: float = BloodTerrain.RINGS[ring]
 		var spots: Array = []
 		for cell: Vector2i in _ring_cells(r, BONE_BAND_MIN, BONE_BAND_MAX):
-			if rng.randf() < BONE_CHANCE:
+			var keep: bool = rng.randf() < BONE_CHANCE
+			if keep and BloodTerrain.road_lateral(float(cell.x) + 0.5, float(cell.y) + 0.5) > BONE_LANE:
 				spots.append(cell)
 		var batches: Array = []
 		for stage_mesh: ArrayMesh in stage_meshes:
@@ -574,18 +581,25 @@ func _build_gloom() -> void:
 		var floor_r: float = BloodTerrain.RINGS[ring + 1] + NEST_CLEAR if ring + 1 < BloodTerrain.RINGS.size() else NEST_RING_FLOOR
 		var nests: int = NEST_COUNTS[ring]
 		var per_nest: int = int(round(float(GLOOM_COUNTS[ring]) / float(nests)))
-		for i in nests:
-			var a := TAU * (float(i) + rng.randf_range(-0.35, 0.35)) / float(nests)
-			var depth := rng.randf_range(NEST_DEPTH_MIN, NEST_DEPTH_MAX[ring])
-			var center := Vector2(cos(a), sin(a)) * (r - depth)
-			nest_seed += 1
-			NestModel.build(self, Vector3(center.x, BloodTerrain.PAD_H, center.y), nest_seed)
-			for j in per_nest:
-				var jitter := Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(GLOOM_NEST_MIN, GLOOM_NEST_MAX)
-				var spot := center + jitter
-				var radius := clampf(spot.length(), floor_r, r - PACK_INNER_LIMIT)
-				spot = spot.normalized() * radius
-				_spawn_gloom(Vector3(spot.x, BloodTerrain.PAD_H + 1.0, spot.y))
+		for quadrant in 4:
+			var in_quadrant: int = floori(float(nests * (quadrant + 1)) / 4.0) - floori(float(nests * quadrant) / 4.0)
+			for i in in_quadrant:
+				var depth := rng.randf_range(NEST_DEPTH_MIN, NEST_DEPTH_MAX[ring])
+				var ring_r: float = r - depth
+				var margin: float = asin(clampf(NEST_ROAD_CLEAR / ring_r, 0.0, 0.95))
+				var lo: float = float(quadrant) * PI * 0.5 + margin
+				var hi: float = float(quadrant + 1) * PI * 0.5 - margin
+				var slot: float = (float(i) + 0.5 + rng.randf_range(-0.3, 0.3)) / float(in_quadrant)
+				var a: float = lerpf(lo, hi, slot)
+				var center := Vector2(cos(a), sin(a)) * ring_r
+				nest_seed += 1
+				NestModel.build(self, Vector3(center.x, BloodTerrain.PAD_H, center.y), nest_seed)
+				for j in per_nest:
+					var jitter := Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(GLOOM_NEST_MIN, GLOOM_NEST_MAX)
+					var spot := center + jitter
+					var radius := clampf(spot.length(), floor_r, r - PACK_INNER_LIMIT)
+					spot = spot.normalized() * radius
+					_spawn_gloom(Vector3(spot.x, BloodTerrain.PAD_H + 1.0, spot.y))
 	for i in INNER_GLOOM:
 		var a2 := TAU * float(i) / float(INNER_GLOOM)
 		_spawn_gloom(Vector3(cos(a2) * 16.0, BloodTerrain.PAD_H + 1.0, sin(a2) * 16.0))
@@ -637,6 +651,8 @@ func _spot(rng: RandomNumberGenerator, min_heart: float) -> Vector3:
 		var z: float = rng.randf_range(-235.0, 235.0)
 		var p := Vector2(x, z)
 		if p.length() < min_heart or p.distance_to(BloodTerrain.ARMY) < 48.0:
+			continue
+		if BloodTerrain.road_lateral(x, z) < DECOR_ROAD_CLEAR:
 			continue
 		var h: float = gen.height(x, z)
 		if h < BloodTerrain.POOL_LEVEL + 0.8:
@@ -965,7 +981,22 @@ func _process(delta: float) -> void:
 		army_changed.emit(count)
 
 
+func silence() -> void:
+	set_process(false)
+	if music_tween != null:
+		music_tween.kill()
+	if heartbeat_tween != null:
+		heartbeat_tween.kill()
+	if music != null:
+		music.stop()
+	if heartbeat != null:
+		heartbeat.stop()
+
+
 func _exit_tree() -> void:
 	PitGloom.pressure = 0.0
 	PitSpitter.pressure = 0.0
+	PitSpitter.released = false
+	PitSpitter.player_claim = null
 	BileSack.unit_scale = 1.0
+	BileSack.puddles.clear()

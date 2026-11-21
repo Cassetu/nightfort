@@ -6,6 +6,7 @@ const CactusScript = preload("res://scripts/cactus.gd")
 const TileArt = preload("res://scripts/tile_art.gd")
 const ChipBurst = preload("res://scripts/chip_burst.gd")
 const CrackOverlay = preload("res://scripts/crack_overlay.gd")
+const Roads = preload("res://scripts/core/roads.gd")
 
 signal block_broken(cell: Vector3i)
 
@@ -341,6 +342,7 @@ var crack_time: int = 0
 
 func _ready() -> void:
 	add_to_group("terrain")
+	Roads.register(self)
 	player = get_node_or_null("../Player")
 
 	var spawn := Vector3.ZERO
@@ -416,6 +418,7 @@ func _on_settings_changed() -> void:
 
 
 func _exit_tree() -> void:
+	Roads.unregister(self)
 	for id in requested.values():
 		WorkerThreadPool.wait_for_task_completion(id)
 	requested.clear()
@@ -2324,6 +2327,20 @@ func _stone_at(fx: float, fy: float, fz: float, iy: int) -> int:
 	return B_STONE
 
 
+func fort_locked(cell: Vector3i) -> bool:
+	if block_at(cell.x, cell.y, cell.z) != B_BRICK:
+		return false
+	return fort_kind(cell.x, cell.z) != 0 or sfort_kind(cell.x, cell.z) != 0
+
+
+func _fort_guarded(x: int, z: int) -> bool:
+	var m := FORT_R_O + 4
+	if absi(x) <= m and absi(z + FORT_S) <= m:
+		return true
+	var n := SFORT_R_O + 4
+	return absi(x) <= n and absi(z - SFORT_S) <= n
+
+
 func _gen_block(x: int, iy: int, z: int, h: int, surf: int, in_desert: bool) -> int:
 	if iy >= h:
 		return B_AIR
@@ -2331,7 +2348,8 @@ func _gen_block(x: int, iy: int, z: int, h: int, surf: int, in_desert: bool) -> 
 		return B_BEDROCK
 	if iy == Y_MIN + 1 and _hash3(x, iy, z) > 0.5:
 		return B_BEDROCK
-	if _is_tunnel(x, iy, z):
+	var guarded := _fort_guarded(x, z)
+	if not guarded and _is_tunnel(x, iy, z):
 		return B_AIR
 	var depth := h - 1 - iy
 	if depth == 0:
@@ -2342,7 +2360,7 @@ func _gen_block(x: int, iy: int, z: int, h: int, surf: int, in_desert: bool) -> 
 		return surf
 	if surf == S_STRATA:
 		return _strata_block(x, iy, z)
-	if caves_enabled and depth >= cave_cover and iy > Y_MIN + 1 and Vector2(x + 0.5, z + 0.5).length() > core_protect_radius + 3.0 and _is_cave(x, iy, z):
+	if caves_enabled and not guarded and depth >= cave_cover and iy > Y_MIN + 1 and Vector2(x + 0.5, z + 0.5).length() > core_protect_radius + 3.0 and _is_cave(x, iy, z):
 		return B_AIR
 	if surf == B_BRICK and depth <= 24:
 		return B_BRICK

@@ -10,6 +10,7 @@ const HEART_CLEAR := 14.0
 const WALL_CLEAR := 7.0
 const ARMY_CLEAR := 20.0
 const WATER_MARGIN := 0.4
+const ROAD_CLEAR := 0.3
 const BILE := Color(0.36, 0.2, 0.46)
 
 const KINDS := [
@@ -71,6 +72,8 @@ static func _spot(gen, rng: RandomNumberGenerator) -> Vector3:
 			if absf(d - r) < WALL_CLEAR:
 				blocked = true
 		if blocked or Vector2(x, z).distance_to(BloodTerrain.ARMY) < ARMY_CLEAR:
+			continue
+		if BloodTerrain.road_lateral(x, z) < ROAD_CLEAR:
 			continue
 		var h: float = gen.height(x, z)
 		if h < BloodTerrain.POOL_LEVEL + WATER_MARGIN:

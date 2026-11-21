@@ -25,6 +25,15 @@ const RIM_START := 245.0
 const RIM_HEIGHT := 48.0
 const RINGS := [100.0, 68.0, 40.0]
 const WALL_DEPTH := 2.5
+const ROAD_DIRS := [Vector2(1.0, 0.0), Vector2(0.0, 1.0), Vector2(-1.0, 0.0), Vector2(0.0, -1.0)]
+const ROAD_HALF := 3.5
+const ROAD_SKIRT := 7.0
+const ROAD_FROM := 26.0
+const ROAD_TO := 236.0
+const ROAD_WOBBLE := 6.0
+const ROAD_REACH := 19.0
+const ROAD_MIN_LEVEL := 0.5
+const ROAD_RUNG := 4.0
 
 static var origin := Vector3.ZERO
 
@@ -75,6 +84,7 @@ var chunks_root: Node3D
 var records: Dictionary = {}
 var pending: Array = []
 var last_center := Vector2i(1 << 20, 1 << 20)
+var road_levels: Dictionary = {}
 
 
 func _init(seed_value: int = 7041) -> void:
@@ -115,11 +125,67 @@ func pad_weight(x: float, z: float) -> float:
 	return maxf(wh, wa)
 
 
-func smooth(x: float, z: float) -> float:
+static func road_wobble(k: int, s: float) -> float:
+	return sin(s * 0.027 + float(k) * 1.9) * ROAD_WOBBLE * smoothstep(118.0, 170.0, s)
+
+
+static func road_center(k: int, s: float) -> Vector2:
+	var d: Vector2 = ROAD_DIRS[k]
+	var p := Vector2(-d.y, d.x)
+	return d * s + p * road_wobble(k, s)
+
+
+static func road_info(x: float, z: float) -> Vector3:
+	var best := Vector3(9999.0, 0.0, -1.0)
+	if minf(absf(x), absf(z)) > ROAD_REACH or maxf(absf(x), absf(z)) < ROAD_FROM - ROAD_SKIRT:
+		return best
+	var pt := Vector2(x, z)
+	for k in 4:
+		var d: Vector2 = ROAD_DIRS[k]
+		var s: float = pt.dot(d)
+		if s < ROAD_FROM or s > ROAD_TO:
+			continue
+		var p := Vector2(-d.y, d.x)
+		var lat: float = absf(pt.dot(p) - road_wobble(k, s)) - ROAD_HALF
+		if lat < best.x:
+			best = Vector3(lat, s, float(k))
+	return best
+
+
+static func road_lateral(x: float, z: float) -> float:
+	return road_info(x, z).x
+
+
+func _base(x: float, z: float) -> float:
 	var w: float = pad_weight(x, z)
 	var h: float = lerpf(raw(x, z), PAD_H + n_detail.get_noise_2d(x, z) * 0.2, w)
 	var rim: float = smoothstep(RIM_START, HALF, maxf(absf(x), absf(z)))
 	return h + rim * RIM_HEIGHT
+
+
+func _road_level(k: int, s: float) -> float:
+	var key: int = k * 1000 + int(floorf(s))
+	if road_levels.has(key):
+		var cached: float = road_levels[key]
+		return cached
+	var mid: float = floorf(s) + 0.5
+	var total: float = 0.0
+	for i in range(-2, 3):
+		var c := road_center(k, mid + float(i) * 6.0)
+		total += _base(c.x, c.y)
+	var level: float = maxf(total / 5.0, ROAD_MIN_LEVEL)
+	road_levels[key] = level
+	return level
+
+
+func smooth(x: float, z: float) -> float:
+	var h: float = _base(x, z)
+	var info := road_info(x, z)
+	if info.x >= ROAD_SKIRT:
+		return h
+	var level: float = _road_level(int(info.z), info.y)
+	var w: float = 1.0 - smoothstep(0.0, ROAD_SKIRT, maxf(info.x, 0.0))
+	return lerpf(h, level, w)
 
 
 func top(ix: int, iz: int) -> int:
@@ -151,6 +217,20 @@ func color_at(x: float, z: float, h: float, slope: float) -> Color:
 		col = col.lerp(Color(1.0, 0.95, 0.88), clampf((h - 18.0) / 10.0, 0.0, 1.0))
 	if slope > 0.5:
 		col = col.lerp(Color(0.28, 0.24, 0.3), clampf((slope - 0.5) * 2.5, 0.0, 1.0))
+	var info := road_info(x, z)
+	if info.x < 1.2:
+		col = _road_color(info, mottle, col)
+	return col
+
+
+func _road_color(info: Vector3, mottle: float, base: Color) -> Color:
+	if info.x >= 0.0:
+		return base.lerp(Color(0.3, 0.06, 0.1), (1.2 - info.x) / 1.2 * 0.5)
+	var col := Color(0.66, 0.6, 0.55).lerp(Color(0.5, 0.42, 0.42), mottle)
+	if fposmod(info.y, ROAD_RUNG) < 0.7:
+		col = col.lerp(Color(0.32, 0.22, 0.24), 0.55)
+	if info.x > -0.9:
+		col = col.lerp(Color(0.3, 0.06, 0.1), 0.6)
 	return col
 
 

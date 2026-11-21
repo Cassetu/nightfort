@@ -34,6 +34,7 @@ var has_session: bool = false
 var prologue_active: bool = false
 var cutscene_active: bool = false
 var in_world: bool = false
+var intro_played: bool = false
 var world_seed: int = 1337
 var pending: Dictionary = {}
 var play_time: float = 0.0
@@ -178,8 +179,12 @@ func take_pending() -> Dictionary:
 
 
 func go_to_menu() -> void:
-	prologue_active = false
 	in_world = false
+	var scene := get_tree().current_scene
+	if scene != null and scene.has_method("prepare_exit"):
+		scene.prepare_exit()
+	prologue_active = false
+	cutscene_active = false
 	has_session = false
 	pending = {}
 	get_tree().paused = false

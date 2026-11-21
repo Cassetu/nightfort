@@ -1,7 +1,10 @@
-[gd_scene load_steps=73 format=3 uid="uid://cql7iq0m66kp"]
+[gd_scene load_steps=76 format=3 uid="uid://cql7iq0m66kp"]
 
 [ext_resource type="Script" uid="uid://2vxklhlfudms" path="res://scripts/enemies/gloom.gd" id="1_gloom"]
 [ext_resource type="Texture2D" uid="uid://bictywrnllvgv" path="res://art/tiles/gloom_flesh.png" id="2_skin"]
+[ext_resource type="Texture2D" uid="uid://b25wa7je0iskw" path="res://art/tiles/bone.png" id="3_bone"]
+[ext_resource type="Texture2D" uid="uid://d1rgconryert6" path="res://art/tiles/blood.png" id="4_blood"]
+[ext_resource type="Texture2D" uid="uid://baac1301tu0rg" path="res://art/tiles/gloom_skin.png" id="5_dark"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_gloom"]
 radius = 0.4
@@ -27,9 +30,11 @@ size = Vector3(0.24, 0.24, 0.26)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_detail_viscera"]
 resource_name = "detail_viscera"
-albedo_color = Color(0.42, 0.05, 0.07, 1)
+albedo_color = Color(0.8, 0.75, 0.68, 1)
+albedo_texture = ExtResource("4_blood")
 metallic_specular = 0.7
 roughness = 0.4
+texture_filter = 0
 
 [sub_resource type="BoxMesh" id="BoxMesh_3"]
 material = SubResource("StandardMaterial3D_detail_viscera")
@@ -37,9 +42,11 @@ size = Vector3(0.42, 0.52, 0.03)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_detail_bone"]
 resource_name = "detail_bone"
-albedo_color = Color(0.78, 0.72, 0.58, 1)
+albedo_color = Color(1, 0.98, 0.9, 1)
+albedo_texture = ExtResource("3_bone")
 metallic_specular = 0.7
 roughness = 0.4
+texture_filter = 0
 
 [sub_resource type="BoxMesh" id="BoxMesh_4"]
 material = SubResource("StandardMaterial3D_detail_bone")
@@ -59,9 +66,11 @@ size = Vector3(0.39, 0.045, 0.07)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_detail_bone_dark"]
 resource_name = "detail_bone_dark"
-albedo_color = Color(0.32, 0.27, 0.22, 1)
+albedo_color = Color(0.45, 0.4, 0.38, 1)
+albedo_texture = ExtResource("3_bone")
 metallic_specular = 0.7
 roughness = 0.4
+texture_filter = 0
 
 [sub_resource type="BoxMesh" id="BoxMesh_8"]
 material = SubResource("StandardMaterial3D_detail_bone_dark")
@@ -89,9 +98,11 @@ size = Vector3(0.08, 0.09, 0.12)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_detail_bruise"]
 resource_name = "detail_bruise"
-albedo_color = Color(0.32, 0.18, 0.34, 1)
+albedo_color = Color(0.65, 0.5, 0.85, 1)
+albedo_texture = ExtResource("2_skin")
 metallic_specular = 0.7
 roughness = 0.4
+texture_filter = 0
 
 [sub_resource type="BoxMesh" id="BoxMesh_17"]
 material = SubResource("StandardMaterial3D_detail_bruise")
@@ -99,9 +110,11 @@ size = Vector3(0.18, 0.16, 0.03)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_detail_raw"]
 resource_name = "detail_raw"
-albedo_color = Color(0.62, 0.12, 0.14, 1)
+albedo_color = Color(1, 1, 0.95, 1)
+albedo_texture = ExtResource("4_blood")
 metallic_specular = 0.7
 roughness = 0.4
+texture_filter = 0
 
 [sub_resource type="BoxMesh" id="BoxMesh_18"]
 material = SubResource("StandardMaterial3D_detail_raw")
@@ -121,9 +134,11 @@ size = Vector3(0.22, 0.22, 0.22)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_detail_void"]
 resource_name = "detail_void"
-albedo_color = Color(0.03, 0, 0.02, 1)
+albedo_color = Color(0.07, 0, 0.05, 1)
+albedo_texture = ExtResource("5_dark")
 metallic_specular = 0.7
 roughness = 0.4
+texture_filter = 0
 
 [sub_resource type="BoxMesh" id="BoxMesh_22"]
 material = SubResource("StandardMaterial3D_detail_void")
@@ -187,9 +202,11 @@ size = Vector3(0.1, 0.1, 0.1)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_eye"]
 albedo_color = Color(1, 0.35, 0.15, 1)
+albedo_texture = ExtResource("5_dark")
 emission_enabled = true
 emission = Color(1, 0.3, 0.1, 1)
 emission_energy_multiplier = 4.0
+texture_filter = 0
 
 [sub_resource type="BoxMesh" id="BoxMesh_eye"]
 material = SubResource("StandardMaterial3D_eye")

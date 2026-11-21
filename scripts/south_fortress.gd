@@ -9,6 +9,7 @@ const HOUSE_RINGS := [47.0, 57.0]
 const RING_GUARDS := 22
 const PARAPET_GUARDS := 12
 const VILLAGERS := 14
+const HOUSE_CAP := 14
 
 var terrain
 var player
@@ -18,6 +19,7 @@ var actors: Node3D
 var center: Vector3 = Vector3.ZERO
 var check: float = 0.0
 var rects: Array = []
+var place_houses: bool = false
 
 
 func setup(terrain_node, player_node, seed_value: int) -> void:
@@ -54,6 +56,7 @@ func _process(delta: float) -> void:
 
 func _build_houses(rng: RandomNumberGenerator) -> void:
 	for ring_r: float in HOUSE_RINGS:
+		var placed_count := 0
 		var angle := rng.randf() * 0.3
 		while angle < TAU - 0.2:
 			var w := 5 + 2 * rng.randi_range(0, 1)
@@ -66,9 +69,18 @@ func _build_houses(rng: RandomNumberGenerator) -> void:
 				continue
 			if rng.randf() < 0.2:
 				continue
+			if placed_count >= HOUSE_CAP / 2:
+				continue
+			placed_count += 1
 			var pos := Vector3(center.x + px, float(floor_y), center.z + pz)
-			var yaw := PI * 0.5 - atan2(pz, px)
-			House.build(scenery, pos, yaw, w, d, 0, Color(0.66, 0.56, 0.46), Color(0.34, 0.25, 0.2))
+			if place_houses:
+				var inward := Vector2(-px, -pz)
+				var door_dir := Vector2i(0, 0)
+				if absf(inward.x) > absf(inward.y):
+					door_dir = Vector2i(int(signf(inward.x)), 0)
+				else:
+					door_dir = Vector2i(0, int(signf(inward.y)))
+				House.build_blocks(self.get_parent(), floori(pos.x), floori(pos.z), floor_y, w, d, door_dir)
 			var half := float(maxi(w, d)) * 0.5 + 1.4
 			rects.append(Rect2(pos.x - half, pos.z - half, half * 2.0, half * 2.0))
 

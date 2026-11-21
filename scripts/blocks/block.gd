@@ -9,6 +9,7 @@ const BLOCK_SCRIPT := "res://scripts/blocks/block.gd"
 const CHAIN_TYPES := ["stone_window", "reinforced_door"]
 const SUPPORT_INTERVAL := 0.25
 const REINFORCE_HP := 2.5
+const TIER_STEP := 0.35
 const DARKEN := 0.55
 const DECAL_TILE := "reinforced_decal"
 const WET_ROUGHNESS := 0.32
@@ -30,6 +31,7 @@ var collapsing: bool = false
 var falling_now: bool = false
 var zone_break: bool = false
 var reinforced: bool = false
+var tier: int = 0
 var wet: bool = false
 var base_health: int = 0
 var body_mesh: MeshInstance3D
@@ -169,22 +171,26 @@ func is_brick() -> bool:
 	return body_mesh != null and ((block_type.ends_with("_brick") and block_type != "ruined_brick") or block_type == "merlon")
 
 
-func _scale_health(value: bool) -> void:
+func _scale_health(value: bool, new_tier: int = 0) -> void:
 	reinforced = value
+	tier = new_tier if value else 0
 	var ratio := float(current_health) / float(maxi(max_health, 1))
-	max_health = roundi(base_health * REINFORCE_HP) if value else base_health
+	var mult := REINFORCE_HP + TIER_STEP * float(tier) if value else 1.0
+	max_health = roundi(base_health * mult)
 	current_health = clampi(roundi(ratio * max_health), 1, max_health)
 
 
-func set_reinforced(value: bool) -> void:
+func set_reinforced(value: bool, new_tier: int = 0) -> void:
 	if value == reinforced:
+		if value and new_tier != tier and (body_mesh != null or CHAIN_TYPES.has(block_type)):
+			_scale_health(true, new_tier)
 		return
 	if body_mesh == null:
 		if CHAIN_TYPES.has(block_type):
-			_scale_health(value)
+			_scale_health(value, new_tier)
 		return
 	_unbatch()
-	_scale_health(value)
+	_scale_health(value, new_tier)
 	if value:
 		decal_mesh = MeshInstance3D.new()
 		decal_mesh.mesh = _decal_shape()

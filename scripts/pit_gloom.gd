@@ -3,6 +3,7 @@ extends CharacterBody3D
 const GloomBake = preload("res://scripts/enemies/gloom_bake.gd")
 const ChipBurst = preload("res://scripts/chip_burst.gd")
 const BloodTerrain = preload("res://scripts/blood_terrain.gd")
+const Roads = preload("res://scripts/core/roads.gd")
 
 const MAX_HEALTH := 16
 const SPEED := 3.1
@@ -16,6 +17,10 @@ const BILE := Color(0.36, 0.2, 0.46)
 const RETARGET := 0.35
 const SLEEP_RETARGET := 0.9
 const HIDE_RANGE := 90.0
+const FEET_OFFSET := 0.85
+const STEP_HEIGHT := 2.0
+const STEP_CLEAR := 0.35
+const PROBE_AHEAD := 0.95
 
 static var pressure: float = 0.0
 
@@ -144,7 +149,7 @@ func _physics_process(delta: float) -> void:
 		var dir = to / maxf(dist, 0.001)
 		rotation.y = lerp_angle(rotation.y, atan2(-dir.x, -dir.z), minf(TURN * delta, 1.0))
 		if dist > REACH:
-			move = dir * SPEED * speed_mult * (1.0 + pressure * 0.3)
+			move = dir * SPEED * speed_mult * (1.0 + pressure * 0.3) * Roads.factor(global_position)
 			if anim.current_animation != "walk":
 				anim.play("walk")
 		else:
@@ -156,7 +161,31 @@ func _physics_process(delta: float) -> void:
 		anim.play("idle")
 	velocity.x = move.x + knock.x
 	velocity.z = move.z + knock.z
+	if is_on_floor() and move != Vector3.ZERO and is_on_wall() and _can_hop(move):
+		velocity.y = sqrt(2.0 * gravity * (STEP_HEIGHT + STEP_CLEAR))
 	move_and_slide()
+
+
+func _ray_hits(from: Vector3, dir: Vector3) -> bool:
+	var query := PhysicsRayQueryParameters3D.create(from, from + dir * PROBE_AHEAD, 1)
+	query.exclude = [get_rid()]
+	return not get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+
+
+func _can_hop(desired: Vector3) -> bool:
+	var dir := Vector3(desired.x, 0.0, desired.z)
+	if dir.length() < 0.01:
+		return false
+	dir = dir.normalized()
+	var feet := global_position.y - FEET_OFFSET
+	var at := Vector3(global_position.x, 0.0, global_position.z)
+	if not _ray_hits(Vector3(at.x, feet + 0.4, at.z), dir):
+		return false
+	if _ray_hits(Vector3(at.x, feet + STEP_HEIGHT + 0.45, at.z), dir):
+		return false
+	if _ray_hits(Vector3(at.x, feet + STEP_HEIGHT + 1.3, at.z), dir):
+		return false
+	return true
 
 
 func _update_visibility() -> void:

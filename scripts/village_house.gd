@@ -1,95 +1,78 @@
 extends RefCounted
 
-const TileArt = preload("res://scripts/tile_art.gd")
-const WALL_H := 3.0
-const THICK := 0.5
-const DOOR := 2.0
+const TORCH_SCENE := "res://scenes/torch.tscn"
+const WALL_H := 3
 
 
-static func _wall_material(tile: String, tint: Color, w: float, h: float) -> StandardMaterial3D:
-	var base := TileArt.uv_material(tile, tint, Vector3.ONE)
-	var m := base.duplicate() as StandardMaterial3D
-	m.uv1_scale = Vector3(maxf(w, 1.0), maxf(h, 1.0), 1.0)
-	m.albedo_color = tint
-	return m
+static func _put(world, type: String, x: int, y: int, z: int, yaw: float = 0.0) -> void:
+	world.restore_block(type, Vector3(x + 0.5, y + 0.5, z + 0.5), yaw)
 
 
-static func _box(parent: Node3D, body: StaticBody3D, pos: Vector3, size: Vector3, mat: Material) -> void:
-	var mi := MeshInstance3D.new()
-	mi.mesh = TileArt.box_mesh(size, mat)
-	mi.position = pos
-	parent.add_child(mi)
-	var cs := CollisionShape3D.new()
-	var shape := BoxShape3D.new()
-	shape.size = size
-	cs.shape = shape
-	cs.position = pos
-	body.add_child(cs)
+static func _ascent_yaw(dx: int, dz: int) -> float:
+	return atan2(-float(dx), -float(dz))
 
 
-static func build(parent: Node3D, pos: Vector3, yaw: float, w: int, d: int, door_side: int, tint: Color, roof_tint: Color) -> Node3D:
-	var node := Node3D.new()
-	node.position = pos
-	node.rotation.y = yaw
-	parent.add_child(node)
-	var body := StaticBody3D.new()
-	node.add_child(body)
-	var fw := float(w)
-	var fd := float(d)
-	var plank_a := _wall_material("plank", tint, fw, WALL_H)
-	var plank_b := _wall_material("plank", tint, fd, WALL_H)
-	var stone := _wall_material("stone_brick", Color(0.7, 0.7, 0.72), fw, 1.0)
-	_box(node, body, Vector3(0.0, 0.5, 0.0), Vector3(fw + 0.4, 1.0, fd + 0.4), stone)
-	for side in 4:
-		var along_x := side < 2
-		var length := fw if along_x else fd
-		var mat := plank_a if along_x else plank_b
-		var sign_v := -1.0 if side % 2 == 0 else 1.0
-		var offset := (fd if along_x else fw) * 0.5 - THICK * 0.5
-		var wpos := Vector3(0.0, 1.0 + (WALL_H - 1.0) * 0.5, 0.0)
-		if along_x:
-			wpos.z = sign_v * offset
-		else:
-			wpos.x = sign_v * offset
-		var size := Vector3(length, WALL_H - 1.0, THICK) if along_x else Vector3(THICK, WALL_H - 1.0, length)
-		if side != door_side:
-			_box(node, body, wpos, size, mat)
-			continue
-		var seg := (length - DOOR) * 0.5
-		for half in [-1.0, 1.0]:
-			var seg_pos := wpos
-			var seg_size := size
-			if along_x:
-				seg_pos.x = half * (DOOR * 0.5 + seg * 0.5)
-				seg_size.x = seg
-			else:
-				seg_pos.z = half * (DOOR * 0.5 + seg * 0.5)
-				seg_size.z = seg
-			_box(node, body, seg_pos, seg_size, mat)
-	var roof_mat := StandardMaterial3D.new()
-	roof_mat.albedo_color = roof_tint
-	roof_mat.roughness = 1.0
-	var roof := MeshInstance3D.new()
-	var prism := PrismMesh.new()
-	prism.material = roof_mat
-	if w > d:
-		prism.size = Vector3(fd + 1.2, 1.8, fw + 1.2)
-		roof.rotation.y = PI * 0.5
+static func build_blocks(world, cx: int, cz: int, floor_y: int, w: int, d: int, door_dir: Vector2i) -> void:
+	var hw := (w - 1) >> 1
+	var hd := (d - 1) >> 1
+	var door_cell := Vector2i(door_dir.x * hw, door_dir.y * hd)
+	for i in range(-hw, hw + 1):
+		for j in range(-hd, hd + 1):
+			var edge_x := absi(i) == hw
+			var edge_z := absi(j) == hd
+			var cell := Vector2i(i, j)
+			_put(world, "stone_brick", cx + i, floor_y, cz + j)
+			if not (edge_x or edge_z):
+				continue
+			var corner := edge_x and edge_z
+			for k in WALL_H:
+				var y := floor_y + 1 + k
+				if cell == door_cell:
+					if k == 0:
+						var yaw := 0.0 if door_dir.x == 0 else PI * 0.5
+						_put(world, "door", cx + i, y, cz + j, yaw)
+					elif k == 2:
+						_put(world, "plank", cx + i, y, cz + j)
+					continue
+				_put(world, "wood" if corner else "plank", cx + i, y, cz + j)
+	var out := door_cell + door_dir
+	_put(world, "stone_stairs", cx + out.x, floor_y, cz + out.y, _ascent_yaw(-door_dir.x, -door_dir.y))
+	var bed := Vector2i.ZERO
+	if door_dir.y != 0:
+		bed = Vector2i(-(hw - 1), -door_dir.y * (hd - 1))
 	else:
-		prism.size = Vector3(fw + 1.2, 1.8, fd + 1.2)
-	roof.mesh = prism
-	roof.position = Vector3(0.0, WALL_H + 0.9, 0.0)
-	node.add_child(roof)
-	var cap := CollisionShape3D.new()
-	var cap_shape := BoxShape3D.new()
-	cap_shape.size = Vector3(fw + 1.0, 1.2, fd + 1.0)
-	cap.shape = cap_shape
-	cap.position = Vector3(0.0, WALL_H + 0.6, 0.0)
-	body.add_child(cap)
-	var light := OmniLight3D.new()
-	light.light_color = Color(1.0, 0.7, 0.4)
-	light.light_energy = 0.7
-	light.omni_range = 6.0
-	light.position = Vector3(0.0, 1.8, 0.0)
-	node.add_child(light)
-	return node
+		bed = Vector2i(-door_dir.x * (hw - 1), -(hd - 1))
+	_put(world, "bed", cx + bed.x, floor_y + 1, cz + bed.y, 0.0)
+	var back := Vector2i(-door_dir.x * hw, -door_dir.y * hd)
+	var torch = load(TORCH_SCENE).instantiate()
+	torch.fixture = false
+	torch.wall_normal = Vector3(door_dir.x, 0.0, door_dir.y)
+	world.add_child(torch)
+	torch.global_position = Vector3(cx + back.x + door_dir.x + 0.5, floor_y + 2.5, cz + back.y + door_dir.y + 0.5)
+	_roof(world, cx, cz, floor_y, hw, hd)
+
+
+static func _roof(world, cx: int, cz: int, floor_y: int, hw: int, hd: int) -> void:
+	var along_x := hw >= hd
+	var half_along := hw if along_x else hd
+	var half_across := hd if along_x else hw
+	var base_y := floor_y + 1 + WALL_H
+	for a in range(-half_along, half_along + 1):
+		var end := absi(a) == half_along
+		for t in range(-half_across, half_across + 1):
+			var k := half_across - absi(t)
+			var x := cx + (a if along_x else t)
+			var z := cz + (t if along_x else a)
+			if t == 0:
+				_put(world, "plank", x, base_y + k, z)
+			else:
+				var s := signi(-t)
+				var dx := 0 if along_x else s
+				var dz := s if along_x else 0
+				_put(world, "roof", x, base_y + k, z, _ascent_yaw(dx, dz))
+		if end:
+			for k in range(0, half_across):
+				for t in range(-(half_across - k) + 1, half_across - k):
+					var x := cx + (a if along_x else t)
+					var z := cz + (t if along_x else a)
+					_put(world, "plank", x, base_y + k, z)

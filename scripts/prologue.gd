@@ -543,5 +543,23 @@ func _exit() -> void:
 	running = false
 
 
+func abort() -> void:
+	if not running:
+		return
+	running = false
+	guard_fall = false
+	set_process(false)
+	Game.prologue_active = false
+	if is_instance_valid(pit):
+		pit.silence()
+	if is_instance_valid(box):
+		box.queue_free()
+	if is_instance_valid(player):
+		player.camera.environment = null
+		player.camera.h_offset = 0.0
+		player.camera.v_offset = 0.0
+	Inventory.reset()
+
+
 func _exit_tree() -> void:
 	Game.prologue_active = false
