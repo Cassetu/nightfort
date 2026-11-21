@@ -5,6 +5,9 @@ const HISTORY: int = 150
 const INTERVAL: float = 0.25
 const BUDGET_MS: float = 16.7
 const GRAPH_MAX_MS: float = 33.3
+const TIME_STEP: float = 0.125
+const STATE_NAMES: PackedStringArray = ["Clear", "Cloudy", "Rain", "Fog", "Storm"]
+const ACTION_KEYS: Array[int] = [KEY_F4, KEY_F5, KEY_F6, KEY_F7, KEY_F8, KEY_F9, KEY_F10]
 
 @onready var root: Control = $Root
 @onready var text: Label = %Text
@@ -16,6 +19,9 @@ var player
 var frames: PackedFloat32Array = PackedFloat32Array()
 var timer: float = 0.0
 var key_was_down: bool = false
+var held: Dictionary = {}
+var god: bool = false
+var last_action: String = "-"
 
 
 func _ready() -> void:
@@ -40,6 +46,9 @@ func _process(delta: float) -> void:
 	if down and not key_was_down:
 		_toggle()
 	key_was_down = down
+	_poll_actions()
+	if god and is_instance_valid(player) and not player.dead:
+		player.health = float(player.max_health)
 	if not root.visible:
 		return
 	frames.append(delta * 1000.0)
@@ -51,6 +60,85 @@ func _process(delta: float) -> void:
 		return
 	timer = INTERVAL
 	text.text = _report()
+
+
+func _poll_actions() -> void:
+	for key in ACTION_KEYS:
+		var down: bool = Input.is_physical_key_pressed(key)
+		var was: bool = bool(held.get(key, false))
+		held[key] = down
+		if down and not was and root.visible:
+			_run_action(key)
+
+
+func _run_action(key: int) -> void:
+	match key:
+		KEY_F4:
+			_cycle_weather()
+		KEY_F5:
+			_skip_time()
+		KEY_F6:
+			_visit("NorthFortress")
+		KEY_F7:
+			_visit("SouthFortress")
+		KEY_F8:
+			_refurnish()
+		KEY_F9:
+			god = not god
+			last_action = "God On" if god else "God Off"
+		KEY_F10:
+			_give_kit()
+
+
+func _weather() -> Node:
+	if not is_instance_valid(world):
+		return null
+	return world.get_node_or_null("Weather")
+
+
+func _cycle_weather() -> void:
+	var w: Node = _weather()
+	if w == null:
+		return
+	w.state = (int(w.state) + 1) % STATE_NAMES.size()
+	w.state_left = 600.0
+	last_action = "Weather %s" % STATE_NAMES[w.state]
+
+
+func _skip_time() -> void:
+	if not is_instance_valid(world) or world.sun == null:
+		return
+	world.sun.rotate_x(TAU * TIME_STEP)
+	world.sun.day_phase = wrapf(world.sun.day_phase + TIME_STEP, 0.0, 1.0)
+	last_action = "Time Skipped"
+
+
+func _visit(village_name: String) -> void:
+	if not is_instance_valid(world) or not is_instance_valid(player):
+		return
+	var village: Node = world.get_node_or_null(village_name)
+	if village == null:
+		last_action = "No %s" % village_name
+		return
+	var c: Vector3 = village.center
+	player.global_position = Vector3(c.x, c.y + 3.0, c.z)
+	player.velocity = Vector3.ZERO
+	last_action = "Went To %s" % village_name.replace("Fortress", "")
+
+
+func _refurnish() -> void:
+	if not is_instance_valid(world):
+		return
+	world._furnish_villages()
+	last_action = "Villages Furnished"
+
+
+func _give_kit() -> void:
+	for id in Inventory.ITEMS:
+		var item: Dictionary = Inventory.ITEMS[id]
+		var amount: int = 64 if str(item.get("kind", "")) == "block" else 1
+		Inventory.add_item(str(id), amount)
+	last_action = "Kit Given"
 
 
 func _report() -> String:
@@ -74,6 +162,7 @@ func _report() -> String:
 	lines.append(_terrain_line())
 	lines.append(_world_line())
 	lines.append(_player_line())
+	lines.append(_tools_line())
 	return "\n".join(lines)
 
 
@@ -104,6 +193,16 @@ func _world_line() -> String:
 		if is_instance_valid(t) and t.light != null and t.light.shadow_enabled:
 			lit += 1
 	return "Blocks %d   Torches %d   Shadowed %d\nGloom %d   Wild %d   Resources %d" % [BlockIndex.list.size(), torches.size(), lit, tree.get_node_count_in_group("enemy"), tree.get_node_count_in_group("wild_gloom"), tree.get_node_count_in_group("resource")]
+
+
+func _tools_line() -> String:
+	var w: Node = _weather()
+	var weather_name: String = "-"
+	var wet: float = 0.0
+	if w != null:
+		weather_name = STATE_NAMES[int(w.state)]
+		wet = w.wet
+	return "Weather %s   Wet %.2f   God %s\nLast %s" % [weather_name, wet, "On" if god else "Off", last_action]
 
 
 func _player_line() -> String:

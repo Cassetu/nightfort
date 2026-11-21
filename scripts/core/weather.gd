@@ -19,6 +19,8 @@ const CLOUD_SIZE := 1600.0
 const BASE_FOG := 0.022
 const FOG_BOOST := 3.0
 const BLEND_RATE := 0.03
+const DRY_RATE := 0.04
+const DRY_RATE_SUN := 0.04
 const WIND_DIR := Vector2(0.8, 0.35)
 const NIGHT_TINT := Color(0.05, 0.06, 0.11)
 const RAIN_AMOUNT := 2600
@@ -417,7 +419,8 @@ func _apply_wetness(delta: float) -> void:
 	if rain_fx > 0.05:
 		wet = move_toward(wet, 1.0, rain_fx * 0.25 * delta)
 	else:
-		wet = move_toward(wet, 0.0, 0.012 * delta)
+		var dry_rate: float = DRY_RATE + DRY_RATE_SUN * clampf(1.0 - cover, 0.0, 1.0)
+		wet = move_toward(wet, 0.0, dry_rate * delta)
 	BlockScript.apply_wetness(wet)
 	if terrain != null and terrain.material != null:
 		terrain.material.set_shader_parameter("wetness", wet)

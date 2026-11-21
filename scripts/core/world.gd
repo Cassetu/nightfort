@@ -25,6 +25,7 @@ const TroopScene = preload("res://scenes/troop.tscn")
 const TroopScript = preload("res://scripts/troop.gd")
 const MinimapScene = preload("res://scenes/minimap.tscn")
 const WetSurfacesScript = preload("res://scripts/wet_surfaces.gd")
+const VillageHouseScript = preload("res://scripts/village_house.gd")
 const BirdsScript = preload("res://scripts/birds.gd")
 const CoreUIScene = preload("res://scenes/core_ui.tscn")
 const GloomFogScript = preload("res://scripts/enemies/gloom_fog.gd")
@@ -56,6 +57,7 @@ var troops: Array = []
 var next_troop_id: int = 1
 var outposts: Array = []
 var legacy_torches: Array = []
+var village_furnished: bool = true
 var missions
 var minimap_node
 var prologue_pending: bool = false
@@ -178,6 +180,7 @@ func _ready() -> void:
 
 	var state := Game.take_pending()
 	var fresh_world := state.is_empty()
+	village_furnished = fresh_world
 	if state.is_empty():
 		RuinsScript.generate(self, terrain, terrain.world_seed)
 		OutpostsScript.generate(self, terrain, terrain.world_seed)
@@ -375,6 +378,21 @@ func respawn_player() -> void:
 	player.respawn(respawn_position())
 
 
+func _furnish_villages() -> void:
+	village_furnished = true
+	var cells: Dictionary = {}
+	for n in BlockIndex.list:
+		if is_instance_valid(n) and not n.dying:
+			for c: Vector3i in n.cells():
+				cells[c] = true
+	for village_name in ["NorthFortress", "SouthFortress"]:
+		var village = get_node_or_null(village_name)
+		if village == null:
+			continue
+		for h: Dictionary in village.houses:
+			VillageHouseScript.furnish(self, cells, int(h["cx"]), int(h["cz"]), int(village.floor_y), int(h["w"]), int(h["d"]), h["dir"])
+
+
 func collect_state() -> Dictionary:
 	var blocks: Array = []
 	for node in BlockIndex.list:
@@ -411,6 +429,7 @@ func collect_state() -> Dictionary:
 		outpost_data.append([o.x, o.y, o.z])
 
 	return {
+		"furnished": true,
 		"troops": troop_data,
 		"sun": {"quat": [q.x, q.y, q.z, q.w], "phase": sun.day_phase},
 		"player": player.export_state(),
@@ -426,6 +445,7 @@ func collect_state() -> Dictionary:
 
 
 func apply_state(d: Dictionary) -> void:
+	village_furnished = bool(d.get("furnished", false))
 	var s: Dictionary = d.get("sun", {})
 	if s.has("quat"):
 		var q: Array = s["quat"]
@@ -479,3 +499,5 @@ func apply_state(d: Dictionary) -> void:
 			for i in mini(saved_items.size(), block.items.size()):
 				block.items[i] = Inventory._clean(saved_items[i])
 	_fix_legacy_torches()
+	if not village_furnished:
+		_furnish_villages()

@@ -3,6 +3,7 @@ extends Node
 const BlockIndex = preload("res://scripts/block_index.gd")
 const BlockBatch = preload("res://scripts/block_batch.gd")
 const INTERVAL := 0.4
+const EDGE_MARGIN := 64.0
 
 var terrain
 var timer: float = 0.0
@@ -12,6 +13,10 @@ var seen: Dictionary = {}
 func setup(t) -> void:
 	terrain = t
 	timer = INTERVAL
+
+
+func _managed(x: float, z: float) -> bool:
+	return Vector2(x, z).length() <= terrain.world_radius + EDGE_MARGIN
 
 
 func _loaded(coord: Vector2i) -> bool:
@@ -37,7 +42,11 @@ func _process(delta: float) -> void:
 		var parts := key.split(",")
 		if parts.size() < 2:
 			continue
-		var vis := _loaded(Vector2i(int(parts[0]), int(parts[1])))
+		var gx: int = int(parts[0])
+		var gz: int = int(parts[1])
+		var vis := true
+		if _managed((float(gx) + 0.5) * BlockBatch.CHUNK, (float(gz) + 0.5) * BlockBatch.CHUNK):
+			vis = _loaded(Vector2i(gx, gz))
 		if group.node.visible != vis:
 			group.node.visible = vis
 	for n in BlockIndex.list:
@@ -50,6 +59,9 @@ func _process(delta: float) -> void:
 
 
 func _apply(n: Node3D) -> void:
-	var vis := _loaded(terrain._chunk_of(n.global_position))
+	var pos: Vector3 = n.global_position
+	var vis := true
+	if _managed(pos.x, pos.z):
+		vis = _loaded(terrain._chunk_of(pos))
 	if n.visible != vis:
 		n.visible = vis

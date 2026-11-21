@@ -27,8 +27,9 @@ func _process(delta: float) -> void:
 	if not wet:
 		if was_wet:
 			was_wet = false
-			for n in BlockIndex.list:
-				n.set_wet(false)
+			for n in BlockIndex.list.duplicate():
+				if is_instance_valid(n):
+					n.set_wet(false)
 		return
 	was_wet = true
 	if stability == null:

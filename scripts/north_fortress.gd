@@ -23,6 +23,7 @@ var check: float = 0.0
 var center: Vector3 = Vector3.ZERO
 var rects: Array = []
 var place_houses: bool = false
+var houses: Array = []
 
 
 func setup(terrain_node, player_node, seed_value: int) -> void:
@@ -176,9 +177,10 @@ func _house(site: Dictionary) -> void:
 	var d: int = site["d"]
 	var cx: float = center.x + float(site["x"])
 	var cz: float = center.z + float(site["z"])
+	var dirs: Array = [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]
+	var door_dir: Vector2i = dirs[site["side"]]
+	houses.append({"cx": floori(cx), "cz": floori(cz), "w": w, "d": d, "dir": door_dir})
 	if place_houses:
-		var dirs: Array = [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]
-		var door_dir: Vector2i = dirs[site["side"]]
 		House.build_blocks(get_parent(), floori(cx), floori(cz), floor_y, w, d, door_dir)
 	var fw := float(w)
 	var fd := float(d)

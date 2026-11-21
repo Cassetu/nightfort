@@ -20,6 +20,7 @@ var center: Vector3 = Vector3.ZERO
 var check: float = 0.0
 var rects: Array = []
 var place_houses: bool = false
+var houses: Array = []
 
 
 func setup(terrain_node, player_node, seed_value: int) -> void:
@@ -73,13 +74,14 @@ func _build_houses(rng: RandomNumberGenerator) -> void:
 				continue
 			placed_count += 1
 			var pos := Vector3(center.x + px, float(floor_y), center.z + pz)
+			var inward := Vector2(-px, -pz)
+			var door_dir := Vector2i(0, 0)
+			if absf(inward.x) > absf(inward.y):
+				door_dir = Vector2i(int(signf(inward.x)), 0)
+			else:
+				door_dir = Vector2i(0, int(signf(inward.y)))
+			houses.append({"cx": floori(pos.x), "cz": floori(pos.z), "w": w, "d": d, "dir": door_dir})
 			if place_houses:
-				var inward := Vector2(-px, -pz)
-				var door_dir := Vector2i(0, 0)
-				if absf(inward.x) > absf(inward.y):
-					door_dir = Vector2i(int(signf(inward.x)), 0)
-				else:
-					door_dir = Vector2i(0, int(signf(inward.y)))
 				House.build_blocks(self.get_parent(), floori(pos.x), floori(pos.z), floor_y, w, d, door_dir)
 			var half := float(maxi(w, d)) * 0.5 + 1.4
 			rects.append(Rect2(pos.x - half, pos.z - half, half * 2.0, half * 2.0))

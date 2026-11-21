@@ -249,7 +249,7 @@ static func _tune_wet(mat: StandardMaterial3D, base: StandardMaterial3D) -> void
 
 
 static func apply_wetness(level: float) -> void:
-	if absf(level - wet_level) < 0.004:
+	if absf(level - wet_level) < 0.004 and not (level <= 0.0 and wet_level > 0.0):
 		return
 	wet_level = level
 	for key in _wet_materials:

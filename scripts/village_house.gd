@@ -4,7 +4,16 @@ const TORCH_SCENE := "res://scenes/torch.tscn"
 const WALL_H := 3
 
 
+static var taken: Dictionary = {}
+static var checking: bool = false
+
+
 static func _put(world, type: String, x: int, y: int, z: int, yaw: float = 0.0) -> void:
+	if checking:
+		var cell := Vector3i(x, y, z)
+		if taken.has(cell):
+			return
+		taken[cell] = true
 	world.restore_block(type, Vector3(x + 0.5, y + 0.5, z + 0.5), yaw)
 
 
@@ -16,6 +25,24 @@ static func build_blocks(world, cx: int, cz: int, floor_y: int, w: int, d: int, 
 	var hw := (w - 1) >> 1
 	var hd := (d - 1) >> 1
 	var door_cell := Vector2i(door_dir.x * hw, door_dir.y * hd)
+	checking = false
+	_shell(world, cx, cz, floor_y, hw, hd, door_dir, door_cell)
+	_furnishings(world, cx, cz, floor_y, hw, hd, door_dir, door_cell)
+
+
+static func furnish(world, cells: Dictionary, cx: int, cz: int, floor_y: int, w: int, d: int, door_dir: Vector2i) -> void:
+	var hw := (w - 1) >> 1
+	var hd := (d - 1) >> 1
+	var door_cell := Vector2i(door_dir.x * hw, door_dir.y * hd)
+	if not cells.has(Vector3i(cx + door_cell.x, floor_y + 1, cz + door_cell.y)):
+		return
+	taken = cells
+	checking = true
+	_furnishings(world, cx, cz, floor_y, hw, hd, door_dir, door_cell)
+	checking = false
+
+
+static func _shell(world, cx: int, cz: int, floor_y: int, hw: int, hd: int, door_dir: Vector2i, door_cell: Vector2i) -> void:
 	for i in range(-hw, hw + 1):
 		for j in range(-hd, hd + 1):
 			var edge_x := absi(i) == hw
@@ -35,6 +62,9 @@ static func build_blocks(world, cx: int, cz: int, floor_y: int, w: int, d: int, 
 						_put(world, "plank", cx + i, y, cz + j)
 					continue
 				_put(world, "wood" if corner else "plank", cx + i, y, cz + j)
+
+
+static func _furnishings(world, cx: int, cz: int, floor_y: int, hw: int, hd: int, door_dir: Vector2i, door_cell: Vector2i) -> void:
 	var out := door_cell + door_dir
 	_put(world, "stone_stairs", cx + out.x, floor_y, cz + out.y, _ascent_yaw(-door_dir.x, -door_dir.y))
 	var bed := Vector2i.ZERO
@@ -44,11 +74,17 @@ static func build_blocks(world, cx: int, cz: int, floor_y: int, w: int, d: int, 
 		bed = Vector2i(-door_dir.x * (hw - 1), -(hd - 1))
 	_put(world, "bed", cx + bed.x, floor_y + 1, cz + bed.y, 0.0)
 	var back := Vector2i(-door_dir.x * hw, -door_dir.y * hd)
-	var torch = load(TORCH_SCENE).instantiate()
-	torch.fixture = false
-	torch.wall_normal = Vector3(door_dir.x, 0.0, door_dir.y)
-	world.add_child(torch)
-	torch.global_position = Vector3(cx + back.x + door_dir.x + 0.5, floor_y + 2.5, cz + back.y + door_dir.y + 0.5)
+	var torch_cell := Vector3i(cx + back.x + door_dir.x, floor_y + 2, cz + back.y + door_dir.y)
+	var torch_free := true
+	if checking:
+		torch_free = not taken.has(torch_cell)
+		taken[torch_cell] = true
+	if torch_free:
+		var torch = load(TORCH_SCENE).instantiate()
+		torch.fixture = false
+		torch.wall_normal = Vector3(door_dir.x, 0.0, door_dir.y)
+		world.add_child(torch)
+		torch.global_position = Vector3(torch_cell) + Vector3(0.5, 0.5, 0.5)
 	_roof(world, cx, cz, floor_y, hw, hd)
 
 
